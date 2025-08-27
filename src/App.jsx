@@ -2,6 +2,7 @@ import React from 'react';
 import Dashboard from './components/Dashboard';
 import { BrowserRouter, Outlet,Route,Routes } from 'react-router';
 import Sidebar from './components/Sidebar';
+import AllStaff from './components/AllStaff';
 
 export default function App() {
   return (
@@ -10,7 +11,7 @@ export default function App() {
       <Routes>  
         <Route path="/" element={<Sidebar/>}> 
           <Route index element={<Dashboard/>} />
-          <Route path="/teacher" element={<h1>Teacher work in progress</h1>} />
+          <Route path="/teacher" element={<AllStaff/>} />
         </Route>
       </Routes>
     </BrowserRouter>
