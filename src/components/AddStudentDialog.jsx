@@ -596,6 +596,7 @@ export default function AddStudentDialog({ isOpen, onClose, onSubmit }) {
             <button
               type="submit"
               className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+              style={{ backgroundColor: '#463a7a', hover: { backgroundColor: '#3c3175' } }}
             >
               Add Student
             </button>

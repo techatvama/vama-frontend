@@ -89,6 +89,7 @@ export default function Dashboard() {
 
   // Data fetching
   useEffect(() => {
+    // http://localhost:8000/read-sheet
     api.get("/read-sheet")
       .then(res => {
         if (Array.isArray(res.data.data)) setRecords(res.data.data);
@@ -172,7 +173,8 @@ export default function Dashboard() {
                 placeholder="Search students..."
                 className="px-4 py-2 border rounded-md w-64"
               />
-              <button  onClick={()=> setaddaction(true)} className="bg-blue-600 text-white px-4 py-2 rounded-md">
+              <button  onClick={()=> setaddaction(true)} className="text-white px-4 py-2 rounded-md" 
+  style={{ backgroundColor: '#463a7a' }}>
                 Add New Student
               </button>
             </div>
