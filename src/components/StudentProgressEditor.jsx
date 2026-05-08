@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react'
+import React, { useState, useMemo, useCallback, useEffect } from 'react'
 import {
     FaUser,
     FaMusic,
@@ -13,8 +13,11 @@ import {
     FaLightbulb,
     FaHistory,
     FaComment,
-    FaTrash
+    FaTrash,
+    FaSearch,
+    FaExclamationTriangle
 } from 'react-icons/fa'
+import { api } from '../lib/api';
 
 // Status colors matching theme
 const STATUS_CONFIG = {
@@ -58,20 +61,22 @@ function CircularProgress({ value, size = 80, strokeWidth = 8 }) {
 }
 
 // Status Toggle Button
-function StatusToggle({ status, onChange, itemName }) {
+function StatusToggle({ status, onChange, itemName, disabled }) {
     const statuses = ['not-yet', 'in-progress', 'done']
-    const config = STATUS_CONFIG[status]
+    const config = STATUS_CONFIG[status] || STATUS_CONFIG['not-yet']
 
     const cycle = () => {
+        if (disabled) return
         const idx = statuses.indexOf(status)
-        onChange(statuses[(idx + 1) % 3])
+        onChange(statuses[(idx + 1) % statuses.length])
     }
 
     return (
         <button
             onClick={cycle}
+            disabled={disabled}
             aria-label={`Status for ${itemName}: ${config.label}. Click to change.`}
-            className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium border transition-all ${config.bg} ${config.text} ${config.border} hover:scale-105 active:scale-95`}
+            className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium border transition-all ${config.bg} ${config.text} ${config.border} ${disabled ? 'opacity-50' : 'hover:scale-105 active:scale-95'}`}
         >
             <span className={`w-2 h-2 rounded-full ${config.dot}`} />
             {config.label}
@@ -80,16 +85,22 @@ function StatusToggle({ status, onChange, itemName }) {
 }
 
 // Editable Text
-function EditableText({ value, onChange, placeholder = "Enter text...", className = "" }) {
+function EditableText({ value, onChange, placeholder = "Enter text...", className = "", disabled }) {
     const [editing, setEditing] = useState(false)
     const [text, setText] = useState(value)
 
+    useEffect(() => {
+        setText(value)
+    }, [value])
+
     const save = () => {
-        onChange(text)
-        setEditing(false)
+        if (text !== value) {
+            onChange(text);
+        }
+        setEditing(false);
     }
 
-    if (editing) {
+    if (editing && !disabled) {
         return (
             <div className="flex items-center gap-1">
                 <input
@@ -107,9 +118,9 @@ function EditableText({ value, onChange, placeholder = "Enter text...", classNam
 
     return (
         <span
-            onClick={() => setEditing(true)}
+            onClick={() => !disabled && setEditing(true)}
             className={`cursor-pointer hover:bg-slate-100 rounded px-1 -mx-1 ${className}`}
-            title="Click to edit"
+            title={disabled ? "" : "Click to edit"}
         >
             {value || <span className="text-slate-400 italic">{placeholder}</span>}
         </span>
@@ -117,19 +128,14 @@ function EditableText({ value, onChange, placeholder = "Enter text...", classNam
 }
 
 // Section Component
-function SyllabusSection({ section, onUpdate, onAddItem, onDeleteItem }) {
+function SyllabusSection({ section, onUpdateProgress, disabled }) {
     const [expanded, setExpanded] = useState(true)
 
-    const completedCount = section.items.filter(i => i.status === 'done').length
-    const totalWeight = section.items.reduce((sum, i) => sum + (i.weight || 1), 0)
-    const completedWeight = section.items.filter(i => i.status === 'done').reduce((sum, i) => sum + (i.weight || 1), 0)
+    const items = section.contents || []
+    const completedCount = items.filter(i => i.progress?.status === 'done').length
+    const totalWeight = items.reduce((sum, i) => sum + (i.weight || 1), 0)
+    const completedWeight = items.filter(i => i.progress?.status === 'done').reduce((sum, i) => sum + (i.weight || 1), 0)
     const progress = totalWeight > 0 ? (completedWeight / totalWeight) * 100 : 0
-
-    const updateItem = (idx, updates) => {
-        const newItems = [...section.items]
-        newItems[idx] = { ...newItems[idx], ...updates }
-        onUpdate({ ...section, items: newItems })
-    }
 
     return (
         <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
@@ -142,7 +148,7 @@ function SyllabusSection({ section, onUpdate, onAddItem, onDeleteItem }) {
                 <div className="flex items-center gap-2">
                     {expanded ? <FaChevronDown size={12} /> : <FaChevronRight size={12} />}
                     <h3 className="font-semibold text-slate-800 text-sm sm:text-base">{section.name}</h3>
-                    <span className="text-xs text-slate-500">({completedCount}/{section.items.length})</span>
+                    <span className="text-xs text-slate-500">({completedCount}/{items.length})</span>
                 </div>
                 <div className="flex items-center gap-3">
                     <div className="hidden sm:flex items-center gap-2">
@@ -154,417 +160,336 @@ function SyllabusSection({ section, onUpdate, onAddItem, onDeleteItem }) {
                         </div>
                         <span className="text-xs font-medium text-slate-600">{Math.round(progress)}%</span>
                     </div>
-                    <span className="text-xs bg-[#463a7a]/10 text-[#463a7a] px-2 py-0.5 rounded font-medium">
-                        {section.weight}%
-                    </span>
                 </div>
             </button>
 
             {/* Items */}
             {expanded && (
                 <div className="divide-y divide-slate-100">
-                    {section.items.map((item, idx) => (
+                    {items.length === 0 && (
+                        <div className="p-4 text-center text-slate-400 text-sm italic">No items in this section</div>
+                    )}
+                    {items.map((item) => (
                         <div key={item.id} className="p-3 sm:p-4 hover:bg-slate-50/50 transition-colors">
                             <div className="flex items-start justify-between gap-3">
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 flex-wrap">
-                                        <EditableText
-                                            value={item.name}
-                                            onChange={(name) => updateItem(idx, { name })}
-                                            className="font-medium text-slate-800"
-                                        />
-                                        {item.weight && (
-                                            <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">
-                                                ×{item.weight}
-                                            </span>
-                                        )}
+                                        <span className="font-medium text-slate-800">{item.name}</span>
+                                        <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded capitalize">
+                                            {item.content_type}
+                                        </span>
                                     </div>
-                                    {item.notes !== undefined && (
-                                        <EditableText
-                                            value={item.notes}
-                                            onChange={(notes) => updateItem(idx, { notes })}
-                                            placeholder="Add notes..."
-                                            className="text-xs text-slate-500 mt-1 block"
-                                        />
-                                    )}
-                                    {item.completedDate && (
+                                    <EditableText
+                                        value={item.progress?.notes || ""}
+                                        onChange={(notes) => onUpdateProgress(item.id, { notes })}
+                                        placeholder="Add notes..."
+                                        disabled={disabled}
+                                        className="text-xs text-slate-500 mt-1 block"
+                                    />
+                                    {item.progress?.completed_at && (
                                         <span className="text-[10px] text-emerald-600 mt-1 block">
-                                            ✓ Completed {item.completedDate}
+                                            ✓ Completed {new Date(item.progress.completed_at).toLocaleDateString()}
                                         </span>
                                     )}
                                 </div>
                                 <div className="flex items-center gap-2 flex-shrink-0">
                                     <StatusToggle
-                                        status={item.status}
+                                        status={item.progress?.status || 'not-yet'}
                                         itemName={item.name}
-                                        onChange={(status) => updateItem(idx, {
+                                        disabled={disabled}
+                                        onChange={(status) => onUpdateProgress(item.id, {
                                             status,
-                                            completedDate: status === 'done' ? new Date().toLocaleDateString() : null
+                                            completed_at: status === 'done' ? new Date().toISOString() : null
                                         })}
                                     />
-                                    <button
-                                        onClick={() => onDeleteItem(section.id, item.id)}
-                                        className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
-                                        aria-label={`Delete ${item.name}`}
-                                    >
-                                        <FaTrash size={12} />
-                                    </button>
                                 </div>
                             </div>
                         </div>
                     ))}
-
-                    {/* Add Item Row */}
-                    <button
-                        onClick={() => onAddItem(section.id)}
-                        className="w-full p-3 text-sm text-[#463a7a] hover:bg-[#463a7a]/5 flex items-center justify-center gap-2 transition-colors"
-                    >
-                        <FaPlus size={12} /> Add Item
-                    </button>
                 </div>
             )}
         </div>
     )
 }
 
-// Add Item Modal
-function AddItemModal({ isOpen, onClose, onAdd, sectionName }) {
-    const [name, setName] = useState('')
-    const [weight, setWeight] = useState(1)
-    const [notes, setNotes] = useState('')
+// Main Component
+export default function StudentProgressEditor({ studentIdFromProps }) {
+    const [students, setStudents] = useState([])
+    const [selectedStudentId, setSelectedStudentId] = useState(studentIdFromProps || '')
+    const [data, setData] = useState(null)
+    const [loading, setLoading] = useState(false)
+    const [error, setError] = useState(null)
+    const [updating, setUpdating] = useState(false)
 
-    if (!isOpen) return null
+    // Fetch students on mount
+    useEffect(() => {
+        if (studentIdFromProps) return; // Don't fetch list if ID is provided
+        const fetchStudents = async () => {
+            try {
+                const res = await api.get(`/students`)
+                setStudents(res.data)
+                if (res.data.length > 0 && !selectedStudentId) {
+                    setSelectedStudentId(res.data[0].id)
+                }
+            } catch (err) {
+                console.error("Error fetching students:", err)
+            }
+        }
+        fetchStudents()
+    }, [studentIdFromProps])
 
-    const handleSubmit = (e) => {
-        e.preventDefault()
-        if (!name.trim()) return
-        onAdd({ name: name.trim(), weight, notes, status: 'not-yet', id: Date.now() })
-        setName('')
-        setWeight(1)
-        setNotes('')
-        onClose()
+    // Fetch progress when student changes
+    useEffect(() => {
+        const studentId = studentIdFromProps || selectedStudentId;
+        if (!studentId) return
+
+        const fetchProgress = async () => {
+            setLoading(true)
+            setError(null)
+            try {
+                const res = await api.get(`/students/${studentId}/progress`)
+                setData(res.data)
+            } catch (err) {
+                setError("Failed to load progress data")
+                console.error(err)
+            } finally {
+                setLoading(false)
+            }
+        }
+        fetchProgress()
+    }, [selectedStudentId, studentIdFromProps])
+
+    const updateProgress = async (contentId, updates) => {
+        setUpdating(true)
+        try {
+            await api.post(`/students/${selectedStudentId}/progress/${contentId}`, updates)
+
+            // Optimistic update or refetch
+            setData(prev => {
+                const newData = { ...prev }
+                newData.syllabus.modules = newData.syllabus.modules.map(m => ({
+                    ...m,
+                    contents: m.contents.map(c =>
+                        c.id === contentId ? { ...c, progress: { ...c.progress, ...updates } } : c
+                    )
+                }))
+                return newData
+            })
+        } catch (err) {
+            console.error("Failed to update progress:", err)
+            // Revert or show alert
+        } finally {
+            setUpdating(false)
+        }
     }
 
-    return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
-            <div className="bg-white rounded-xl w-full max-w-md p-5 shadow-xl" onClick={e => e.stopPropagation()}>
-                <h3 className="text-lg font-semibold text-slate-800 mb-4">Add Item to {sectionName}</h3>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">Item Name *</label>
-                        <input
-                            autoFocus
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            className="w-full rounded-lg border-slate-300 focus:border-[#463a7a] focus:ring-[#463a7a]"
-                            placeholder="e.g., Moonlight Sonata"
-                            required
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">Weight</label>
-                        <input
-                            type="number"
-                            min="1"
-                            max="10"
-                            value={weight}
-                            onChange={(e) => setWeight(Number(e.target.value))}
-                            className="w-24 rounded-lg border-slate-300 focus:border-[#463a7a] focus:ring-[#463a7a]"
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">Notes</label>
-                        <textarea
-                            value={notes}
-                            onChange={(e) => setNotes(e.target.value)}
-                            rows={2}
-                            className="w-full rounded-lg border-slate-300 focus:border-[#463a7a] focus:ring-[#463a7a]"
-                            placeholder="Optional notes..."
-                        />
-                    </div>
-                    <div className="flex justify-end gap-2 pt-2">
-                        <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-lg">
-                            Cancel
-                        </button>
-                        <button
-                            type="submit"
-                            className="px-4 py-2 text-sm font-medium text-white bg-[#463a7a] hover:bg-[#5a4a9f] rounded-lg"
-                        >
-                            Add Item
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    )
-}
-
-// Main Component
-export default function StudentProgressEditor() {
-    // Sample student data
-    const [student] = useState({
-        name: 'Sarah Johnson',
-        avatar: null,
-        instrument: 'Piano',
-        grade: 'Grade 5'
-    })
-
-    // Syllabus sections with weighted progress
-    const [sections, setSections] = useState([
-        {
-            id: 1,
-            name: 'Songs & Pieces',
-            weight: 40,
-            items: [
-                { id: 1, name: 'Für Elise - Beethoven', status: 'done', weight: 2, notes: 'Excellent dynamics', completedDate: '12/10/2024' },
-                { id: 2, name: 'Minuet in G - Bach', status: 'in-progress', weight: 1, notes: '' },
-                { id: 3, name: 'Clair de Lune', status: 'not-yet', weight: 3, notes: '' }
-            ]
-        },
-        {
-            id: 2,
-            name: 'Technical Exercises',
-            weight: 35,
-            items: [
-                { id: 4, name: 'C Major Scale (2 octaves)', status: 'done', weight: 1, completedDate: '12/05/2024' },
-                { id: 5, name: 'G Major Scale (2 octaves)', status: 'done', weight: 1, completedDate: '12/08/2024' },
-                { id: 6, name: 'Arpeggios - C, G, F', status: 'in-progress', weight: 2 },
-                { id: 7, name: 'Chromatic Scale', status: 'not-yet', weight: 1 }
-            ]
-        },
-        {
-            id: 3,
-            name: 'Supporting Tests',
-            weight: 25,
-            items: [
-                { id: 8, name: 'Sight Reading Test', status: 'not-yet', weight: 2 },
-                { id: 9, name: 'Aural Skills Assessment', status: 'in-progress', weight: 2 },
-                { id: 10, name: 'Music Theory Quiz', status: 'done', weight: 1, completedDate: '12/01/2024' }
-            ]
-        }
-    ])
-
-    const [history, setHistory] = useState([
-        { date: '12/10/2024', action: 'Marked "Für Elise" as Done', teacher: 'Mr. Smith' },
-        { date: '12/08/2024', action: 'Added practice notes for Minuet in G', teacher: 'Mr. Smith' }
-    ])
-
-    const [comments, setComments] = useState('')
-    const [addModal, setAddModal] = useState({ open: false, sectionId: null, sectionName: '' })
-
-    // Calculate overall progress
+    // Calculate overall progress from data
     const overallProgress = useMemo(() => {
+        if (!data?.syllabus?.modules) return 0
         let totalWeighted = 0
         let completedWeighted = 0
 
-        sections.forEach(section => {
-            const sectionTotal = section.items.reduce((sum, i) => sum + (i.weight || 1), 0)
-            const sectionCompleted = section.items.filter(i => i.status === 'done').reduce((sum, i) => sum + (i.weight || 1), 0)
-            const sectionProgress = sectionTotal > 0 ? sectionCompleted / sectionTotal : 0
-            completedWeighted += sectionProgress * section.weight
-            totalWeighted += section.weight
+        data.syllabus.modules.forEach(module => {
+            const moduleItems = module.contents || []
+            const moduleTotal = moduleItems.reduce((sum, i) => sum + (i.weight || 1), 0)
+            const moduleCompleted = moduleItems.filter(i => i.progress?.status === 'done').reduce((sum, i) => sum + (i.weight || 1), 0)
+            const moduleProgressPct = moduleTotal > 0 ? moduleCompleted / moduleTotal : 0
+
+            // Use module weight if available, else equal weight
+            const mWeight = module.weight || 100 / data.syllabus.modules.length
+            completedWeighted += moduleProgressPct * mWeight
+            totalWeighted += mWeight
         })
 
         return totalWeighted > 0 ? (completedWeighted / totalWeighted) * 100 : 0
-    }, [sections])
+    }, [data])
 
-    const updateSection = useCallback((updatedSection) => {
-        setSections(prev => prev.map(s => s.id === updatedSection.id ? updatedSection : s))
-        setHistory(prev => [{ date: new Date().toLocaleDateString(), action: 'Updated progress', teacher: 'Current Teacher' }, ...prev.slice(0, 9)])
-    }, [])
-
-    const addItemToSection = (sectionId) => {
-        const section = sections.find(s => s.id === sectionId)
-        setAddModal({ open: true, sectionId, sectionName: section?.name || '' })
+    if (loading && !data) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-50">
+                <div className="flex flex-col items-center gap-4">
+                    <div className="w-12 h-12 border-4 border-[#463a7a]/20 border-t-[#463a7a] rounded-full animate-spin" />
+                    <p className="text-slate-600 font-medium">Loading progress data...</p>
+                </div>
+            </div>
+        )
     }
 
-    const handleAddItem = (item) => {
-        setSections(prev => prev.map(s =>
-            s.id === addModal.sectionId
-                ? { ...s, items: [...s.items, item] }
-                : s
-        ))
-    }
-
-    const deleteItem = (sectionId, itemId) => {
-        setSections(prev => prev.map(s =>
-            s.id === sectionId
-                ? { ...s, items: s.items.filter(i => i.id !== itemId) }
-                : s
-        ))
-    }
-
-    const markAllDone = (sectionId) => {
-        setSections(prev => prev.map(s =>
-            s.id === sectionId
-                ? { ...s, items: s.items.map(i => ({ ...i, status: 'done', completedDate: new Date().toLocaleDateString() })) }
-                : s
-        ))
-    }
-
-    const resetSection = (sectionId) => {
-        setSections(prev => prev.map(s =>
-            s.id === sectionId
-                ? { ...s, items: s.items.map(i => ({ ...i, status: 'not-yet', completedDate: null })) }
-                : s
-        ))
+    if (error) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6">
+                <div className="bg-white p-8 rounded-2xl shadow-xl max-w-md text-center">
+                    <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <FaExclamationTriangle size={32} />
+                    </div>
+                    <h2 className="text-2xl font-bold text-slate-800 mb-2">Oops!</h2>
+                    <p className="text-slate-600 mb-6">{error}</p>
+                    <button
+                        onClick={() => window.location.reload()}
+                        className="px-6 py-2 bg-[#463a7a] text-white rounded-lg font-medium hover:bg-[#5a4a9f] transition-colors"
+                    >
+                        Try Again
+                    </button>
+                </div>
+            </div>
+        )
     }
 
     return (
         <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8">
             <div className="max-w-7xl mx-auto">
-                {/* Student Header */}
-                <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-6 mb-6 shadow-sm">
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6">
-                        {/* Avatar & Info */}
-                        <div className="flex items-center gap-4 flex-1">
-                            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-br from-[#463a7a] to-[#7c3aed] flex items-center justify-center text-white text-xl font-bold flex-shrink-0">
-                                {student.name.split(' ').map(n => n[0]).join('')}
+                {/* Header with Student Selector */}
+                {!studentIdFromProps && (
+                    <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-6 mb-6 shadow-sm">
+                        <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
+                            {/* Student Selection */}
+                            <div className="flex-1 w-full">
+                                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Select Student</label>
+                                <div className="relative">
+                                    <select
+                                        value={selectedStudentId}
+                                        onChange={(e) => setSelectedStudentId(e.target.value)}
+                                        className="w-full md:w-80 appearance-none bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 pr-10 focus:outline-none focus:ring-2 focus:ring-[#463a7a]/20 focus:border-[#463a7a] transition-all font-semibold text-slate-800"
+                                    >
+                                        <option value="" disabled>Select a student...</option>
+                                        {students.map(s => (
+                                            <option key={s.id} value={s.id}>{s.first_name} {s.last_name}</option>
+                                        ))}
+                                    </select>
+                                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                                        <FaChevronDown size={14} />
+                                    </div>
+                                </div>
                             </div>
+
+                            {/* Progress Meter */}
+                            {data && (
+                                <div className="flex items-center gap-6 bg-slate-50 p-4 rounded-xl border border-slate-100 flex-shrink-0">
+                                    <CircularProgress value={overallProgress} size={64} />
+                                    <div>
+                                        <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Overall Progress</h4>
+                                        <div className="text-2xl font-bold text-[#463a7a]">{Math.round(overallProgress)}%</div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {studentIdFromProps && data && (
+                    <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-6 mb-6 shadow-sm flex items-center justify-between">
+                        <div>
+                            <h2 className="text-2xl font-bold text-slate-800">{data.student.name} Progress</h2>
+                            <p className="text-slate-500">Managing syllabus completion and notes</p>
+                        </div>
+                        <div className="flex items-center gap-6 bg-slate-50 p-4 rounded-xl border border-slate-100 flex-shrink-0">
+                            <CircularProgress value={overallProgress} size={64} />
                             <div>
-                                <h1 className="text-xl sm:text-2xl font-bold text-slate-800">{student.name}</h1>
-                                <div className="flex items-center gap-2 mt-1 text-sm text-slate-600">
-                                    <FaMusic size={12} className="text-[#463a7a]" />
-                                    <span>{student.instrument}</span>
-                                    <span className="text-slate-300">•</span>
-                                    <span>{student.grade}</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Progress Meters */}
-                        <div className="flex items-center gap-4 sm:gap-6 w-full sm:w-auto">
-                            <CircularProgress value={overallProgress} size={70} />
-                            <div className="flex-1 sm:w-40">
-                                <div className="flex justify-between text-xs text-slate-600 mb-1">
-                                    <span>Overall Progress</span>
-                                    <span className="font-semibold">{Math.round(overallProgress)}%</span>
-                                </div>
-                                <div className="h-3 bg-slate-200 rounded-full overflow-hidden">
-                                    <div
-                                        className="h-full bg-gradient-to-r from-[#463a7a] to-[#7c3aed] transition-all duration-700 ease-out"
-                                        style={{ width: `${overallProgress}%` }}
-                                    />
-                                </div>
+                                <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Overall Progress</h4>
+                                <div className="text-2xl font-bold text-[#463a7a]">{Math.round(overallProgress)}%</div>
                             </div>
                         </div>
                     </div>
-                </div>
+                )}
 
-                {/* Main Layout */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    {/* Left Column - Syllabus */}
-                    <div className="lg:col-span-2 space-y-4">
-                        <h2 className="text-lg font-semibold text-slate-800">Syllabus Progress</h2>
-                        {sections.map(section => (
-                            <SyllabusSection
-                                key={section.id}
-                                section={section}
-                                onUpdate={updateSection}
-                                onAddItem={addItemToSection}
-                                onDeleteItem={deleteItem}
-                            />
-                        ))}
+                {!data ? (
+                    <div className="bg-white rounded-2xl border border-dashed border-slate-300 p-12 text-center">
+                        <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-300">
+                            <FaUser size={40} />
+                        </div>
+                        <h3 className="text-xl font-bold text-slate-800 mb-2">No Student Selected</h3>
+                        <p className="text-slate-500">Please select a student from the menu above to view and track their progress.</p>
                     </div>
+                ) : (
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        {/* Left Column - Syllabus */}
+                        <div className="lg:col-span-2 space-y-4">
+                            <div className="flex items-center justify-between mb-2">
+                                <h2 className="text-xl font-bold text-slate-800">Syllabus: {data.syllabus?.name}</h2>
+                                {updating && <span className="text-xs text-[#463a7a] animate-pulse font-medium">Saving...</span>}
+                            </div>
+                            {data.syllabus?.modules.sort((a, b) => a.order - b.order).map(module => (
+                                <SyllabusSection
+                                    key={module.id}
+                                    section={module}
+                                    onUpdateProgress={updateProgress}
+                                    disabled={updating}
+                                />
+                            ))}
+                        </div>
 
-                    {/* Right Column - Actions & Info */}
-                    <div className="space-y-4">
-                        {/* Quick Actions */}
-                        <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
-                            <h3 className="font-semibold text-slate-800 mb-3">Quick Actions</h3>
-                            <div className="space-y-2">
-                                {sections.map(s => (
-                                    <div key={s.id} className="flex items-center gap-2">
-                                        <span className="text-xs text-slate-600 flex-1 truncate">{s.name}</span>
-                                        <button
-                                            onClick={() => markAllDone(s.id)}
-                                            className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded text-xs"
-                                            title="Mark all done"
-                                        >
-                                            <FaCheck size={10} />
-                                        </button>
-                                        <button
-                                            onClick={() => resetSection(s.id)}
-                                            className="p-1.5 text-slate-400 hover:bg-slate-100 rounded text-xs"
-                                            title="Reset"
-                                        >
-                                            <FaUndo size={10} />
-                                        </button>
+                        {/* Right Column - Stats & History */}
+                        <div className="space-y-6">
+                            {/* Student Profile Quick View */}
+                            <div className="bg-gradient-to-br from-[#463a7a] to-[#7c3aed] rounded-2xl p-6 text-white shadow-lg overflow-hidden relative">
+                                <div className="relative z-10">
+                                    <div className="w-16 h-16 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center text-2xl font-bold mb-4">
+                                        {data.student.name.split(' ').map(n => n[0]).join('')}
                                     </div>
-                                ))}
+                                    <h3 className="text-2xl font-bold mb-1">{data.student.name}</h3>
+                                    <div className="flex items-center gap-2 text-white/80 text-sm">
+                                        <FaMusic size={12} />
+                                        <span>{data.student.instrument || 'Piano'}</span>
+                                        <span className="opacity-50 text-xs">•</span>
+                                        <span>Grade {data.student.grade || 'N/A'}</span>
+                                    </div>
+                                </div>
+                                {/* Decorative circle */}
+                                <div className="absolute -right-8 -bottom-8 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
                             </div>
-                            <button className="w-full mt-3 p-2 text-sm text-[#463a7a] bg-[#463a7a]/5 hover:bg-[#463a7a]/10 rounded-lg flex items-center justify-center gap-2">
-                                <FaLightbulb size={12} /> Suggest Practice Plan
-                            </button>
-                        </div>
 
-                        {/* Progress Breakdown */}
-                        <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
-                            <h3 className="font-semibold text-slate-800 mb-3">Progress Breakdown</h3>
-                            <div className="space-y-3 text-sm">
-                                {sections.map(s => {
-                                    const total = s.items.reduce((sum, i) => sum + (i.weight || 1), 0)
-                                    const done = s.items.filter(i => i.status === 'done').reduce((sum, i) => sum + (i.weight || 1), 0)
-                                    const pct = total > 0 ? (done / total) * 100 : 0
-                                    const contrib = (pct / 100) * s.weight
+                            {/* Progress Breakdown */}
+                            <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
+                                <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                                    <div className="w-1 h-4 bg-[#463a7a] rounded-full" />
+                                    Module Breakdown
+                                </h3>
+                                <div className="space-y-4">
+                                    {data.syllabus.modules.map(module => {
+                                        const items = module.contents || []
+                                        const done = items.filter(i => i.progress?.status === 'done').length
+                                        const pct = items.length > 0 ? (done / items.length) * 100 : 0
 
-                                    return (
-                                        <div key={s.id} className="flex items-center justify-between text-xs">
-                                            <span className="text-slate-600 truncate flex-1">{s.name}</span>
-                                            <span className="text-slate-500 px-2">{s.items.filter(i => i.status === 'done').length}/{s.items.length}</span>
-                                            <span className="font-medium text-slate-700 w-10 text-right">{Math.round(pct)}%</span>
-                                            <span className="text-[#463a7a] font-semibold w-12 text-right">+{contrib.toFixed(1)}%</span>
-                                        </div>
-                                    )
-                                })}
-                                <div className="border-t pt-2 flex justify-between font-semibold">
-                                    <span>Total</span>
-                                    <span className="text-[#463a7a]">{Math.round(overallProgress)}%</span>
+                                        return (
+                                            <div key={module.id} className="space-y-1.5">
+                                                <div className="flex justify-between text-xs font-medium">
+                                                    <span className="text-slate-600">{module.name}</span>
+                                                    <span className="text-[#463a7a]">{done}/{items.length}</span>
+                                                </div>
+                                                <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                                                    <div
+                                                        className="h-full bg-[#463a7a] transition-all duration-500"
+                                                        style={{ width: `${pct}%` }}
+                                                    />
+                                                </div>
+                                            </div>
+                                        )
+                                    })}
                                 </div>
                             </div>
-                        </div>
 
-                        {/* History */}
-                        <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
-                            <h3 className="font-semibold text-slate-800 mb-3 flex items-center gap-2">
-                                <FaHistory size={12} /> Update History
-                            </h3>
-                            <div className="space-y-2 max-h-40 overflow-y-auto">
-                                {history.map((h, i) => (
-                                    <div key={i} className="text-xs text-slate-600 border-l-2 border-[#463a7a]/20 pl-2">
-                                        <span className="text-slate-400">{h.date}</span> — {h.action}
+                            {/* Action Cards */}
+                            <div className="grid grid-cols-1 gap-4">
+                                <button className="bg-white hover:bg-slate-50 border border-slate-200 p-4 rounded-xl shadow-sm text-left transition-all group">
+                                    <div className="w-10 h-10 bg-amber-50 rounded-lg flex items-center justify-center text-amber-600 mb-3 group-hover:scale-110 transition-transform">
+                                        <FaLightbulb size={18} />
                                     </div>
-                                ))}
+                                    <h4 className="font-bold text-slate-800 text-sm mb-1">Practice Insights</h4>
+                                    <p className="text-xs text-slate-500">Generate a personalized practice plan based on current progress.</p>
+                                </button>
+
+                                <button className="bg-white hover:bg-slate-50 border border-slate-200 p-4 rounded-xl shadow-sm text-left transition-all group">
+                                    <div className="w-10 h-10 bg-indigo-50 rounded-lg flex items-center justify-center text-indigo-600 mb-3 group-hover:scale-110 transition-transform">
+                                        <FaHistory size={18} />
+                                    </div>
+                                    <h4 className="font-bold text-slate-800 text-sm mb-1">Full Activity Log</h4>
+                                    <p className="text-xs text-slate-500">Review detailed history of all status changes and teacher notes.</p>
+                                </button>
                             </div>
                         </div>
-
-                        {/* Teacher Comments */}
-                        <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
-                            <h3 className="font-semibold text-slate-800 mb-3 flex items-center gap-2">
-                                <FaComment size={12} /> Teacher Notes
-                            </h3>
-                            <textarea
-                                value={comments}
-                                onChange={(e) => setComments(e.target.value)}
-                                placeholder="Add notes for parents/students..."
-                                rows={3}
-                                className="w-full text-sm rounded-lg border-slate-300 focus:border-[#463a7a] focus:ring-[#463a7a]"
-                            />
-                            <button className="mt-2 w-full p-2 text-sm font-medium text-white bg-[#463a7a] hover:bg-[#5a4a9f] rounded-lg">
-                                Save Notes
-                            </button>
-                        </div>
                     </div>
-                </div>
+                )}
             </div>
-
-            {/* Add Item Modal */}
-            <AddItemModal
-                isOpen={addModal.open}
-                onClose={() => setAddModal({ open: false, sectionId: null, sectionName: '' })}
-                onAdd={handleAddItem}
-                sectionName={addModal.sectionName}
-            />
         </div>
     )
 }

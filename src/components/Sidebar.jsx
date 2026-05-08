@@ -20,7 +20,8 @@ import {
   FaPalette,
   FaBars,
   FaTimes,
-  FaBolt
+  FaBolt,
+  FaAward
 } from "react-icons/fa";
 import { Link, Outlet, useLocation } from "react-router";
 
@@ -67,16 +68,30 @@ export default function Sidebar() {
       submenus: [
         { icon: FaListUl, label: "All Students", link: "/students" },
         { icon: FaUserPlus, label: "Add Student", link: "/students/add" },
+        { icon: FaUserCog, label: "Student Progress", link: "/students/progress" },
         { icon: FaBook, label: "Enrollments", link: "/students/enrollments" },
       ]
     },
     {
       icon: FaCreditCard,
       label: "Payments",
-      link: "/payments",
+      link: "/admin/payments",
       submenus: [
-        { icon: FaReceipt, label: "Invoices", link: "/payments" },
-        { icon: FaHistory, label: "History", link: "/payments/history" },
+        { icon: FaReceipt, label: "Invoices", link: "/admin/payments" },
+        { icon: FaHistory, label: "History", link: "/admin/payments" },
+      ]
+    },
+    {
+      icon: FaBook,
+      label: "Curriculum",
+      link: "/admin/curriculum",
+      submenus: [
+        { icon: FaListUl, label: "Dashboard", link: "/admin/curriculum" },
+        { icon: FaBook, label: "Subjects", link: "/admin/subjects" },
+        { icon: FaAward, label: "Grades", link: "/admin/grades" },
+        { icon: FaUserCog, label: "Teacher Appt.", link: "/admin/teacher-assignments" },
+        { icon: FaFileAlt, label: "Exams", link: "/admin/exams" },
+        { icon: FaBolt, label: "Syllabus Builder", link: "/admin/syllabus" },
       ]
     },
     { icon: FaBell, label: "Notifications", link: "/notifications" },

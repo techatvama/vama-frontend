@@ -4,8 +4,11 @@ import { api } from "../lib/api";
 import Sidebar from "./Sidebar";
 import AddStudentDialog from "./AddStudentDialog";
 import { Search, ChevronLeft, ChevronRight, Edit, Loader2 } from "lucide-react";
+import { useNavigate } from "react-router";
 
 export default function Dashboard() {
+  const navigate = useNavigate();
+
   // State management
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -210,7 +213,16 @@ export default function Dashboard() {
                       </td>
                       {Object.keys(columnConfig).map((key) => (
                         <td key={key} className="px-6 py-4 text-sm text-slate-700 whitespace-nowrap">
-                          {record[key] || "—"}
+                          {key === 'First Name' || key === 'Last Name' ? (
+                            <button
+                              onClick={() => navigate(`/students/${record.id}`)}
+                              className="font-medium text-[#463a7a] hover:underline text-left"
+                            >
+                              {record[key] || "—"}
+                            </button>
+                          ) : (
+                            record[key] || "—"
+                          )}
                         </td>
                       ))}
                       <td className="px-6 py-4 text-right">

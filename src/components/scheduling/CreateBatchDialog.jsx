@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { X, Calendar as CalendarIcon, Clock, Users, Repeat } from 'lucide-react';
+import { X, Calendar as CalendarIcon, Clock, Users, Repeat, ChevronDown } from 'lucide-react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { api } from '../../lib/api';
 
 const cn = (...inputs) => twMerge(clsx(inputs));
 
-const SUBJECTS = ["Guitar", "Piano", "Drums", "Vocals", "Violin"];
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const RECURRENCE_TYPES = [
     { id: 'one-time', label: 'One-Time Class' },
@@ -15,11 +14,12 @@ const RECURRENCE_TYPES = [
 
 export default function CreateBatchDialog({ isOpen, onClose, onCreated }) {
     const [formData, setFormData] = useState({
-        subject: SUBJECTS[0],
+        subject: '',
         name: '',
         teacher_id: '',
         co_teacher_id: '',
         capacity: 10,
+        color_tag: '#8B5CF6', // Default purple color
         is_recurring: false,
         days_of_week: [],
         start_date: '',
@@ -28,24 +28,42 @@ export default function CreateBatchDialog({ isOpen, onClose, onCreated }) {
         end_time: '11:00'
     });
 
+    const [subjects, setSubjects] = useState([]);
     const [staff, setStaff] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [selectedSubjects, setSelectedSubjects] = useState([]);
+    const [additionalTeachers, setAdditionalTeachers] = useState([]); // array of staff_id numbers
 
     useEffect(() => {
         if (isOpen) {
-            fetchStaff();
+            fetchData();
+            setAdditionalTeachers([]);
+            setSelectedSubjects([]);
         }
     }, [isOpen]);
 
-    const fetchStaff = async () => {
+    const fetchData = async () => {
         try {
-            const res = await api.get('/staff');
-            setStaff(res.data);
-            if (res.data.length > 0) {
-                setFormData(prev => ({ ...prev, teacher_id: res.data[0].id }));
+            const [subjectRes, staffRes] = await Promise.all([
+                api.get('/admin/subjects'),
+                api.get('/staff')
+            ]);
+
+            const activeSubjects = subjectRes.data.filter(s => s.is_active);
+            setSubjects(activeSubjects);
+
+            const teachers = staffRes.data.filter(s => s.calendar === true);
+            setStaff(teachers);
+
+            if (activeSubjects.length > 0) {
+                setSelectedSubjects([activeSubjects[0].name]);
+                setFormData(prev => ({ ...prev, subject: activeSubjects[0].name }));
+            }
+            if (teachers.length > 0) {
+                setFormData(prev => ({ ...prev, teacher_id: teachers[0].id }));
             }
         } catch (e) {
-            console.error("Failed to fetch staff", e);
+            console.error("Failed to fetch data", e);
         }
     };
 
@@ -77,17 +95,34 @@ export default function CreateBatchDialog({ isOpen, onClose, onCreated }) {
                 return;
             }
 
+            if (selectedSubjects.length === 0) {
+                alert("Please select at least one subject");
+                setLoading(false);
+                return;
+            }
+
             const payload = {
                 ...formData,
+                subject: selectedSubjects.length === 1
+                    ? selectedSubjects[0]
+                    : JSON.stringify(selectedSubjects),
                 teacher_id: parseInt(formData.teacher_id),
-                co_teacher_id: formData.co_teacher_id ? parseInt(formData.co_teacher_id) : null,
+                co_teacher_id: additionalTeachers.length > 0 ? additionalTeachers[0] : null,
                 days_of_week: formData.is_recurring ? formData.days_of_week : null,
                 end_date: formData.is_recurring ? formData.end_date : null
             };
 
-            console.log("Creating batch with payload:", payload);
+            const batchRes = await api.post('/batches', payload);
+            const batchId = batchRes.data?.id;
 
-            await api.post('/batches', payload);
+            // Register additional teachers in batch_teachers table
+            if (batchId && additionalTeachers.length > 0) {
+                await Promise.all(
+                    additionalTeachers.map(sid =>
+                        api.post(`/batches/${batchId}/teachers`, null, { params: { staff_id: sid } })
+                    )
+                );
+            }
 
             onCreated();
             onClose();
@@ -135,15 +170,38 @@ export default function CreateBatchDialog({ isOpen, onClose, onCreated }) {
                     </div>
 
                     <div className="grid grid-cols-2 gap-6">
-                        {/* Subject */}
+                        {/* Subject — multi-select chips */}
                         <div className="space-y-2">
                             <label className="text-sm font-medium text-gray-700">Subject</label>
+                            {/* Chips */}
+                            <div className="flex flex-wrap gap-1.5 min-h-[36px]">
+                                {selectedSubjects.map(name => (
+                                    <span key={name} className="flex items-center gap-1 px-2.5 py-1 bg-[#463A7A]/10 text-[#463A7A] rounded-full text-xs font-semibold">
+                                        {name}
+                                        <button
+                                            type="button"
+                                            onClick={() => setSelectedSubjects(prev => prev.filter(s => s !== name))}
+                                            className="hover:text-red-500 transition-colors ml-0.5"
+                                        >
+                                            <X size={11} />
+                                        </button>
+                                    </span>
+                                ))}
+                            </div>
                             <select
-                                value={formData.subject}
-                                onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                                className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#463A7A] focus:border-[#463A7A] outline-none"
+                                value=""
+                                onChange={(e) => {
+                                    const val = e.target.value;
+                                    if (val && !selectedSubjects.includes(val)) {
+                                        setSelectedSubjects(prev => [...prev, val]);
+                                    }
+                                }}
+                                className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#463A7A] focus:border-[#463A7A] outline-none text-gray-500 text-sm"
                             >
-                                {SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
+                                <option value="">+ Add subject...</option>
+                                {subjects.filter(s => !selectedSubjects.includes(s.name)).map(s => (
+                                    <option key={s.id} value={s.name}>{s.name}</option>
+                                ))}
                             </select>
                         </div>
 
@@ -163,7 +221,7 @@ export default function CreateBatchDialog({ isOpen, onClose, onCreated }) {
                     </div>
 
                     {/* Teacher Selection */}
-                    <div className="grid grid-cols-2 gap-6">
+                    <div className="space-y-4">
                         <div className="space-y-2">
                             <label className="text-sm font-medium text-gray-700">Primary Teacher</label>
                             <select
@@ -176,15 +234,69 @@ export default function CreateBatchDialog({ isOpen, onClose, onCreated }) {
                             </select>
                         </div>
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-gray-700">Co-Teacher (Optional)</label>
+                            <label className="text-sm font-medium text-gray-700">Additional Teachers (Optional)</label>
+                            {/* Chip strip */}
+                            <div className="flex flex-wrap gap-2 min-h-[36px]">
+                                {additionalTeachers.map(sid => {
+                                    const member = staff.find(s => s.id === sid);
+                                    return member ? (
+                                        <span key={sid} className="flex items-center gap-1.5 px-3 py-1.5 bg-[#463A7A]/10 text-[#463A7A] rounded-full text-sm font-medium">
+                                            {member.name}
+                                            <button
+                                                type="button"
+                                                onClick={() => setAdditionalTeachers(prev => prev.filter(id => id !== sid))}
+                                                className="hover:text-red-500 transition-colors"
+                                            >
+                                                <X size={13} />
+                                            </button>
+                                        </span>
+                                    ) : null;
+                                })}
+                            </div>
+                            {/* Dropdown to add */}
                             <select
-                                value={formData.co_teacher_id}
-                                onChange={(e) => setFormData({ ...formData, co_teacher_id: e.target.value ? parseInt(e.target.value) : '' })}
-                                className="w-full p-2.5 border border-gray-300 rounded-lg outline-none focus:border-[#463A7A]"
+                                value=""
+                                onChange={(e) => {
+                                    const val = parseInt(e.target.value);
+                                    if (val && !additionalTeachers.includes(val) && val !== parseInt(formData.teacher_id)) {
+                                        setAdditionalTeachers(prev => [...prev, val]);
+                                    }
+                                }}
+                                className="w-full p-2.5 border border-gray-300 rounded-lg outline-none focus:border-[#463A7A] text-gray-500"
                             >
-                                <option value="">None</option>
-                                {staff.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                <option value="">+ Add teacher...</option>
+                                {staff
+                                    .filter(s => s.id !== parseInt(formData.teacher_id) && !additionalTeachers.includes(s.id))
+                                    .map(s => <option key={s.id} value={s.id}>{s.name} ({s.role})</option>)
+                                }
                             </select>
+                        </div>
+                    </div>
+
+                    {/* Color Tag */}
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium text-gray-700">Class Color Tag</label>
+                        <div className="flex gap-2 items-center flex-wrap">
+                            {['#8B5CF6', '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#EC4899', '#6366F1', '#14B8A6'].map(color => (
+                                <button
+                                    key={color}
+                                    type="button"
+                                    onClick={() => setFormData({ ...formData, color_tag: color })}
+                                    className={cn(
+                                        "w-10 h-10 rounded-lg border-2 transition-all hover:scale-110",
+                                        formData.color_tag === color ? "border-gray-800 shadow-lg scale-110" : "border-gray-200"
+                                    )}
+                                    style={{ backgroundColor: color }}
+                                    title={color}
+                                />
+                            ))}
+                            <input
+                                type="color"
+                                value={formData.color_tag}
+                                onChange={(e) => setFormData({ ...formData, color_tag: e.target.value })}
+                                className="w-10 h-10 rounded-lg border-2 border-gray-200 cursor-pointer"
+                                title="Custom color"
+                            />
                         </div>
                     </div>
 

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import { api } from '../../lib/api';
+import { parseSubject } from '../../lib/utils';
 import { X, UserPlus, Check, XCircle, Clock, Calendar, MoreVertical, Trash2 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -24,7 +25,7 @@ export default function SessionDetailDialog({ session, isOpen, onClose, onUpdate
     const fetchDetails = async () => {
         if (!session?.id) return;
         try {
-            const res = await axios.get(`http://localhost:8000/sessions/${session.id}`);
+            const res = await api.get(`/sessions/${session.id}`);
             const sessionData = res.data;
 
             if (sessionData.attendances && sessionData.attendances.length > 0) {
@@ -49,7 +50,7 @@ export default function SessionDetailDialog({ session, isOpen, onClose, onUpdate
 
     const fetchAllStudents = async () => {
         try {
-            const res = await axios.get('http://localhost:8000/students');
+            const res = await api.get('/students');
             setStudents(res.data);
         } catch (e) {
             console.error(e);
@@ -61,7 +62,7 @@ export default function SessionDetailDialog({ session, isOpen, onClose, onUpdate
             // Optimistic update
             setAttendanceState(prev => ({ ...prev, [studentId]: status }));
 
-            await axios.post(`http://localhost:8000/sessions/${session.id}/attendance`, {
+            await api.post(`/sessions/${session.id}/attendance`, {
                 student_id: studentId,
                 status: status
             });
@@ -77,6 +78,17 @@ export default function SessionDetailDialog({ session, isOpen, onClose, onUpdate
         }
     };
 
+    const removeStudent = async (studentId) => {
+        if (!session?.batch_id) return;
+        try {
+            await api.delete(`/batches/${session.batch_id}/students/${studentId}`);
+            setEnrolledStudents(prev => prev.filter(s => s.id !== studentId));
+            onUpdate();
+        } catch (e) {
+            console.error("Failed to remove student", e);
+        }
+    };
+
     if (!isOpen || !session) return null;
 
     const filteredStudents = students.filter(s =>
@@ -89,7 +101,7 @@ export default function SessionDetailDialog({ session, isOpen, onClose, onUpdate
                 {/* Header */}
                 <div className="p-6 border-b border-gray-100 bg-gray-50 flex justify-between items-start">
                     <div>
-                        <h2 className="text-xl font-bold text-gray-800">{session.batch?.subject || 'Class Details'}</h2>
+                        <h2 className="text-xl font-bold text-gray-800">{parseSubject(session.batch?.subject) || 'Class Details'}</h2>
                         <div className="flex items-center gap-4 mt-2 text-sm text-gray-600">
                             <div className="flex items-center gap-1">
                                 <Clock size={14} />
@@ -180,7 +192,7 @@ export default function SessionDetailDialog({ session, isOpen, onClose, onUpdate
                                         <div key={s.id} className="p-2 hover:bg-gray-50 cursor-pointer flex justify-between items-center border-b last:border-0"
                                             onClick={async () => {
                                                 try {
-                                                    await axios.post('http://localhost:8000/enrollments', {
+                                                    await api.post('/enrollments', {
                                                         student_id: s.id,
                                                         batch_id: session.batch_id,
                                                         enrollment_type: 'recurring'
@@ -203,7 +215,11 @@ export default function SessionDetailDialog({ session, isOpen, onClose, onUpdate
                                 {enrolledStudents.map(student => (
                                     <div key={student.id} className="flex justify-between items-center p-3 bg-white border border-gray-200 rounded-lg">
                                         <span>{student.first_name} {student.last_name}</span>
-                                        <button className="text-red-400 hover:text-red-600">
+                                        <button
+                                            onClick={() => removeStudent(student.id)}
+                                            className="text-red-400 hover:text-red-600"
+                                            title="Remove student from batch"
+                                        >
                                             <Trash2 size={16} />
                                         </button>
                                     </div>
@@ -219,6 +235,6 @@ export default function SessionDetailDialog({ session, isOpen, onClose, onUpdate
                     </button>
                 </div>
             </div>
-        </div>
+        </div >
     );
 }

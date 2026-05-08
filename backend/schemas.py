@@ -15,7 +15,7 @@ class StaffBase(BaseModel):
     takesClasses: Optional[bool] = True
 
 class StaffCreate(StaffBase):
-    pass
+    password: Optional[str] = None
 
 class StaffResponse(StaffBase):
     id: int
@@ -33,9 +33,16 @@ class StaffUpdate(BaseModel):
     firstName: Optional[str] = None
     lastName: Optional[str] = None
     takesClasses: Optional[bool] = None
+    password: Optional[str] = None
 
+class TeacherLogin(BaseModel):
+    email: EmailStr
+    password: str
 
-# Student Schemas
+class StudentLogin(BaseModel):
+    email: EmailStr
+    password: str
+
 # Student Schemas
 class StudentBase(BaseModel):
     first_name: str
@@ -57,9 +64,13 @@ class StudentBase(BaseModel):
     blood_group: Optional[str] = None
     allergies: Optional[str] = None
     referrer: Optional[str] = None
+    current_grade: Optional[str] = "Debut"
+    syllabus_type: Optional[str] = None
+    is_exam_student: Optional[bool] = False
+    exam_date: Optional[date] = None
 
 class StudentCreate(StudentBase):
-    pass
+    password: Optional[str] = None
 
 class StudentResponse(StudentBase):
     id: int
@@ -88,22 +99,35 @@ class StudentUpdate(BaseModel):
     blood_group: Optional[str] = None
     allergies: Optional[str] = None
     referrer: Optional[str] = None
+    current_grade: Optional[str] = None
+    syllabus_type: Optional[str] = None
+    is_exam_student: Optional[bool] = None
+    exam_date: Optional[date] = None
+    password: Optional[str] = None
 
+# Material Schemas
+class MaterialBase(BaseModel):
+    title: str
+    file_url: str
+    file_type: str # pdf, image, audio, video
+    student_id: Optional[int] = None
+
+class MaterialCreate(MaterialBase):
+    teacher_id: int
+
+class MaterialResponse(MaterialBase):
+    id: int
+    teacher_id: int
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
 
 # For /read-sheet endpoint compatibility
 class StudentDashboard(BaseModel):
-    """Timestamp": "Joined On",
-    "Email": "Email",
-    "First Name": "First Name",
-    "Last Name": "Last Name",
-    "Desired Course": "Course",
-    "Primary Phone Number": "Phone",
-    "Select your nearest Vama Center ": "Center"
-    """
     pass
 
 # Scheduling Schemas
-
 class AttendanceBase(BaseModel):
     student_id: int
     status: str = "present"
@@ -124,6 +148,8 @@ class AttendanceResponse(AttendanceBase):
 class EnrollmentBase(BaseModel):
     student_id: int
     enrollment_type: str = "recurring"
+    # JSON-encoded list of session IDs; None means all sessions (recurring)
+    session_ids: Optional[str] = None
 
 class EnrollmentCreate(EnrollmentBase):
     batch_id: int
@@ -133,7 +159,7 @@ class EnrollmentResponse(EnrollmentBase):
     batch_id: int
     created_at: datetime
     student: Optional[StudentResponse] = None
-    
+
     class Config:
         from_attributes = True
 
@@ -172,6 +198,7 @@ class BatchBase(BaseModel):
     subject: str
     name: Optional[str] = None
     capacity: int = 10
+    color_tag: Optional[str] = None
     is_recurring: bool = False
     days_of_week: Optional[List[str]] = None # List of days ["Mon", "Fri"]
     start_date: date
@@ -199,8 +226,141 @@ class BatchResponse(BatchBase):
     id: int
     created_at: datetime
     sessions: List[ClassSessionResponse] = []
-    enrollments: List[EnrollmentResponse] = []
-    
+    # enrollments removed — students are now tracked per session via batch_enrollments / session_ids
+
     class Config:
         from_attributes = True
 
+# Progress schemas
+class StudentProgressBase(BaseModel):
+    status: str = "not-yet"
+    notes: Optional[str] = None
+
+class StudentProgressCreate(StudentProgressBase):
+    content_id: int
+    student_id: int
+    completed_at: Optional[datetime] = None
+
+class StudentProgressResponse(StudentProgressBase):
+    id: int
+    content_id: int
+    student_id: int
+    completed_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+class ContentBase(BaseModel):
+    name: str
+    content_type: str
+    weight: int = 1
+    order: int = 0
+
+class ContentResponse(ContentBase):
+    id: int
+    module_id: int
+    progress: Optional[StudentProgressResponse] = None # Nested for specific student queries
+
+    class Config:
+        from_attributes = True
+
+class ModuleBase(BaseModel):
+    name: str
+    weight: int = 0
+    order: int = 0
+
+class ModuleResponse(ModuleBase):
+    id: int
+    syllabus_id: int
+    contents: List[ContentResponse] = []
+
+    class Config:
+        from_attributes = True
+
+class SyllabusBase(BaseModel):
+    name: str
+    description: Optional[str] = None
+
+class SyllabusResponse(SyllabusBase):
+    id: int
+    modules: List[ModuleResponse] = []
+
+    class Config:
+        from_attributes = True
+
+class StudentProgressUpdate(BaseModel):
+    status: Optional[str] = None
+    notes: Optional[str] = None
+    completed_at: Optional[datetime] = None
+
+# Payment Schemas
+class PaymentBase(BaseModel):
+    student_id: int
+    amount: float
+    payment_type: str = "Monthly Tuition"
+    description: Optional[str] = None
+    due_date: date
+    status: str = "pending"
+    payment_method: Optional[str] = None
+    transaction_id: Optional[str] = None
+
+class PaymentCreate(PaymentBase):
+    pass
+
+class PaymentUpdate(BaseModel):
+    amount: Optional[float] = None
+    payment_type: Optional[str] = None
+    description: Optional[str] = None
+    due_date: Optional[date] = None
+    status: Optional[str] = None
+    payment_method: Optional[str] = None
+    transaction_id: Optional[str] = None
+    paid_date: Optional[datetime] = None
+
+class PaymentResponse(PaymentBase):
+    id: int
+    issue_date: datetime
+    paid_date: Optional[datetime] = None
+    created_by: Optional[int] = None
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    student: Optional[StudentResponse] = None
+
+    class Config:
+        from_attributes = True
+
+
+# BatchEnrollment schemas
+class BatchEnrollmentCreate(BaseModel):
+    student_id: int
+    batch_id: int
+    enrolled_from: date
+
+class BatchEnrollmentResponse(BaseModel):
+    id: int
+    student_id: int
+    batch_id: int
+    enrolled_from: date
+    status: str
+    created_at: datetime
+    student: Optional[StudentResponse] = None
+
+    class Config:
+        from_attributes = True
+
+
+# BatchTeacher schemas
+class BatchTeacherCreate(BaseModel):
+    batch_id: int
+    staff_id: int
+
+class BatchTeacherResponse(BaseModel):
+    id: int
+    batch_id: int
+    staff_id: int
+    created_at: datetime
+    staff: Optional[StaffResponse] = None
+
+    class Config:
+        from_attributes = True
