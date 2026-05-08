@@ -15,7 +15,10 @@
       "Bash(python3 -c ' *)",
       "Bash(curl -s -X PUT http://localhost:8000/students/6 -H 'Content-Type: application/json' -d '{\"first_name\": \"Jeevan\", \"last_name\": \"M\"}')",
       "Bash(curl -s -X PUT http://localhost:8000/students/6 -H 'Content-Type: application/json' -d '{\"first_name\":\"Jeevan\",\"last_name\":\"M\"}')",
-      "Bash(curl -s -X PUT \"http://localhost:8000/students/6\" -H \"Content-Type: application/json\" -d '{\"first_name\":\"Jeevan\",\"last_name\":\"M\"}')"
+      "Bash(curl -s -X PUT \"http://localhost:8000/students/6\" -H \"Content-Type: application/json\" -d '{\"first_name\":\"Jeevan\",\"last_name\":\"M\"}')",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)"
     ]
   }
 }
