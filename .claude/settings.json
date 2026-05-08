@@ -12,7 +12,10 @@
       "Bash(curl -s \"http://localhost:8000/students/6\")",
       "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\('first_name:', d.get\\('first_name'\\)\\); print\\('last_name:', d.get\\('last_name'\\)\\)\")",
       "Bash(curl -s \"http://localhost:8000/students/7/progress\")",
-      "Bash(python3 -c ' *)"
+      "Bash(python3 -c ' *)",
+      "Bash(curl -s -X PUT http://localhost:8000/students/6 -H 'Content-Type: application/json' -d '{\"first_name\": \"Jeevan\", \"last_name\": \"M\"}')",
+      "Bash(curl -s -X PUT http://localhost:8000/students/6 -H 'Content-Type: application/json' -d '{\"first_name\":\"Jeevan\",\"last_name\":\"M\"}')",
+      "Bash(curl -s -X PUT \"http://localhost:8000/students/6\" -H \"Content-Type: application/json\" -d '{\"first_name\":\"Jeevan\",\"last_name\":\"M\"}')"
     ]
   }
 }

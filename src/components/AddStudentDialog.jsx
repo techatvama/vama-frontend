@@ -103,15 +103,19 @@ export default function AddStudentDialog({ isOpen, onClose, onSubmit, initialDat
     };
 
     try {
+      let updatedStudent = null;
       if (initialData && initialData.id) {
-        // Edit Mode
-        await api.put(`/students/${initialData.id}`, payload);
+        // Edit Mode — response is the full updated student object
+        const res = await api.put(`/students/${initialData.id}`, payload);
+        updatedStudent = res.data;
       } else {
         // Add Mode
         await api.post("/add-student", payload);
       }
 
-      if (onSubmit) onSubmit();
+      // Pass the updated student back so parent can update local state
+      // without a full re-fetch
+      if (onSubmit) await onSubmit(updatedStudent);
       onClose();
     } catch (err) {
       console.error("Error saving student:", err);

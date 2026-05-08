@@ -31,36 +31,46 @@ export default function Dashboard() {
     "Select your nearest Vama Center ": "Center"
   };
 
+  const mapStudent = (s) => ({
+    ...s,
+    "Timestamp": s.created_at ? new Date(s.created_at).toLocaleDateString() : "—",
+    "First Name": s.first_name || "—",
+    "Last Name": s.last_name || "—",
+    "Email": s.email || "—",
+    "Desired Course": s.desired_course || "—",
+    "Primary Phone Number": s.primary_phone_number || "—",
+    "Select your nearest Vama Center ": s.nearest_vama_center || "—",
+    "Address": s.address || "—",
+    "Gender": s.gender || "—",
+    "Date of Birth": s.date_of_birth || "—",
+    "Preferred Mode of Contact": s.preferred_mode_of_contact || "—"
+  });
+
   // Fetch Data
   const fetchStudents = async () => {
     setLoading(true);
     setError(null);
     try {
-      // Use the full students endpoint which gives us all details including IDs for editing
       const response = await api.get("/students");
-
-      // Map to flat structure for the table but keep full object for editing
-      const mappedData = (response.data || []).map(s => ({
-        ...s,
-        "Timestamp": s.created_at ? new Date(s.created_at).toLocaleDateString() : "—",
-        "First Name": s.first_name || "—",
-        "Last Name": s.last_name || "—",
-        "Email": s.email || "—",
-        "Desired Course": s.desired_course || "—",
-        "Primary Phone Number": s.primary_phone_number || "—",
-        "Select your nearest Vama Center ": s.nearest_vama_center || "—",
-        "Address": s.address || "—",
-        "Gender": s.gender || "—",
-        "Date of Birth": s.date_of_birth || "—",
-        "Preferred Mode of Contact": s.preferred_mode_of_contact || "—"
-      }));
-
-      setRecords(mappedData);
+      setRecords((response.data || []).map(mapStudent));
     } catch (err) {
       console.error("Dashboard fetch error:", err);
       setError(err.response?.data?.detail || err.message || "Failed to load students.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Called by AddStudentDialog after save.
+  // If updatedStudent is provided (edit), patch local state — no re-fetch needed.
+  // If null (new student added), do a full re-fetch.
+  const handleStudentSaved = async (updatedStudent) => {
+    if (updatedStudent?.id) {
+      setRecords(prev =>
+        prev.map(r => r.id === updatedStudent.id ? mapStudent(updatedStudent) : r)
+      );
+    } else {
+      await fetchStudents();
     }
   };
 
@@ -124,7 +134,7 @@ export default function Dashboard() {
         <AddStudentDialog
           isOpen={addaction}
           onClose={handleCloseModal}
-          onSubmit={fetchStudents}
+          onSubmit={handleStudentSaved}
           initialData={editingStudent}
         />
 
