@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s \"http://localhost:8000/student/7/sessions?start=2026-05-01&end=2026-05-31\")",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(f'KP HARI sessions: {len\\(d\\)}'\\); [print\\(f'  {s[\\\\\"date\\\\\"]} {s[\\\\\"start_time\\\\\"]} \\({s[\\\\\"batch\\\\\"][\\\\\"subject\\\\\"]}\\)'\\) for s in d[:5]]\")",
+      "Bash(curl -s \"http://localhost:8000/student/1/sessions?start=2026-05-01&end=2026-05-31\")",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(f'yadav sessions: {len\\(d\\)}'\\); [print\\(f'  {s[\\\\\"date\\\\\"]} {s[\\\\\"start_time\\\\\"]} \\({s[\\\\\"batch\\\\\"][\\\\\"subject\\\\\"]}\\)'\\) for s in d[:5]]\")",
+      "Bash(curl -s \"http://localhost:8000/teacher/4/students\")",
+      "Bash(curl -s \"http://localhost:8000/students/6/progress\")",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\('student:', d.get\\('student',{}\\).get\\('first_name'\\), d.get\\('student',{}\\).get\\('last_name'\\)\\); print\\('syllabus:', d.get\\('syllabus',{}\\).get\\('id'\\) if d.get\\('syllabus'\\) else None\\)\")",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); s=d['student']; print\\('first_name:', s.get\\('first_name'\\)\\); print\\('last_name:', s.get\\('last_name'\\)\\); print\\('email:', s.get\\('email'\\)\\); print\\('desired_course:', s.get\\('desired_course'\\)\\)\")",
+      "Bash(curl -s \"http://localhost:8000/students/6\")",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\('first_name:', d.get\\('first_name'\\)\\); print\\('last_name:', d.get\\('last_name'\\)\\)\")",
+      "Bash(curl -s \"http://localhost:8000/students/7/progress\")",
+      "Bash(python3 -c ' *)"
+    ]
+  }
+}

@@ -222,6 +222,21 @@ def get_sessions(db: Session, start_date: date, end_date: date) -> List[ClassSes
         ClassSession.date <= end_date
     ).all()
 
+def _be_covers_session(enrolled_from, day_of_week, slot_start_time, session_date, session_start_time) -> bool:
+    """True if a BatchEnrollment row covers a given session date/time.
+
+    NULL day_of_week  = matches all days in the batch (batch-wide enrollment).
+    NULL slot_start_time = matches any start time.
+    """
+    if enrolled_from > session_date:
+        return False
+    if day_of_week is not None and session_date.strftime('%A') != day_of_week:
+        return False
+    if slot_start_time is not None and session_start_time != slot_start_time:
+        return False
+    return True
+
+
 def compute_enrollment_counts(db: Session, sessions) -> dict:
     """Return {session_id: count} for a list of ClassSession objects.
 
@@ -235,7 +250,8 @@ def compute_enrollment_counts(db: Session, sessions) -> dict:
     batch_ids = list({s.batch_id for s in sessions})
 
     be_rows = db.query(
-        BatchEnrollment.batch_id, BatchEnrollment.student_id, BatchEnrollment.enrolled_from
+        BatchEnrollment.batch_id, BatchEnrollment.student_id, BatchEnrollment.enrolled_from,
+        BatchEnrollment.day_of_week, BatchEnrollment.slot_start_time,
     ).filter(
         BatchEnrollment.batch_id.in_(batch_ids),
         BatchEnrollment.status == "active",
@@ -249,8 +265,8 @@ def compute_enrollment_counts(db: Session, sessions) -> dict:
     ).all()
 
     be_map = defaultdict(list)
-    for batch_id, student_id, enrolled_from in be_rows:
-        be_map[batch_id].append((student_id, enrolled_from))
+    for batch_id, student_id, enrolled_from, dow, st in be_rows:
+        be_map[batch_id].append((student_id, enrolled_from, dow, st))
 
     ss_map = defaultdict(set)
     for batch_id, student_id, sids_json in ss_rows:
@@ -265,8 +281,8 @@ def compute_enrollment_counts(db: Session, sessions) -> dict:
     for s in sessions:
         recurring = {
             student_id
-            for student_id, enrolled_from in be_map.get(s.batch_id, [])
-            if enrolled_from <= s.date
+            for student_id, enrolled_from, dow, st in be_map.get(s.batch_id, [])
+            if _be_covers_session(enrolled_from, dow, st, s.date, s.start_time)
         }
         specific = ss_map.get(s.id, set()) - recurring
         counts[s.id] = len(recurring) + len(specific)
@@ -283,21 +299,96 @@ def get_teacher_sessions(db: Session, teacher_id: int, start_date: date, end_dat
     ).all()
 
 def get_student_sessions(db: Session, student_id: int, start_date: date, end_date: date) -> List[ClassSession]:
-    """Get sessions for a specific student through enrollments"""
+    """Get sessions for a student via BatchEnrollment (recurring) + Enrollment session_ids (single)."""
     from sqlalchemy.orm import joinedload
-    return db.query(ClassSession).options(
-        joinedload(ClassSession.batch).joinedload(Batch.teacher)
-    ).join(Batch).join(Enrollment).filter(
+
+    sessions_by_id: dict = {}
+
+    # 1. Recurring: BatchEnrollment rows for this student
+    be_rows = db.query(BatchEnrollment).filter(
+        BatchEnrollment.student_id == student_id,
+        BatchEnrollment.status == "active",
+    ).all()
+
+    if be_rows:
+        for be in be_rows:
+            effective_start = max(start_date, be.enrolled_from)
+            if effective_start > end_date:
+                continue
+            for s in db.query(ClassSession).options(
+                joinedload(ClassSession.batch).joinedload(Batch.teacher)
+            ).filter(
+                ClassSession.batch_id == be.batch_id,
+                ClassSession.date >= effective_start,
+                ClassSession.date <= end_date,
+            ).all():
+                # Apply day-of-week / time-slot filter for scoped enrollments
+                if _be_covers_session(be.enrolled_from, be.day_of_week, be.slot_start_time,
+                                      s.date, s.start_time):
+                    sessions_by_id[s.id] = s
+
+    # 2. Single-session: Enrollment rows with session_ids JSON array
+    single_enrollments = db.query(Enrollment).filter(
         Enrollment.student_id == student_id,
-        ClassSession.date >= start_date,
-        ClassSession.date <= end_date
-    ).distinct().order_by(ClassSession.date, ClassSession.start_time).all()
+        Enrollment.session_ids.isnot(None),
+    ).all()
+
+    single_ids: set = set()
+    for e in single_enrollments:
+        try:
+            single_ids.update(json.loads(e.session_ids))
+        except Exception:
+            pass
+
+    if single_ids:
+        for s in db.query(ClassSession).options(
+            joinedload(ClassSession.batch).joinedload(Batch.teacher)
+        ).filter(
+            ClassSession.id.in_(single_ids),
+            ClassSession.date >= start_date,
+            ClassSession.date <= end_date,
+        ).all():
+            sessions_by_id[s.id] = s
+
+    return sorted(sessions_by_id.values(), key=lambda s: (s.date, s.start_time))
 
 def get_teacher_students(db: Session, teacher_id: int) -> List[Student]:
-    """Get all students assigned to a teacher through batches"""
-    return db.query(Student).join(Enrollment).join(Batch).filter(
-        (Batch.teacher_id == teacher_id) | (Batch.co_teacher_id == teacher_id)
+    """Get all students in batches assigned to a teacher.
+
+    Merges both enrollment sources:
+    - BatchEnrollment (new recurring system)
+    - Enrollment with session_ids (single-session)
+    """
+    teacher_batch_ids = [
+        b.id for b in db.query(Batch.id).filter(
+            (Batch.teacher_id == teacher_id) | (Batch.co_teacher_id == teacher_id)
+        ).all()
+    ]
+    if not teacher_batch_ids:
+        return []
+
+    student_ids: set = set()
+
+    # From BatchEnrollment (recurring)
+    be_students = db.query(BatchEnrollment.student_id).filter(
+        BatchEnrollment.batch_id.in_(teacher_batch_ids),
+        BatchEnrollment.status == "active",
     ).distinct().all()
+    student_ids.update(r[0] for r in be_students)
+
+    # From Enrollment with session_ids (single-session)
+    enr_students = db.query(Enrollment.student_id).filter(
+        Enrollment.batch_id.in_(teacher_batch_ids),
+        Enrollment.session_ids.isnot(None),
+    ).distinct().all()
+    student_ids.update(r[0] for r in enr_students)
+
+    if not student_ids:
+        return []
+
+    return db.query(Student).filter(Student.id.in_(student_ids)).order_by(
+        Student.first_name, Student.last_name
+    ).all()
 
 def enroll_student(db: Session, enrollment: EnrollmentCreate):
     """Enroll a student in a batch (batch-level / recurring from batch start).
@@ -460,6 +551,8 @@ def get_sessions_with_enrollment_count(db: Session, start_date: date, end_date: 
         BatchEnrollment.batch_id,
         BatchEnrollment.student_id,
         BatchEnrollment.enrolled_from,
+        BatchEnrollment.day_of_week,
+        BatchEnrollment.slot_start_time,
     ).filter(
         BatchEnrollment.batch_id.in_(batch_ids),
         BatchEnrollment.status == "active",
@@ -475,10 +568,10 @@ def get_sessions_with_enrollment_count(db: Session, start_date: date, end_date: 
         Enrollment.session_ids.isnot(None),
     ).all()
 
-    # be_map: batch_id → [(student_id, enrolled_from)]
+    # be_map: batch_id → [(student_id, enrolled_from, day_of_week, slot_start_time)]
     be_map = defaultdict(list)
-    for batch_id, student_id, enrolled_from in be_rows:
-        be_map[batch_id].append((student_id, enrolled_from))
+    for batch_id, student_id, enrolled_from, dow, st in be_rows:
+        be_map[batch_id].append((student_id, enrolled_from, dow, st))
 
     # ss_map: session_id → set of student_ids from single-session enrollments
     ss_map = defaultdict(set)
@@ -494,8 +587,8 @@ def get_sessions_with_enrollment_count(db: Session, start_date: date, end_date: 
     for session in sessions:
         recurring = {
             student_id
-            for student_id, enrolled_from in be_map.get(session.batch_id, [])
-            if enrolled_from <= session.date
+            for student_id, enrolled_from, dow, st in be_map.get(session.batch_id, [])
+            if _be_covers_session(enrolled_from, dow, st, session.date, session.start_time)
         }
         specific = ss_map.get(session.id, set()) - recurring
         count = len(recurring) + len(specific)
@@ -590,34 +683,62 @@ def archive_session(db: Session, session_id: int):
         return session
     return None
 
+
 def enroll_student_in_session(db: Session, student_id: int, session_id: int, enrollment_type: str = "single_session"):
     """Enroll a student in a session.
 
-    enrollment_type='recurring'      → creates/updates a BatchEnrollment (all future sessions from session.date)
-    enrollment_type='single_session' → creates/updates an Enrollment with session_ids allowlist
+    enrollment_type='recurring'
+        → BatchEnrollment scoped to this session's weekday + start_time.
+          Student appears in every future session of the same batch on the same
+          day-of-week and time slot.  A NULL/NULL batch-wide enrollment already
+          covers this student, so no duplicate row is created in that case.
+
+    enrollment_type='single_session'
+        → Enrollment with session_ids JSON allowlist (this session only).
     """
     session = db.query(ClassSession).filter(ClassSession.id == session_id).first()
     if not session:
         return None
 
     if enrollment_type == "recurring":
-        # Use batch_enrollments table for recurring
+        dow = session.date.strftime('%A')   # e.g. "Saturday"
+        st  = session.start_time            # e.g. "16:00"
+
+        # If student already has a batch-wide (NULL/NULL) enrollment, that already
+        # covers this slot — don't create a redundant row.
+        batch_wide = db.query(BatchEnrollment).filter(
+            BatchEnrollment.student_id == student_id,
+            BatchEnrollment.batch_id == session.batch_id,
+            BatchEnrollment.day_of_week.is_(None),
+            BatchEnrollment.status == "active",
+        ).first()
+        if batch_wide:
+            if session.date < batch_wide.enrolled_from:
+                batch_wide.enrolled_from = session.date
+                db.commit()
+            return batch_wide
+
+        # Look for an existing slot-specific enrollment for the same day/time
         existing_be = db.query(BatchEnrollment).filter(
             BatchEnrollment.student_id == student_id,
             BatchEnrollment.batch_id == session.batch_id,
+            BatchEnrollment.day_of_week == dow,
+            BatchEnrollment.slot_start_time == st,
         ).first()
         if existing_be:
-            # Re-activate and update enrolled_from if earlier
             existing_be.status = "active"
             if session.date < existing_be.enrolled_from:
                 existing_be.enrolled_from = session.date
             db.commit()
             db.refresh(existing_be)
             return existing_be
+
         be = BatchEnrollment(
             student_id=student_id,
             batch_id=session.batch_id,
             enrolled_from=session.date,
+            day_of_week=dow,
+            slot_start_time=st,
             status="active",
         )
         db.add(be)
@@ -629,6 +750,7 @@ def enroll_student_in_session(db: Session, student_id: int, session_id: int, enr
         existing = db.query(Enrollment).filter(
             Enrollment.student_id == student_id,
             Enrollment.batch_id == session.batch_id,
+            Enrollment.session_ids.isnot(None),
         ).first()
         if existing:
             ids = json.loads(existing.session_ids) if existing.session_ids else []
@@ -674,6 +796,10 @@ def get_session_students(db: Session, session_id: int):
     ).all()
 
     for be in batch_enrolls:
+        # Skip if this BE is scoped to a different day/time than this session
+        if not _be_covers_session(be.enrolled_from, be.day_of_week, be.slot_start_time,
+                                   session.date, session.start_time):
+            continue
         student = be.student
         seen_student_ids.add(student.id)
         attendance = db.query(Attendance).filter(
@@ -760,11 +886,23 @@ def remove_student_from_session(db: Session, session_id: int, student_id: int, s
     removed = False
 
     # ── Handle BatchEnrollment (new recurring system) ──────────────────────
-    be = db.query(BatchEnrollment).filter(
+    # Prefer the slot-specific BE (matching day+time), fall back to batch-wide (NULL).
+    dow = session.date.strftime('%A')
+    slot_be = db.query(BatchEnrollment).filter(
         BatchEnrollment.batch_id == session.batch_id,
         BatchEnrollment.student_id == student_id,
+        BatchEnrollment.day_of_week == dow,
+        BatchEnrollment.slot_start_time == session.start_time,
         BatchEnrollment.status == "active",
     ).first()
+    wide_be = db.query(BatchEnrollment).filter(
+        BatchEnrollment.batch_id == session.batch_id,
+        BatchEnrollment.student_id == student_id,
+        BatchEnrollment.day_of_week.is_(None),
+        BatchEnrollment.status == "active",
+    ).first()
+    be = slot_be or wide_be
+
     if be:
         if scope == "all_future":
             db.delete(be)

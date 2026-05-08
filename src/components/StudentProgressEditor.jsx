@@ -220,6 +220,7 @@ export default function StudentProgressEditor({ studentIdFromProps }) {
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState(null)
     const [updating, setUpdating] = useState(false)
+    const [retryCount, setRetryCount] = useState(0)
 
     // Fetch students on mount
     useEffect(() => {
@@ -257,12 +258,14 @@ export default function StudentProgressEditor({ studentIdFromProps }) {
             }
         }
         fetchProgress()
-    }, [selectedStudentId, studentIdFromProps])
+    }, [selectedStudentId, studentIdFromProps, retryCount])
 
     const updateProgress = async (contentId, updates) => {
+        const studentId = studentIdFromProps || selectedStudentId;
+        if (!studentId) return;
         setUpdating(true)
         try {
-            await api.post(`/students/${selectedStudentId}/progress/${contentId}`, updates)
+            await api.post(`/students/${studentId}/progress/${contentId}`, updates)
 
             // Optimistic update or refetch
             setData(prev => {
@@ -306,7 +309,7 @@ export default function StudentProgressEditor({ studentIdFromProps }) {
 
     if (loading && !data) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gray-50">
+            <div className="flex items-center justify-center py-20">
                 <div className="flex flex-col items-center gap-4">
                     <div className="w-12 h-12 border-4 border-[#463a7a]/20 border-t-[#463a7a] rounded-full animate-spin" />
                     <p className="text-slate-600 font-medium">Loading progress data...</p>
@@ -317,15 +320,15 @@ export default function StudentProgressEditor({ studentIdFromProps }) {
 
     if (error) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6">
-                <div className="bg-white p-8 rounded-2xl shadow-xl max-w-md text-center">
+            <div className="flex items-center justify-center py-16 p-6">
+                <div className="bg-white p-8 rounded-2xl shadow-xl max-w-md text-center border border-slate-100">
                     <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
                         <FaExclamationTriangle size={32} />
                     </div>
                     <h2 className="text-2xl font-bold text-slate-800 mb-2">Oops!</h2>
                     <p className="text-slate-600 mb-6">{error}</p>
                     <button
-                        onClick={() => window.location.reload()}
+                        onClick={() => { setError(null); setRetryCount(c => c + 1); }}
                         className="px-6 py-2 bg-[#463a7a] text-white rounded-lg font-medium hover:bg-[#5a4a9f] transition-colors"
                     >
                         Try Again
@@ -336,7 +339,7 @@ export default function StudentProgressEditor({ studentIdFromProps }) {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8">
+        <div className="bg-gray-50 p-4 sm:p-6 lg:p-8">
             <div className="max-w-7xl mx-auto">
                 {/* Header with Student Selector */}
                 {!studentIdFromProps && (

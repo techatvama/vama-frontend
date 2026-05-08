@@ -384,6 +384,8 @@ class BatchEnrollment(Base):
     student_id = Column(Integer, ForeignKey("students.id"), nullable=False)
     batch_id = Column(Integer, ForeignKey("batches.id"), nullable=False)
     enrolled_from = Column(Date, nullable=False)  # include sessions on/after this date
+    day_of_week = Column(String(20), nullable=True)   # "Saturday" etc., NULL = all days
+    slot_start_time = Column(String(10), nullable=True)  # "16:00" etc., NULL = any time
     status = Column(String, default="active")  # active, dropped
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())

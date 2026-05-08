@@ -88,7 +88,6 @@ export default function MaterialUpload() {
         } catch (err) {
             setError('Failed to upload material. Please try again.');
         } finally {
-            setUploading(true); // Wait, should be false
             setUploading(false);
         }
     };
@@ -172,7 +171,7 @@ export default function MaterialUpload() {
                             </div>
 
                             <div>
-                                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 px-1 text-white">File</label>
+                                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 px-1">File</label>
                                 <label className="group block w-full border-2 border-dashed border-slate-200 rounded-[32px] p-8 text-center hover:border-indigo-500 hover:bg-indigo-50/10 transition-all cursor-pointer relative overflow-hidden">
                                     <input
                                         type="file"

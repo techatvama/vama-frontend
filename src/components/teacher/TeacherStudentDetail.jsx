@@ -80,6 +80,8 @@ export default function TeacherStudentDetail() {
         }
     };
 
+    const [progressKey, setProgressKey] = useState(0);
+
     const handleUpdate = async () => {
         setSaving(true);
         try {
@@ -88,9 +90,10 @@ export default function TeacherStudentDetail() {
                 syllabus_type: syllabus,
                 is_exam_student: isExam,
                 exam_date: examDate || null,
-                exam_session_id: selectedExamSession ? parseInt(selectedExamSession) : null
             });
             setSuccess(true);
+            // Bump key to force StudentProgressEditor to re-fetch with new grade/syllabus
+            setProgressKey(k => k + 1);
             setTimeout(() => setSuccess(false), 3000);
         } catch (error) {
             console.error(error);
@@ -291,7 +294,7 @@ export default function TeacherStudentDetail() {
                                 <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Live Progress</p>
                             </div>
                             <div className="flex-1 p-4 lg:p-8">
-                                <StudentProgressEditor studentIdFromProps={studentId} />
+                                <StudentProgressEditor key={progressKey} studentIdFromProps={studentId} />
                             </div>
                         </div>
                     </div>

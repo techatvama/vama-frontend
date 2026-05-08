@@ -244,25 +244,16 @@ async def get_student_sessions(
     end: date,
     db: Session = Depends(get_db)
 ):
-    """Get all sessions for a student in a date range with full batch/teacher info embedded."""
-    from models import Batch, Enrollment
+    """Get sessions a student is actually enrolled in (respects session_ids + BatchEnrollment slot scoping)."""
+    import crud as crud_module
 
-    enrollments = db.query(Enrollment).filter(Enrollment.student_id == student_id).all()
-    batch_ids = [e.batch_id for e in enrollments]
-
-    sessions = db.query(ClassSession).filter(
-        ClassSession.batch_id.in_(batch_ids),
-        ClassSession.date >= start,
-        ClassSession.date <= end,
-        ClassSession.is_published != False,
-    ).all()
+    sessions = crud_module.get_student_sessions(db, student_id, start, end)
 
     result = []
     for s in sessions:
         batch = s.batch
         teacher = batch.teacher if batch else None
 
-        # Student's personal attendance for this session
         att = db.query(Attendance).filter(
             Attendance.session_id == s.id,
             Attendance.student_id == student_id,
