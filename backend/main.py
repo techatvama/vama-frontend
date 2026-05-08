@@ -719,20 +719,14 @@ async def get_student(student_id: int, db: Session = Depends(get_db)):
     return student
 
 
-@app.put("/students/{student_id}")
+@app.put("/students/{student_id}", response_model=StudentResponse)
 async def update_student(student_id: int, student: StudentUpdate, db: Session = Depends(get_db)):
-
     """Update a student"""
     updated_student = crud.update_student(db, student_id, student)
     if not updated_student:
         raise HTTPException(status_code=404, detail="Student not found")
     
-    return {
-        "message": "Student updated successfully",
-        "student": {
-            "id": updated_student.id,
-            "name": f"{updated_student.first_name} {updated_student.last_name}"
-        }
+    return updated_student
     }
 
 
