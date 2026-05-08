@@ -1,254 +1,306 @@
-// import React, { useState, useEffect } from "react";
-// import { api } from "../lib/api";
-// import Sidebar from "./Sidebar";
-
-// export default function Dashboard() {
-//   const [records, setRecords] = useState([]);
-//   const [loading, setLoading] = useState(true);
-//   const [error, setError]     = useState(null);
-
-//   useEffect(() => {
-//     api.get("/read-sheet")
-//       .then(res => {
-//         console.log(res.data.data)
-//         if (Array.isArray(res.data.data)) setRecords(res.data.data);
-        
-//         else throw new Error("Invalid data");
-//       })
-//       .catch(err => setError(err.message || "Fetch failed"))
-//       .finally(() => setLoading(false));
-//   }, []);
-
-//   return (
-//     <div className="flex">
-//       <Sidebar />
-
-//       <main className="flex-1 p-6 bg-gray-50 min-h-screen">
-//         <h1 className="text-3xl font-semibold mb-4">Student Dashboard</h1>
-//         {loading && <p>Loading…</p>}
-//         {error   && <p className="text-red-500">Error: {error}</p>}
-
-//         {!loading && !error && (
-//           <div className="overflow-auto bg-white shadow rounded">
-//             <table className="min-w-full divide-y divide-gray-200">
-//               <thead className="bg-gray-100">
-//                 <tr>{Object.keys(records[0]).map((columnName) => <th className="px-4 py-2 text-left text-sm font-medium text-gray-700">{columnName}</th>)}
-                  
-//                   {/* <th className="px-4 py-2 text-left text-sm font-medium text-gray-700">Email</th>
-//                   <th className="px-4 py-2 text-left text-sm font-medium text-gray-700">Course</th>
-//                   <th className="px-4 py-2 text-left text-sm font-medium text-gray-700">Phone/th>
-//                   <th className="px-4 py-2 text-left text-sm font-medium text-gray-700">Joined</th> */}
-//                 </tr>
-//               </thead>
-//               <tbody className="divide-y divide-gray-200">
-//                 {records.map((r, i) => (
-//                   <tr key={i} className="hover:bg-gray-50">
-//                     {Object.values(r).map((value) => <td className="px-4 py-2">{value}</td> )}
-//                     {/* <td className="px-4 py-2">{r.first_name} {r.last_name}</td>
-                    
-//                     <td className="px-4 py-2">{r.course}</td>
-//                     <td className="px-4 py-2">{r.primary_phone}</td>
-//                     <td className="px-4 py-2">{r.timestamp}</td> */}
-//                   </tr>
-//                 ))}
-//               </tbody>
-//             </table>
-//           </div>
-//         )}
-//       </main>
-//     </div>
-// );
-// }
-
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
+import { useLocation } from "react-router";
 import { api } from "../lib/api";
 import Sidebar from "./Sidebar";
 import AddStudentDialog from "./AddStudentDialog";
-import { LucideFileSpreadsheet } from "lucide-react";
+import { Search, ChevronLeft, ChevronRight, Edit, Loader2 } from "lucide-react";
+import { useNavigate } from "react-router";
 
 export default function Dashboard() {
+  const navigate = useNavigate();
+
   // State management
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+  const [addaction, setAddAction] = useState(false);
+  const [editingStudent, setEditingStudent] = useState(null);
 
   // Constants
-  const recordsPerPage = 10;
   const columnConfig = {
     "Timestamp": "Joined On",
-    "Email": "Email",
     "First Name": "First Name",
     "Last Name": "Last Name",
+    "Email": "Email",
     "Desired Course": "Course",
     "Primary Phone Number": "Phone",
     "Select your nearest Vama Center ": "Center"
   };
 
-  // Data fetching
-  useEffect(() => {
-    // http://localhost:8000/read-sheet
-    api.get("/read-sheet")
-      .then(res => {
-        if (Array.isArray(res.data.data)) setRecords(res.data.data);
-        else throw new Error("Invalid data");
-      })
-      .catch(err => setError(err.message || "Fetch failed"))
-      .finally(() => setLoading(false));
-  }, []);
+  // Fetch Data
+  const fetchStudents = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      // Use the full students endpoint which gives us all details including IDs for editing
+      const response = await api.get("/students");
 
-  // Data processing
-  const filteredRecords = records.filter(record => 
-    Object.values(record).some(value => 
-      String(value).toLowerCase().includes(searchTerm.toLowerCase())
-    )
-  );
+      // Map to flat structure for the table but keep full object for editing
+      const mappedData = (response.data || []).map(s => ({
+        ...s,
+        "Timestamp": s.created_at ? new Date(s.created_at).toLocaleDateString() : "—",
+        "First Name": s.first_name || "—",
+        "Last Name": s.last_name || "—",
+        "Email": s.email || "—",
+        "Desired Course": s.desired_course || "—",
+        "Primary Phone Number": s.primary_phone_number || "—",
+        "Select your nearest Vama Center ": s.nearest_vama_center || "—",
+        "Address": s.address || "—",
+        "Gender": s.gender || "—",
+        "Date of Birth": s.date_of_birth || "—",
+        "Preferred Mode of Contact": s.preferred_mode_of_contact || "—"
+      }));
 
-  const sortedRecords = [...filteredRecords].sort((a, b) => {
-    if (!sortConfig.key) return 0;
-    const aValue = a[sortConfig.key];
-    const bValue = b[sortConfig.key];
-    
-    if (aValue === bValue) return 0;
-    return (aValue > bValue ? 1 : -1) * (sortConfig.direction === 'asc' ? 1 : -1);
-  });
-
-  const paginatedRecords = sortedRecords.slice(
-    (currentPage - 1) * recordsPerPage,
-    currentPage * recordsPerPage
-  );
-
-  // Event handlers
-  const handleSearch = (e) => {
-    setSearchTerm(e.target.value);
-    setCurrentPage(1); // Reset to first page on search
+      setRecords(mappedData);
+    } catch (err) {
+      console.error("Dashboard fetch error:", err);
+      setError(err.response?.data?.detail || err.message || "Failed to load students.");
+    } finally {
+      setLoading(false);
+    }
   };
 
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    fetchStudents();
+    if (pathname.endsWith('/add')) {
+      setAddAction(true);
+    }
+  }, [pathname]);
+
+  // Filtering & Sorting
+  const filteredRecords = useMemo(() => {
+    return records.filter(record =>
+      Object.entries(record).some(([key, value]) =>
+        key !== 'id' && String(value).toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    );
+  }, [records, searchTerm]);
+
+  const sortedRecords = useMemo(() => {
+    if (!sortConfig.key) return filteredRecords;
+    return [...filteredRecords].sort((a, b) => {
+      const aValue = a[sortConfig.key];
+      const bValue = b[sortConfig.key];
+      if (aValue === bValue) return 0;
+      return (aValue > bValue ? 1 : -1) * (sortConfig.direction === 'asc' ? 1 : -1);
+    });
+  }, [filteredRecords, sortConfig]);
+
+  // Pagination
+  const totalPages = Math.ceil(filteredRecords.length / rowsPerPage);
+  const paginatedRecords = sortedRecords.slice(
+    (currentPage - 1) * rowsPerPage,
+    currentPage * rowsPerPage
+  );
+
   const handleSort = (key) => {
-    setSortConfig(prevConfig => ({
+    setSortConfig(prev => ({
       key,
-      direction: prevConfig.key === key && prevConfig.direction === 'asc' ? 'desc' : 'asc'
+      direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
     }));
   };
 
-  const handlePageChange = (pageNumber) => {
-    setCurrentPage(pageNumber);
+  const openEditModal = (student) => {
+    setEditingStudent(student);
+    setAddAction(true);
   };
 
-  // Pagination controls
-  const totalPages = Math.ceil(filteredRecords.length / recordsPerPage);
-  const pageNumbers = Array.from({ length: totalPages }, (_, i) => i + 1);
-  const [addaction,setaddaction] = useState(false)
+  const handleCloseModal = () => {
+    setAddAction(false);
+    setEditingStudent(null);
+  };
 
   return (
-    <div className="flex">
-      <main className="flex-1 p-6 bg-gray-50 min-h-screen">
-        <AddStudentDialog isOpen={addaction} onClose={()=> setaddaction(false)}/>
-        <div className="mb-6">
-          <h1 className="text-2xl font-semibold">Students Dashboard</h1>
-          <p className="text-gray-600">Manage all registered students</p>
+    <div className="bg-gray-50 min-h-screen">
+      {/* <Sidebar /> - Assuming Dashboard is rendered inside a layout or Sidebar is handled upstream */}
+
+      <main className="p-8 max-w-[1600px] mx-auto">
+        <AddStudentDialog
+          isOpen={addaction}
+          onClose={handleCloseModal}
+          onSubmit={fetchStudents}
+          initialData={editingStudent}
+        />
+
+        <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-700">Students Dashboard</h1>
+            <p className="mt-2 text-slate-500">Manage, track, and update student information.</p>
+          </div>
+
+          <button
+            onClick={() => { setEditingStudent(null); setAddAction(true); }}
+            className="inline-flex items-center gap-2 bg-[#463a7a] text-white px-5 py-2.5 rounded-lg shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200 font-medium"
+          >
+            + Add New Student
+          </button>
         </div>
 
-        {loading && (
-          <div className="flex justify-center p-8">
-            <div className="text-gray-500">Loading data...</div>
-          </div>
-        )}
-        
         {error && (
-          <div className="bg-red-50 p-4 rounded-md">
-            <p className="text-red-500">Error: {error}</p>
+          <div className="mb-6 bg-red-50 border-l-4 border-red-500 p-4 rounded-r shadow-sm">
+            <p className="text-red-700 font-medium">Error: {error}</p>
           </div>
         )}
 
-        {!loading && !error && (
-          <div className="bg-white rounded-lg shadow overflow-hidden">
-            <div className="p-4 border-b flex justify-between items-center">
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+          {/* Toolbar */}
+          <div className="p-5 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-center gap-4 bg-slate-50/50">
+            <div className="relative w-full sm:w-72">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
               <input
                 type="search"
                 value={searchTerm}
-                onChange={handleSearch}
+                onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
                 placeholder="Search students..."
-                className="px-4 py-2 border rounded-md w-64"
+                className="w-full pl-10 pr-4 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#463a7a]/20 focus:border-[#463a7a] transition-all"
               />
-              <button  onClick={()=> setaddaction(true)} className="text-white px-4 py-2 rounded-md" 
-  style={{ backgroundColor: '#463a7a' }}>
-                Add New Student
-              </button>
             </div>
+          </div>
 
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    {Object.values(columnConfig).map((header) => (
-                      <th 
-                        key={header}
-                        onClick={() => handleSort(header)}
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                      >
-                        {header}
-                        {sortConfig.key === header && (
-                          <span className="ml-1">
-                            {sortConfig.direction === 'asc' ? '↑' : '↓'}
-                          </span>
-                        )}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {paginatedRecords.map((record, idx) => (
-                    <tr 
-                      key={record.Email || idx} 
-                      className="hover:bg-gray-50 transition-colors"
+          {/* Table */}
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-slate-100">
+              <thead>
+                <tr className="bg-slate-50 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  <th className="px-6 py-4 w-12">#</th>
+                  {Object.keys(columnConfig).map((key) => (
+                    <th
+                      key={key}
+                      onClick={() => handleSort(key)}
+                      className="px-6 py-4 cursor-pointer hover:text-[#463a7a] transition-colors select-none"
                     >
+                      <div className="flex items-center gap-1">
+                        {columnConfig[key]}
+                        {sortConfig.key === key && (
+                          <span className="text-[10px]">{sortConfig.direction === 'asc' ? '▲' : '▼'}</span>
+                        )}
+                      </div>
+                    </th>
+                  ))}
+                  <th className="px-6 py-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {loading ? (
+                  <tr>
+                    <td colSpan={Object.keys(columnConfig).length + 2} className="px-6 py-12 text-center text-slate-500">
+                      <div className="flex justify-center items-center gap-2">
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                        Loading data...
+                      </div>
+                    </td>
+                  </tr>
+                ) : paginatedRecords.length === 0 ? (
+                  <tr>
+                    <td colSpan={Object.keys(columnConfig).length + 2} className="px-6 py-12 text-center text-slate-500">
+                      No students found matching your criteria.
+                    </td>
+                  </tr>
+                ) : (
+                  paginatedRecords.map((record, idx) => (
+                    <tr
+                      key={record.id}
+                      className="group hover:bg-slate-50 transition-colors even:bg-slate-50/30"
+                    >
+                      <td className="px-6 py-4 text-xs text-slate-400">
+                        {((currentPage - 1) * rowsPerPage) + idx + 1}
+                      </td>
                       {Object.keys(columnConfig).map((key) => (
-                        <td 
-                          key={key}
-                          className="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
-                        >
-                          {record[key]}
+                        <td key={key} className="px-6 py-4 text-sm text-slate-700 whitespace-nowrap">
+                          {key === 'First Name' || key === 'Last Name' ? (
+                            <button
+                              onClick={() => navigate(`/students/${record.id}`)}
+                              className="font-medium text-[#463a7a] hover:underline text-left"
+                            >
+                              {record[key] || "—"}
+                            </button>
+                          ) : (
+                            record[key] || "—"
+                          )}
                         </td>
                       ))}
+                      <td className="px-6 py-4 text-right">
+                        <button
+                          onClick={() => openEditModal(record)}
+                          className="p-2 text-slate-400 hover:text-[#463a7a] hover:bg-[#463a7a]/10 rounded-full transition-all"
+                          title="Edit Student"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </button>
+                      </td>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {paginatedRecords.length === 0 && (
-              <div className="text-center py-8 text-gray-500">
-                No students found
-              </div>
-            )}
-
-            {paginatedRecords.length > 0 && (
-              <div className="px-6 py-4 flex items-center justify-between border-t">
-                <div className="text-sm text-gray-500">
-                  Showing {((currentPage - 1) * recordsPerPage) + 1} to {Math.min(currentPage * recordsPerPage, filteredRecords.length)} of {filteredRecords.length} results
-                </div>
-                <div className="flex gap-2">
-                  {pageNumbers.map(number => (
-                    <button
-                      key={number}
-                      onClick={() => handlePageChange(number)}
-                      className={`px-3 py-1 rounded ${
-                        currentPage === number
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                      }`}
-                    >
-                      {number}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
-        )}
+
+          {/* Pagination */}
+          {!loading && filteredRecords.length > 0 && (
+            <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-2 text-sm text-slate-600">
+                <span>Rows per page:</span>
+                <select
+                  value={rowsPerPage}
+                  onChange={(e) => { setRowsPerPage(Number(e.target.value)); setCurrentPage(1); }}
+                  className="border-slate-300 rounded-lg text-sm focus:ring-[#463a7a] focus:border-[#463a7a]"
+                >
+                  <option value={10}>10</option>
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
+                <span className="hidden sm:inline text-slate-400">|</span>
+                <span className="text-slate-500">
+                  Showing {((currentPage - 1) * rowsPerPage) + 1}-{Math.min(currentPage * rowsPerPage, filteredRecords.length)} of {filteredRecords.length}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="p-2 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm transition-all"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1)
+                    .filter(p => p === 1 || p === totalPages || Math.abs(currentPage - p) <= 1)
+                    .map((p, i, arr) => (
+                      <React.Fragment key={p}>
+                        {i > 0 && arr[i - 1] !== p - 1 && <span className="text-slate-400 px-1">...</span>}
+                        <button
+                          onClick={() => setCurrentPage(p)}
+                          className={`w-8 h-8 rounded-lg text-sm font-medium transition-all ${currentPage === p
+                            ? 'bg-[#463a7a] text-white shadow-md shadow-indigo-500/20'
+                            : 'text-slate-600 hover:bg-slate-100'
+                            }`}
+                        >
+                          {p}
+                        </button>
+                      </React.Fragment>
+                    ))}
+                </div>
+
+                <button
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="p-2 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm transition-all"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </main>
     </div>
   );

@@ -1,7 +1,7 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { X } from 'lucide-react'
 
-export default function AddStaffModal({ open, onClose, onSave }) {
+export default function AddStaffModal({ open, onClose, onSave, initialData }) {
   const [form, setForm] = useState({
     firstName: '',
     lastName: '',
@@ -10,6 +10,32 @@ export default function AddStaffModal({ open, onClose, onSave }) {
     role: '',
     takesClasses: true,
   })
+
+  useEffect(() => {
+    if (open) {
+      if (initialData) {
+        setForm({
+          firstName: initialData.firstName || initialData.name.split(' ')[0] || '',
+          lastName: initialData.lastName || initialData.name.split(' ').slice(1).join(' ') || '',
+          email: initialData.email || '',
+          phone: initialData.phone || '',
+          role: initialData.role || '',
+          takesClasses: initialData.takesClasses !== undefined ? initialData.takesClasses : true,
+        })
+      } else {
+        // Reset for adding new staff
+        setForm({
+          firstName: '',
+          lastName: '',
+          email: '',
+          phone: '',
+          role: '',
+          takesClasses: true,
+        })
+      }
+    }
+  }, [open, initialData])
+
 
   if (!open) return null
 
@@ -27,6 +53,9 @@ export default function AddStaffModal({ open, onClose, onSave }) {
       phone: form.phone || '—',
       email: form.email,
       calendar: !!form.takesClasses,
+      firstName: form.firstName,
+      lastName: form.lastName,
+      takesClasses: form.takesClasses
     }
     onSave(newStaff)
     onClose()
@@ -36,7 +65,7 @@ export default function AddStaffModal({ open, onClose, onSave }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="relative w-full max-w-2xl rounded-2xl bg-white shadow-xl">
         <div className="flex items-center justify-between border-b px-6 py-4">
-          <h2 className="text-lg font-semibold text-slate-900">Add staff</h2>
+          <h2 className="text-lg font-semibold text-slate-900">{initialData ? 'Edit staff' : 'Add staff'}</h2>
           <button onClick={onClose} className="rounded p-1 text-slate-500 hover:bg-slate-100">
             <X className="h-5 w-5" />
           </button>
@@ -94,7 +123,12 @@ export default function AddStaffModal({ open, onClose, onSave }) {
 
           <div className="flex justify-end gap-3 border-t pt-4">
             <button type="button" onClick={onClose} className="rounded-lg border px-4 py-2 text-sm">Cancel</button>
-            <button type="submit" className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-700">Save</button>
+            <button type="submit"
+              className="rounded-lg px-4 py-2 text-sm font-semibold text-white hover:opacity-90 transition-opacity"
+              style={{ backgroundColor: '#463a7a' }}
+            >
+              Save
+            </button>
           </div>
         </form>
       </div>
