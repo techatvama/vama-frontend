@@ -8,7 +8,7 @@ import shutil
 from datetime import date, datetime
 
 from database import engine, get_db, Base
-from models import Staff as StaffModel, Student as StudentModel, Syllabus, Module, Content, StudentProgress, Material, Batch, ClassSession, Enrollment, Attendance
+from models import Staff as StaffModel, Student as StudentModel, Syllabus, Module, Content, StudentProgress, Material, Batch, ClassSession, Enrollment, Attendance, Subject, Grade, BatchEnrollment, BatchTeacher
 from schemas import (
     StaffCreate, StaffResponse, StudentCreate, StudentResponse, StudentUpdate,
     BatchCreate, BatchResponse, ClassSessionResponse, EnrollmentCreate, EnrollmentResponse, AttendanceCreate, AttendanceResponse,
@@ -414,20 +414,76 @@ async def get_student_progress_view(student_id: int, db: Session = Depends(get_d
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
 
-    # Find matching syllabus for student's instrument and grade
-    # Use Student as the source of truth for their current grade and desired course
-    syllabus = db.query(Syllabus).filter(
-        Syllabus.subject_id == db.query(Subject.id).filter(Subject.name == student.desired_course).scalar_subquery(),
-        Syllabus.grade_id == db.query(Grade.id).filter(Grade.name == student.current_grade).scalar_subquery()
-    ).first()
-    
-    # Fallback to first syllabus if no specific match (for legacy support)
+    # Helper: does a syllabus have at least one content item?
+    def _has_content(syl):
+        if syl is None:
+            return False
+        return any(len(m.contents) > 0 for m in syl.modules)
+
+    # Syllabus selection priority:
+    # 1. Exact match (subject + grade) that has content
+    # 2. Subject-only match that has content
+    # 3. Any syllabus that has content
+    # 4. Exact match even if empty (so teacher can see the structure)
+    # 5. Any syllabus (last resort)
+    subject = db.query(Subject).filter(Subject.name == student.desired_course).first()
+    grade   = db.query(Grade).filter(Grade.name == student.current_grade).first()
+
+    syllabus = None
+
+    if subject and grade:
+        syllabus = db.query(Syllabus).filter(
+            Syllabus.subject_id == subject.id,
+            Syllabus.grade_id == grade.id,
+        ).first()
+        if not _has_content(syllabus):
+            syllabus = None  # try to find one with content
+
+    if not syllabus and subject:
+        for syl in db.query(Syllabus).filter(Syllabus.subject_id == subject.id).order_by(Syllabus.id).all():
+            if _has_content(syl):
+                syllabus = syl
+                break
+
+    if not syllabus:
+        syllabus = (
+            db.query(Syllabus)
+            .join(Module, Module.syllabus_id == Syllabus.id)
+            .join(Content, Content.module_id == Module.id)
+            .first()
+        )
+
+    if not syllabus and subject and grade:
+        # Accept an empty syllabus if it's the correct subject/grade
+        syllabus = db.query(Syllabus).filter(
+            Syllabus.subject_id == subject.id,
+            Syllabus.grade_id == grade.id,
+        ).first()
+
     if not syllabus:
         syllabus = db.query(Syllabus).first()
-        
+
+    def _student_dict(s):
+        return {
+            "id": s.id,
+            "first_name": s.first_name,
+            "last_name": s.last_name,
+            "name": f"{s.first_name} {s.last_name}",
+            "email": s.email,
+            "primary_phone_number": s.primary_phone_number,
+            "nearest_vama_center": s.nearest_vama_center,
+            "instrument": s.desired_course,
+            "desired_course": s.desired_course,
+            "current_grade": s.current_grade,
+            "grade": s.current_grade,
+            "syllabus_type": s.syllabus_type,
+            "is_exam_student": getattr(s, 'is_exam_student', False),
+            "exam_date": s.exam_date,
+        }
+
     if not syllabus:
-        return {"student": student, "syllabus": None}
-        
+        return {"student": _student_dict(student), "syllabus": None}
+
     # Get all progress for this student
     progress_records = db.query(StudentProgress).filter(StudentProgress.student_id == student_id).all()
     progress_map = {p.content_id: p for p in progress_records}
@@ -460,14 +516,7 @@ async def get_student_progress_view(student_id: int, db: Session = Depends(get_d
         })
         
     return {
-        "student": {
-            "id": student.id,
-            "name": f"{student.first_name} {student.last_name}",
-            "instrument": student.desired_course,
-            "grade": student.current_grade,
-            "syllabus_type": student.syllabus_type,
-            "is_exam_student": student.is_exam_student
-        },
+        "student": _student_dict(student),
         "syllabus": {
             "id": syllabus.id,
             "name": syllabus.name,
@@ -660,6 +709,15 @@ async def add_student(student: StudentCreate, db: Session = Depends(get_db)):
             "email": new_student.email
         }
     }
+
+@app.get("/students/{student_id}", response_model=StudentResponse)
+async def get_student(student_id: int, db: Session = Depends(get_db)):
+    """Get a single student by ID"""
+    student = crud.get_student_by_id(db, student_id)
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+    return student
+
 
 @app.put("/students/{student_id}")
 async def update_student(student_id: int, student: StudentUpdate, db: Session = Depends(get_db)):

@@ -241,6 +241,8 @@ export default function EnhancedSessionDetailDialog({ session, isOpen, onClose, 
     const [sessionStatus, setSessionStatus] = useState('scheduled');
     const [feedbackState, setFeedbackState] = useState({});  // { [studentId]: string }
     const [feedbackError, setFeedbackError] = useState('');   // validation message
+    const [removeTarget, setRemoveTarget] = useState(null);   // student object to remove
+    const [removing, setRemoving] = useState(false);
 
     // Close actions menu on outside click
     useEffect(() => {
@@ -263,6 +265,7 @@ export default function EnhancedSessionDetailDialog({ session, isOpen, onClose, 
             setActiveTab('students');
             setFeedbackState({});
             setFeedbackError('');
+            setRemoveTarget(null);
         }
     }, [isOpen, session?.id]);
 
@@ -305,12 +308,30 @@ export default function EnhancedSessionDetailDialog({ session, isOpen, onClose, 
         }
     };
 
-    const removeStudent = async (studentId) => {
+    const removeStudent = (student) => {
+        // For recurring students, ask scope; for single-session, remove directly
+        if (student.enrollment_type === 'recurring') {
+            setRemoveTarget(student);
+        } else {
+            doRemove(student.id, 'this_class');
+        }
+    };
+
+    const doRemove = async (studentId, scope) => {
+        setRemoving(true);
         try {
-            await api.delete(`/sessions/${session.id}/students/${studentId}`);
+            await api.delete(`/sessions/${session.id}/students/${studentId}`, {
+                params: { scope }
+            });
             setEnrolledStudents(prev => prev.filter(s => s.id !== studentId));
+            setRemoveTarget(null);
             onUpdate();
-        } catch (e) { console.error(e); }
+        } catch (e) {
+            console.error(e);
+            alert(e.response?.data?.detail || 'Failed to remove student');
+        } finally {
+            setRemoving(false);
+        }
     };
 
     const markAttendance = async (studentId, status) => {
@@ -599,7 +620,7 @@ export default function EnhancedSessionDetailDialog({ session, isOpen, onClose, 
                                                                 : "bg-orange-100 text-orange-700")}>
                                                             {student.enrollment_type === 'recurring' ? 'Recurring' : 'Once'}
                                                         </span>
-                                                        <button onClick={() => removeStudent(student.id)}
+                                                        <button onClick={() => removeStudent(student)}
                                                             className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                                                             title="Remove student">
                                                             <Trash2 size={14} />
@@ -744,6 +765,37 @@ export default function EnhancedSessionDetailDialog({ session, isOpen, onClose, 
                     </div>
                 </div>
             </div>
+
+            {/* Remove Student Scope Modal */}
+            {removeTarget && (
+                <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setRemoveTarget(null)}>
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6" onClick={e => e.stopPropagation()}>
+                        <h3 className="text-base font-bold text-gray-900 mb-1">Remove Student</h3>
+                        <p className="text-sm text-gray-500 mb-5">
+                            Remove <span className="font-semibold text-gray-800">{removeTarget.first_name} {removeTarget.last_name}</span> from:
+                        </p>
+                        <div className="space-y-2 mb-5">
+                            <button
+                                onClick={() => doRemove(removeTarget.id, 'this_class')}
+                                disabled={removing}
+                                className="w-full text-left px-4 py-3 rounded-xl border border-orange-200 bg-orange-50 hover:bg-orange-100 transition-colors disabled:opacity-50">
+                                <div className="font-semibold text-orange-800 text-sm">This class only</div>
+                                <div className="text-xs text-orange-600 mt-0.5">Removes from {fmtDate(session.date)} only</div>
+                            </button>
+                            <button
+                                onClick={() => doRemove(removeTarget.id, 'all_future')}
+                                disabled={removing}
+                                className="w-full text-left px-4 py-3 rounded-xl border border-red-200 bg-red-50 hover:bg-red-100 transition-colors disabled:opacity-50">
+                                <div className="font-semibold text-red-800 text-sm">All future recurring classes</div>
+                                <div className="text-xs text-red-600 mt-0.5">Stops all future sessions from {fmtDate(session.date)}</div>
+                            </button>
+                        </div>
+                        <button onClick={() => setRemoveTarget(null)} className="w-full px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/* Edit Repeats Modal (series list / delete repetitions) */}
             {showRepeats && (
