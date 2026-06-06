@@ -21,7 +21,10 @@ import {
   FaBars,
   FaTimes,
   FaBolt,
-  FaAward
+  FaAward,
+  FaTachometerAlt,
+  FaBox,
+  FaSync
 } from "react-icons/fa";
 import { Link, Outlet, useLocation } from "react-router";
 
@@ -77,8 +80,11 @@ export default function Sidebar() {
       label: "Payments",
       link: "/admin/payments",
       submenus: [
-        { icon: FaReceipt, label: "Invoices", link: "/admin/payments" },
-        { icon: FaHistory, label: "History", link: "/admin/payments" },
+        { icon: FaTachometerAlt, label: "Overview", link: "/admin/payments" },
+        { icon: FaReceipt, label: "Invoices", link: "/admin/invoices" },
+        { icon: FaBox, label: "Packages", link: "/admin/packages" },
+        { icon: FaSync, label: "Subscriptions", link: "/admin/subscriptions" },
+        { icon: FaHistory, label: "History", link: "/admin/payments/history" },
       ]
     },
     {

@@ -623,8 +623,8 @@ async def get_all_staff(db: Session = Depends(get_db)):
             "role": s.role,
             "phone": s.phone,
             "email": s.email,
-            "calendar": s.calendar,
-            "takesClasses": s.takes_classes
+            "calendar": s.calendar if s.calendar is not None else True,
+            "takesClasses": s.takes_classes if s.takes_classes is not None else True
         }
         for s in staff_list
     ]
@@ -727,7 +727,6 @@ async def update_student(student_id: int, student: StudentUpdate, db: Session = 
         raise HTTPException(status_code=404, detail="Student not found")
     
     return updated_student
-    }
 
 
 @app.get("/read-sheet")

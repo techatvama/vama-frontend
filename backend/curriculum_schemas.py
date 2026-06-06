@@ -72,8 +72,8 @@ class TeacherSubjectAssignmentResponse(TeacherSubjectAssignmentBase):
 class ExamSessionBase(BaseModel):
     name: str
     exam_board: str
-    grade_id: int
-    subject_id: int
+    grade_id: Optional[int] = None
+    subject_id: Optional[int] = None
     exam_date: Optional[date] = None
     registration_deadline: Optional[date] = None
     fee_amount: float = 0.0

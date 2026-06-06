@@ -59,17 +59,21 @@ export default function StudentDashboard() {
 
     const calculateOverallProgress = () => {
         if (!progress?.syllabus?.modules) return 0;
-        let total = 0;
-        let completed = 0;
-        progress.syllabus.modules.forEach(m => {
-            if (m.contents) {
-                m.contents.forEach(c => {
-                    total++;
-                    if (c.progress?.status === 'done') completed++;
-                });
-            }
+        const modules = progress.syllabus.modules;
+        let totalWeighted = 0;
+        let completedWeighted = 0;
+        modules.forEach(module => {
+            const items = module.contents || [];
+            const moduleTotal = items.reduce((sum, i) => sum + (i.weight || 1), 0);
+            const moduleCompleted = items
+                .filter(i => i.progress?.status === 'done')
+                .reduce((sum, i) => sum + (i.weight || 1), 0);
+            const modulePct = moduleTotal > 0 ? moduleCompleted / moduleTotal : 0;
+            const mWeight = module.weight || 100 / modules.length;
+            completedWeighted += modulePct * mWeight;
+            totalWeighted += mWeight;
         });
-        return total === 0 ? 0 : Math.round((completed / total) * 100);
+        return totalWeighted > 0 ? Math.round((completedWeighted / totalWeighted) * 100) : 0;
     };
 
     if (loading) return (
@@ -83,46 +87,48 @@ export default function StudentDashboard() {
     const overallProgress = calculateOverallProgress();
 
     return (
-        <div className="p-4 lg:p-12 max-w-7xl mx-auto space-y-12 pb-20">
+        <div className="p-4 sm:p-6 lg:p-12 max-w-7xl mx-auto space-y-8 lg:space-y-12 pb-20">
             {/* Welcome Section */}
-            <div className="relative bg-[#463a7a] rounded-[50px] p-8 lg:p-16 overflow-hidden shadow-2xl shadow-indigo-900/40 group hover:shadow-[#463a7a]/60 transition-all duration-500">
-                <div className="absolute top-0 right-0 p-12 opacity-5 scale-150 rotate-12 group-hover:rotate-0 transition-transform duration-700">
-                    <Music className="w-96 h-96 text-white fill-current" />
+            <div className="relative bg-[#463a7a] rounded-[32px] sm:rounded-[50px] p-6 sm:p-10 lg:p-16 overflow-hidden shadow-2xl shadow-indigo-900/40 group hover:shadow-[#463a7a]/60 transition-all duration-500">
+                <div className="absolute top-0 right-0 p-6 opacity-5 scale-125 rotate-12 group-hover:rotate-0 transition-transform duration-700">
+                    <Music className="w-48 h-48 sm:w-72 sm:h-72 lg:w-96 lg:h-96 text-white fill-current" />
                 </div>
 
-                <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-10">
-                    <div className="space-y-4">
-                        <div className="flex items-center gap-3">
-                            <div className="px-5 py-2 bg-orange-500 rounded-full flex items-center gap-2 shadow-lg shadow-orange-900/20">
-                                <Award size={14} className="text-white" />
+                <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6 lg:gap-10">
+                    <div className="space-y-3 sm:space-y-4">
+                        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                            <div className="px-4 sm:px-5 py-2 bg-orange-500 rounded-full flex items-center gap-2 shadow-lg shadow-orange-900/20">
+                                <Award size={13} className="text-white" />
                                 <span className="text-[10px] font-black text-white uppercase tracking-widest">{progress?.student?.grade || 'Debut'} Grade</span>
                             </div>
-                            <span className="text-white/40 font-bold text-xs uppercase tracking-widest">{format(new Date(), 'EEEE, MMMM do')}</span>
+                            <span className="text-white/40 font-bold text-[10px] sm:text-xs uppercase tracking-widest">{format(new Date(), 'EEEE, MMMM do')}</span>
                         </div>
-                        <h1 className="text-4xl lg:text-7xl font-black text-white tracking-tighter leading-[0.85]">
+                        <h1 className="text-3xl sm:text-5xl lg:text-7xl font-black text-white tracking-tighter leading-[0.85]">
                             Ready to practice,<br />
                             <span className="text-indigo-300">{student.first_name}?</span>
                         </h1>
-                        <p className="text-indigo-100/60 font-medium text-lg max-w-md">
+                        <p className="text-indigo-100/60 font-medium text-sm sm:text-lg max-w-md">
                             You have {todaySessions.length === 0 ? 'no' : todaySessions.length} sessions scheduled for today. Keep up the momentum!
                         </p>
                     </div>
 
-                    <div className="p-1.5 bg-white/10 backdrop-blur-md rounded-[40px] border border-white/10 shadow-inner">
-                        <div className="bg-white rounded-[32px] p-8 flex items-center gap-8 shadow-2xl">
-                            <div className="relative">
-                                <svg className="w-24 h-24 transform -rotate-90">
-                                    <circle cx="48" cy="48" r="42" stroke="#f1f5f9" strokeWidth="8" fill="none" />
-                                    <circle cx="48" cy="48" r="42" stroke="#463a7a" strokeWidth="8" fill="none" strokeDasharray={264} strokeDashoffset={264 - (264 * overallProgress) / 100} strokeLinecap="round" className="transition-all duration-1000 ease-out" />
+                    <div className="p-1.5 bg-white/10 backdrop-blur-md rounded-[32px] sm:rounded-[40px] border border-white/10 shadow-inner self-start lg:self-auto">
+                        <div className="bg-white rounded-[24px] sm:rounded-[32px] p-5 sm:p-8 flex items-center gap-5 sm:gap-8 shadow-2xl">
+                            <div className="relative flex-shrink-0">
+                                <svg className="w-16 h-16 sm:w-24 sm:h-24 transform -rotate-90">
+                                    <circle cx="32" cy="32" r="26" stroke="#f1f5f9" strokeWidth="6" fill="none" className="sm:hidden" />
+                                    <circle cx="32" cy="32" r="26" stroke="#463a7a" strokeWidth="6" fill="none" strokeDasharray={163} strokeDashoffset={163 - (163 * overallProgress) / 100} strokeLinecap="round" className="transition-all duration-1000 ease-out sm:hidden" />
+                                    <circle cx="48" cy="48" r="42" stroke="#f1f5f9" strokeWidth="8" fill="none" className="hidden sm:block" />
+                                    <circle cx="48" cy="48" r="42" stroke="#463a7a" strokeWidth="8" fill="none" strokeDasharray={264} strokeDashoffset={264 - (264 * overallProgress) / 100} strokeLinecap="round" className="transition-all duration-1000 ease-out hidden sm:block" />
                                 </svg>
                                 <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                    <span className="text-xl font-black text-slate-900 leading-none">{overallProgress}%</span>
-                                    <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-1">Syllabus</span>
+                                    <span className="text-base sm:text-xl font-black text-slate-900 leading-none">{overallProgress}%</span>
+                                    <span className="text-[7px] sm:text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Syllabus</span>
                                 </div>
                             </div>
                             <div className="space-y-1">
-                                <p className="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">Overall Mastery</p>
-                                <h3 className="text-2xl font-black text-slate-900 leading-tight">Vama Excellence</h3>
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Overall Mastery</p>
+                                <h3 className="text-lg sm:text-2xl font-black text-slate-900 leading-tight">Vama Excellence</h3>
                                 <button onClick={() => navigate('/student-portal/progress')} className="text-[#463a7a] font-black text-[10px] uppercase tracking-widest flex items-center gap-1 hover:gap-2 transition-all mt-2">
                                     View Progress <ChevronRight size={12} />
                                 </button>
@@ -133,22 +139,22 @@ export default function StudentDashboard() {
             </div>
 
             {/* Main Grid */}
-            <div className="grid grid-cols-1 xl:grid-cols-3 gap-10">
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 sm:gap-8 lg:gap-10">
 
                 {/* Today's Classes */}
-                <div className="xl:col-span-2 space-y-8">
-                    <div className="flex items-center justify-between px-2">
-                        <h2 className="text-2xl font-black text-slate-900 tracking-tighter flex items-center gap-4">
-                            <Calendar className="text-[#463a7a] w-8 h-8" />
+                <div className="xl:col-span-2 space-y-5 sm:space-y-8">
+                    <div className="flex items-center justify-between px-1 sm:px-2">
+                        <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tighter flex items-center gap-3 sm:gap-4">
+                            <Calendar className="text-[#463a7a] w-6 h-6 sm:w-8 sm:h-8 flex-shrink-0" />
                             TODAY'S SCHEDULE
                         </h2>
-                        <button onClick={() => navigate('/student-portal/schedule')} className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-[#463a7a] transition-colors">Full Calendar</button>
+                        <button onClick={() => navigate('/student-portal/schedule')} className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-[#463a7a] transition-colors whitespace-nowrap">Full Calendar</button>
                     </div>
 
                     {todaySessions.length > 0 ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                             {todaySessions.map(session => (
-                                <div key={session.id} className="bg-white rounded-[40px] p-8 shadow-xl shadow-slate-200/50 border border-slate-50 flex flex-col justify-between group hover:border-[#463a7a] transition-all duration-500 relative overflow-hidden">
+                                <div key={session.id} className="bg-white rounded-[28px] sm:rounded-[40px] p-6 sm:p-8 shadow-xl shadow-slate-200/50 border border-slate-50 flex flex-col justify-between group hover:border-[#463a7a] transition-all duration-500 relative overflow-hidden">
                                     <div className="absolute top-0 right-0 w-32 h-32 bg-[#463a7a]/5 rounded-bl-[80px] -mr-8 -mt-8 group-hover:bg-[#463a7a]/10 transition-colors" />
 
                                     <div className="relative z-10">
@@ -183,20 +189,20 @@ export default function StudentDashboard() {
                             ))}
                         </div>
                     ) : (
-                        <div className="bg-white rounded-[40px] p-20 text-center border-2 border-dashed border-slate-100 shadow-sm">
-                            <div className="w-20 h-20 bg-slate-50 rounded-3xl flex items-center justify-center mx-auto mb-6 text-slate-200">
-                                <Music size={40} />
+                        <div className="bg-white rounded-[28px] sm:rounded-[40px] p-12 sm:p-20 text-center border-2 border-dashed border-slate-100 shadow-sm">
+                            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-slate-50 rounded-3xl flex items-center justify-center mx-auto mb-4 sm:mb-6 text-slate-200">
+                                <Music size={36} />
                             </div>
-                            <h3 className="text-2xl font-black text-slate-300 tracking-tighter">No classes today</h3>
-                            <p className="text-slate-400 font-bold uppercase text-[10px] tracking-widest mt-2 px-8">Relax, practice on your own, or explore your materials</p>
+                            <h3 className="text-xl sm:text-2xl font-black text-slate-300 tracking-tighter">No classes today</h3>
+                            <p className="text-slate-400 font-bold uppercase text-[10px] tracking-widest mt-2 px-4 sm:px-8">Relax, practice on your own, or explore your materials</p>
                         </div>
                     )}
                 </div>
 
                 {/* Sidebar Content */}
-                <div className="space-y-10">
+                <div className="space-y-6 sm:space-y-10">
                     {/* Quick Progress Sidebar */}
-                    <div className="bg-white rounded-[50px] p-10 shadow-2xl shadow-slate-200/50 border border-slate-100">
+                    <div className="bg-white rounded-[32px] sm:rounded-[50px] p-6 sm:p-10 shadow-2xl shadow-slate-200/50 border border-slate-100">
                         <h2 className="text-xl font-black text-slate-900 mb-8 tracking-tighter uppercase">RECENT MATERIALS</h2>
                         <div className="space-y-6">
                             {materials?.slice(0, 3).map((m, i) => (
@@ -227,7 +233,7 @@ export default function StudentDashboard() {
                     </div>
 
                     {/* Achievement / Tip Card */}
-                    <div className="bg-gradient-to-br from-[#463a7a] to-[#2d2550] rounded-[50px] p-10 text-white relative overflow-hidden shadow-2xl">
+                    <div className="bg-gradient-to-br from-[#463a7a] to-[#2d2550] rounded-[32px] sm:rounded-[50px] p-6 sm:p-10 text-white relative overflow-hidden shadow-2xl">
                         <div className="relative z-10">
                             <div className="w-14 h-14 bg-white/10 backdrop-blur-md rounded-[20px] flex items-center justify-center mb-10 border border-white/10">
                                 <Zap className="text-yellow-400 fill-current" />

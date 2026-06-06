@@ -1,0 +1,703 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 2500" width="1600" height="2500" font-family="'Segoe UI', Arial, sans-serif">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0f0c29"/>
+      <stop offset="50%" style="stop-color:#1a1540"/>
+      <stop offset="100%" style="stop-color:#0f0c29"/>
+    </linearGradient>
+    <linearGradient id="purpleGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#463a7a"/>
+      <stop offset="100%" style="stop-color:#6b4fa0"/>
+    </linearGradient>
+    <linearGradient id="adminGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#2d2550;stop-opacity:0.9"/>
+      <stop offset="100%" style="stop-color:#463a7a;stop-opacity:0.7"/>
+    </linearGradient>
+    <linearGradient id="teacherGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0a2a4a;stop-opacity:0.9"/>
+      <stop offset="100%" style="stop-color:#1a4a7a;stop-opacity:0.7"/>
+    </linearGradient>
+    <linearGradient id="studentGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0a3a2a;stop-opacity:0.9"/>
+      <stop offset="100%" style="stop-color:#1a5a3a;stop-opacity:0.7"/>
+    </linearGradient>
+    <linearGradient id="apiGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#1a0533"/>
+      <stop offset="100%" style="stop-color:#2d0f55"/>
+    </linearGradient>
+    <linearGradient id="dbGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#001a33"/>
+      <stop offset="100%" style="stop-color:#002a55"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#000" flood-opacity="0.4"/>
+    </filter>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <marker id="arrowPurple" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#a78bfa"/>
+    </marker>
+    <marker id="arrowGray" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#64748b"/>
+    </marker>
+    <marker id="arrowGreen" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#34d399"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1600" height="2500" fill="url(#bgGrad)"/>
+
+  <!-- Grid pattern overlay -->
+  <defs>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(255,255,255,0.03)" stroke-width="1"/>
+    </pattern>
+  </defs>
+  <rect width="1600" height="2500" fill="url(#grid)"/>
+
+  <!-- ═══════════════════ HEADER ═══════════════════ -->
+  <rect x="0" y="0" width="1600" height="90" fill="url(#purpleGrad)"/>
+  <text x="50" y="38" font-size="28" font-weight="700" fill="white" letter-spacing="1">Vama Academy ERP</text>
+  <text x="50" y="62" font-size="13" fill="rgba(255,255,255,0.7)">High Level Design — System Architecture Overview</text>
+
+  <!-- Tech stack pills -->
+  <rect x="50" y="72" width="60" height="14" rx="7" fill="rgba(99,102,241,0.4)" stroke="rgba(99,102,241,0.6)" stroke-width="1"/>
+  <text x="80" y="83" font-size="9" fill="#a5b4fc" text-anchor="middle">React 18</text>
+  <rect x="118" y="72" width="54" height="14" rx="7" fill="rgba(59,130,246,0.4)" stroke="rgba(59,130,246,0.6)" stroke-width="1"/>
+  <text x="145" y="83" font-size="9" fill="#93c5fd" text-anchor="middle">FastAPI</text>
+  <rect x="180" y="72" width="70" height="14" rx="7" fill="rgba(16,185,129,0.4)" stroke="rgba(16,185,129,0.6)" stroke-width="1"/>
+  <text x="215" y="83" font-size="9" fill="#6ee7b7" text-anchor="middle">PostgreSQL</text>
+  <rect x="258" y="72" width="66" height="14" rx="7" fill="rgba(245,158,11,0.4)" stroke="rgba(245,158,11,0.6)" stroke-width="1"/>
+  <text x="291" y="83" font-size="9" fill="#fcd34d" text-anchor="middle">Razorpay</text>
+  <rect x="332" y="72" width="68" height="14" rx="7" fill="rgba(239,68,68,0.4)" stroke="rgba(239,68,68,0.6)" stroke-width="1"/>
+  <text x="366" y="83" font-size="9" fill="#fca5a5" text-anchor="middle">Tailwind CSS</text>
+  <rect x="408" y="72" width="64" height="14" rx="7" fill="rgba(156,163,175,0.3)" stroke="rgba(156,163,175,0.5)" stroke-width="1"/>
+  <text x="440" y="83" font-size="9" fill="#d1d5db" text-anchor="middle">SQLAlchemy</text>
+  <rect x="480" y="72" width="58" height="14" rx="7" fill="rgba(168,85,247,0.4)" stroke="rgba(168,85,247,0.6)" stroke-width="1"/>
+  <text x="509" y="83" font-size="9" fill="#d8b4fe" text-anchor="middle">Pydantic v2</text>
+
+  <!-- ═══════════════════ LAYER 1 HEADER ═══════════════════ -->
+  <text x="50" y="122" font-size="11" font-weight="600" fill="rgba(255,255,255,0.4)" letter-spacing="2">LAYER 1 — CLIENT PORTALS · REACT 18 · VITE 4 · REACT ROUTER v7</text>
+  <line x1="50" y1="128" x2="1550" y2="128" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+
+  <!-- ─── ADMIN PORTAL ─── -->
+  <rect x="40" y="138" width="490" height="330" rx="16" fill="url(#adminGrad)" stroke="rgba(139,92,246,0.5)" stroke-width="1.5" filter="url(#shadow)"/>
+  <rect x="40" y="138" width="490" height="40" rx="16" fill="rgba(139,92,246,0.3)"/>
+  <rect x="40" y="158" width="490" height="20" fill="rgba(139,92,246,0.3)"/>
+  <circle cx="68" cy="158" r="8" fill="#a78bfa"/>
+  <text x="68" y="162" font-size="10" fill="white" text-anchor="middle">A</text>
+  <text x="85" y="163" font-size="14" font-weight="700" fill="white">Admin Portal</text>
+  <text x="420" y="163" font-size="10" fill="rgba(255,255,255,0.5)" text-anchor="middle">Super User</text>
+
+  <!-- Admin routes list -->
+  <text x="60" y="198" font-size="10" fill="rgba(167,139,250,0.8)" font-weight="600">ROUTES</text>
+  <text x="60" y="215" font-size="10" fill="rgba(255,255,255,0.7)">/admin/dashboard</text>
+  <text x="280" y="215" font-size="10" fill="rgba(255,255,255,0.5)">Overview &amp; KPIs</text>
+  <text x="60" y="232" font-size="10" fill="rgba(255,255,255,0.7)">/admin/students</text>
+  <text x="280" y="232" font-size="10" fill="rgba(255,255,255,0.5)">Student Management</text>
+  <text x="60" y="249" font-size="10" fill="rgba(255,255,255,0.7)">/admin/staff</text>
+  <text x="280" y="249" font-size="10" fill="rgba(255,255,255,0.5)">Teacher &amp; Staff</text>
+  <text x="60" y="266" font-size="10" fill="rgba(255,255,255,0.7)">/admin/curriculum</text>
+  <text x="280" y="266" font-size="10" fill="rgba(255,255,255,0.5)">Grades, Subjects, Syllabus</text>
+  <text x="60" y="283" font-size="10" fill="rgba(255,255,255,0.7)">/admin/scheduling</text>
+  <text x="280" y="283" font-size="10" fill="rgba(255,255,255,0.5)">Exam Sessions</text>
+  <text x="60" y="300" font-size="10" fill="rgba(255,255,255,0.7)">/admin/payments</text>
+  <text x="280" y="300" font-size="10" fill="rgba(255,255,255,0.5)">Payment Dashboard</text>
+  <text x="60" y="317" font-size="10" fill="rgba(255,255,255,0.7)">/admin/packages</text>
+  <text x="280" y="317" font-size="10" fill="rgba(255,255,255,0.5)">Package Management</text>
+  <text x="60" y="334" font-size="10" fill="rgba(255,255,255,0.7)">/admin/invoices</text>
+  <text x="280" y="334" font-size="10" fill="rgba(255,255,255,0.5)">Invoice CRUD + Bulk</text>
+  <text x="60" y="351" font-size="10" fill="rgba(255,255,255,0.7)">/admin/subscriptions</text>
+  <text x="280" y="351" font-size="10" fill="rgba(255,255,255,0.5)">MRR &amp; Renewals</text>
+  <text x="60" y="368" font-size="10" fill="rgba(255,255,255,0.7)">/admin/analytics</text>
+  <text x="280" y="368" font-size="10" fill="rgba(255,255,255,0.5)">Revenue Analytics</text>
+
+  <!-- Admin feature chips -->
+  <rect x="60" y="386" width="86" height="16" rx="8" fill="rgba(139,92,246,0.3)" stroke="rgba(139,92,246,0.5)" stroke-width="1"/>
+  <text x="103" y="397" font-size="9" fill="#c4b5fd" text-anchor="middle">KPI Dashboard</text>
+  <rect x="154" y="386" width="78" height="16" rx="8" fill="rgba(139,92,246,0.3)" stroke="rgba(139,92,246,0.5)" stroke-width="1"/>
+  <text x="193" y="397" font-size="9" fill="#c4b5fd" text-anchor="middle">PDF Invoices</text>
+  <rect x="240" y="386" width="88" height="16" rx="8" fill="rgba(139,92,246,0.3)" stroke="rgba(139,92,246,0.5)" stroke-width="1"/>
+  <text x="284" y="397" font-size="9" fill="#c4b5fd" text-anchor="middle">Bulk Actions</text>
+  <rect x="336" y="386" width="82" height="16" rx="8" fill="rgba(139,92,246,0.3)" stroke="rgba(139,92,246,0.5)" stroke-width="1"/>
+  <text x="377" y="397" font-size="9" fill="#c4b5fd" text-anchor="middle">MRR Analytics</text>
+  <rect x="426" y="386" width="82" height="16" rx="8" fill="rgba(139,92,246,0.3)" stroke="rgba(139,92,246,0.5)" stroke-width="1"/>
+  <text x="467" y="397" font-size="9" fill="#c4b5fd" text-anchor="middle">SVG Charts</text>
+  <rect x="60" y="408" width="90" height="16" rx="8" fill="rgba(139,92,246,0.3)" stroke="rgba(139,92,246,0.5)" stroke-width="1"/>
+  <text x="105" y="419" font-size="9" fill="#c4b5fd" text-anchor="middle">Exam Sessions</text>
+  <rect x="158" y="408" width="96" height="16" rx="8" fill="rgba(139,92,246,0.3)" stroke="rgba(139,92,246,0.5)" stroke-width="1"/>
+  <text x="206" y="419" font-size="9" fill="#c4b5fd" text-anchor="middle">Syllabus Builder</text>
+  <rect x="262" y="408" width="100" height="16" rx="8" fill="rgba(139,92,246,0.3)" stroke="rgba(139,92,246,0.5)" stroke-width="1"/>
+  <text x="312" y="419" font-size="9" fill="#c4b5fd" text-anchor="middle">Teacher Assignment</text>
+  <rect x="370" y="408" width="86" height="16" rx="8" fill="rgba(139,92,246,0.3)" stroke="rgba(139,92,246,0.5)" stroke-width="1"/>
+  <text x="413" y="419" font-size="9" fill="#c4b5fd" text-anchor="middle">WhatsApp Share</text>
+  <rect x="464" y="408" width="50" height="16" rx="8" fill="rgba(139,92,246,0.3)" stroke="rgba(139,92,246,0.5)" stroke-width="1"/>
+  <text x="489" y="419" font-size="9" fill="#c4b5fd" text-anchor="middle">+12</text>
+  <text x="60" y="450" font-size="10" fill="rgba(255,255,255,0.4)">Components: 15+ · localStorage auth · Tailwind CSS</text>
+
+  <!-- ─── TEACHER PORTAL ─── -->
+  <rect x="555" y="138" width="490" height="330" rx="16" fill="url(#teacherGrad)" stroke="rgba(59,130,246,0.5)" stroke-width="1.5" filter="url(#shadow)"/>
+  <rect x="555" y="138" width="490" height="40" rx="16" fill="rgba(59,130,246,0.3)"/>
+  <rect x="555" y="158" width="490" height="20" fill="rgba(59,130,246,0.3)"/>
+  <circle cx="583" cy="158" r="8" fill="#60a5fa"/>
+  <text x="583" y="162" font-size="10" fill="white" text-anchor="middle">T</text>
+  <text x="600" y="163" font-size="14" font-weight="700" fill="white">Teacher Portal</text>
+  <text x="930" y="163" font-size="10" fill="rgba(255,255,255,0.5)" text-anchor="middle">Staff User</text>
+
+  <text x="575" y="198" font-size="10" fill="rgba(96,165,250,0.8)" font-weight="600">ROUTES</text>
+  <text x="575" y="215" font-size="10" fill="rgba(255,255,255,0.7)">/teacher/dashboard</text>
+  <text x="795" y="215" font-size="10" fill="rgba(255,255,255,0.5)">Teaching Overview</text>
+  <text x="575" y="232" font-size="10" fill="rgba(255,255,255,0.7)">/teacher/students</text>
+  <text x="795" y="232" font-size="10" fill="rgba(255,255,255,0.5)">Assigned Students</text>
+  <text x="575" y="249" font-size="10" fill="rgba(255,255,255,0.7)">/teacher/attendance</text>
+  <text x="795" y="249" font-size="10" fill="rgba(255,255,255,0.5)">Mark Attendance</text>
+  <text x="575" y="266" font-size="10" fill="rgba(255,255,255,0.7)">/teacher/scheduling</text>
+  <text x="795" y="266" font-size="10" fill="rgba(255,255,255,0.5)">Exam &amp; Session Schedule</text>
+  <text x="575" y="283" font-size="10" fill="rgba(255,255,255,0.7)">/teacher/students/:id</text>
+  <text x="795" y="283" font-size="10" fill="rgba(255,255,255,0.5)">Student Detail View</text>
+  <text x="575" y="300" font-size="10" fill="rgba(255,255,255,0.7)">/teacher/profile</text>
+  <text x="795" y="300" font-size="10" fill="rgba(255,255,255,0.5)">Staff Profile Page</text>
+
+  <rect x="575" y="386" width="86" height="16" rx="8" fill="rgba(59,130,246,0.3)" stroke="rgba(59,130,246,0.5)" stroke-width="1"/>
+  <text x="618" y="397" font-size="9" fill="#93c5fd" text-anchor="middle">Attendance Grid</text>
+  <rect x="669" y="386" width="96" height="16" rx="8" fill="rgba(59,130,246,0.3)" stroke="rgba(59,130,246,0.5)" stroke-width="1"/>
+  <text x="717" y="397" font-size="9" fill="#93c5fd" text-anchor="middle">Progress Tracking</text>
+  <rect x="773" y="386" width="88" height="16" rx="8" fill="rgba(59,130,246,0.3)" stroke="rgba(59,130,246,0.5)" stroke-width="1"/>
+  <text x="817" y="397" font-size="9" fill="#93c5fd" text-anchor="middle">Student Reports</text>
+  <rect x="869" y="386" width="80" height="16" rx="8" fill="rgba(59,130,246,0.3)" stroke="rgba(59,130,246,0.5)" stroke-width="1"/>
+  <text x="909" y="397" font-size="9" fill="#93c5fd" text-anchor="middle">Exam Grading</text>
+  <rect x="957" y="386" width="72" height="16" rx="8" fill="rgba(59,130,246,0.3)" stroke="rgba(59,130,246,0.5)" stroke-width="1"/>
+  <text x="993" y="397" font-size="9" fill="#93c5fd" text-anchor="middle">Scheduling</text>
+  <text x="575" y="450" font-size="10" fill="rgba(255,255,255,0.4)">Components: 8+ · Role-based Auth · Mobile Responsive</text>
+
+  <!-- ─── STUDENT PORTAL ─── -->
+  <rect x="1070" y="138" width="490" height="330" rx="16" fill="url(#studentGrad)" stroke="rgba(16,185,129,0.5)" stroke-width="1.5" filter="url(#shadow)"/>
+  <rect x="1070" y="138" width="490" height="40" rx="16" fill="rgba(16,185,129,0.3)"/>
+  <rect x="1070" y="158" width="490" height="20" fill="rgba(16,185,129,0.3)"/>
+  <circle cx="1098" cy="158" r="8" fill="#34d399"/>
+  <text x="1098" y="162" font-size="10" fill="white" text-anchor="middle">S</text>
+  <text x="1115" y="163" font-size="14" font-weight="700" fill="white">Student Portal</text>
+  <text x="1440" y="163" font-size="10" fill="rgba(255,255,255,0.5)" text-anchor="middle">Student User</text>
+
+  <text x="1090" y="198" font-size="10" fill="rgba(52,211,153,0.8)" font-weight="600">ROUTES</text>
+  <text x="1090" y="215" font-size="10" fill="rgba(255,255,255,0.7)">/student/login</text>
+  <text x="1310" y="215" font-size="10" fill="rgba(255,255,255,0.5)">Phone + OTP Auth</text>
+  <text x="1090" y="232" font-size="10" fill="rgba(255,255,255,0.7)">/student/dashboard</text>
+  <text x="1310" y="232" font-size="10" fill="rgba(255,255,255,0.5)">Personal Overview</text>
+  <text x="1090" y="249" font-size="10" fill="rgba(255,255,255,0.7)">/student/schedule</text>
+  <text x="1310" y="249" font-size="10" fill="rgba(255,255,255,0.5)">Upcoming Sessions</text>
+  <text x="1090" y="266" font-size="10" fill="rgba(255,255,255,0.7)">/student/progress</text>
+  <text x="1310" y="266" font-size="10" fill="rgba(255,255,255,0.5)">Grades &amp; Milestones</text>
+  <text x="1090" y="283" font-size="10" fill="rgba(255,255,255,0.7)">/student/payments</text>
+  <text x="1310" y="283" font-size="10" fill="rgba(255,255,255,0.5)">Razorpay + Packages</text>
+  <text x="1090" y="300" font-size="10" fill="rgba(255,255,255,0.7)">/student/materials</text>
+  <text x="1310" y="300" font-size="10" fill="rgba(255,255,255,0.5)">Study Materials</text>
+  <text x="1090" y="317" font-size="10" fill="rgba(255,255,255,0.7)">/student/reschedule</text>
+  <text x="1310" y="317" font-size="10" fill="rgba(255,255,255,0.5)">Makeup Sessions</text>
+
+  <rect x="1090" y="386" width="88" height="16" rx="8" fill="rgba(16,185,129,0.3)" stroke="rgba(16,185,129,0.5)" stroke-width="1"/>
+  <text x="1134" y="397" font-size="9" fill="#6ee7b7" text-anchor="middle">Razorpay UX</text>
+  <rect x="1186" y="386" width="92" height="16" rx="8" fill="rgba(16,185,129,0.3)" stroke="rgba(16,185,129,0.5)" stroke-width="1"/>
+  <text x="1232" y="397" font-size="9" fill="#6ee7b7" text-anchor="middle">Grade Filtering</text>
+  <rect x="1286" y="386" width="100" height="16" rx="8" fill="rgba(16,185,129,0.3)" stroke="rgba(16,185,129,0.5)" stroke-width="1"/>
+  <text x="1336" y="397" font-size="9" fill="#6ee7b7" text-anchor="middle">Session Tracking</text>
+  <rect x="1394" y="386" width="82" height="16" rx="8" fill="rgba(16,185,129,0.3)" stroke="rgba(16,185,129,0.5)" stroke-width="1"/>
+  <text x="1435" y="397" font-size="9" fill="#6ee7b7" text-anchor="middle">OTP Login</text>
+  <text x="1090" y="450" font-size="10" fill="rgba(255,255,255,0.4)">Components: 10+ · localStorage · Mobile-First Design</text>
+
+  <!-- ═══════════════════ CONNECTING ARROWS LAYER 1 → 2 ═══════════════════ -->
+  <line x1="285" y1="470" x2="285" y2="518" stroke="#a78bfa" stroke-width="1.5" stroke-dasharray="6,3" marker-end="url(#arrowPurple)"/>
+  <line x1="800" y1="470" x2="800" y2="518" stroke="#a78bfa" stroke-width="1.5" stroke-dasharray="6,3" marker-end="url(#arrowPurple)"/>
+  <line x1="1315" y1="470" x2="1315" y2="518" stroke="#a78bfa" stroke-width="1.5" stroke-dasharray="6,3" marker-end="url(#arrowPurple)"/>
+  <text x="335" y="500" font-size="9" fill="rgba(167,139,250,0.7)">REST/JSON</text>
+  <text x="850" y="500" font-size="9" fill="rgba(167,139,250,0.7)">REST/JSON</text>
+  <text x="1365" y="500" font-size="9" fill="rgba(167,139,250,0.7)">REST/JSON</text>
+
+  <!-- ═══════════════════ LAYER 2 HEADER ═══════════════════ -->
+  <text x="50" y="542" font-size="11" font-weight="600" fill="rgba(255,255,255,0.4)" letter-spacing="2">LAYER 2 — FASTAPI BACKEND · PYTHON 3.12 · PYDANTIC v2 · UVICORN</text>
+  <line x1="50" y1="548" x2="1550" y2="548" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+
+  <!-- FastAPI main banner -->
+  <rect x="40" y="558" width="1520" height="64" rx="12" fill="url(#apiGrad)" stroke="rgba(168,85,247,0.4)" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="80" y="588" font-size="18" font-weight="700" fill="white">⚡ FastAPI Backend</text>
+  <text x="80" y="608" font-size="11" fill="rgba(255,255,255,0.5)">main.py · Auto-migration via Base.metadata.create_all() · CORS · JWT-ready</text>
+  <!-- Stats -->
+  <text x="1100" y="583" font-size="28" font-weight="700" fill="#a78bfa" text-anchor="middle">40+</text>
+  <text x="1100" y="598" font-size="10" fill="rgba(255,255,255,0.5)" text-anchor="middle">Endpoints</text>
+  <text x="1210" y="583" font-size="28" font-weight="700" fill="#60a5fa" text-anchor="middle">8</text>
+  <text x="1210" y="598" font-size="10" fill="rgba(255,255,255,0.5)" text-anchor="middle">Modules</text>
+  <text x="1320" y="583" font-size="28" font-weight="700" fill="#34d399" text-anchor="middle">18</text>
+  <text x="1320" y="598" font-size="10" fill="rgba(255,255,255,0.5)" text-anchor="middle">DB Models</text>
+  <text x="1430" y="583" font-size="28" font-weight="700" fill="#fb923c" text-anchor="middle">3</text>
+  <text x="1430" y="598" font-size="10" fill="rgba(255,255,255,0.5)" text-anchor="middle">Portals</text>
+
+  <!-- ─── API GROUP 1: AUTH ─── -->
+  <rect x="40" y="640" width="180" height="170" rx="12" fill="rgba(99,102,241,0.15)" stroke="rgba(99,102,241,0.5)" stroke-width="1.5"/>
+  <text x="130" y="662" font-size="12" font-weight="700" fill="#a5b4fc" text-anchor="middle">AUTH</text>
+  <line x1="60" y1="668" x2="200" y2="668" stroke="rgba(99,102,241,0.3)" stroke-width="1"/>
+  <rect x="55" y="676" width="28" height="13" rx="4" fill="rgba(16,185,129,0.3)"/>
+  <text x="69" y="686" font-size="8" fill="#6ee7b7" text-anchor="middle">GET</text>
+  <text x="90" y="686" font-size="9" fill="rgba(255,255,255,0.8)">/student/login</text>
+  <rect x="55" y="696" width="30" height="13" rx="4" fill="rgba(59,130,246,0.3)"/>
+  <text x="70" y="706" font-size="8" fill="#93c5fd" text-anchor="middle">POST</text>
+  <text x="92" y="706" font-size="9" fill="rgba(255,255,255,0.8)">/verify-otp</text>
+  <rect x="55" y="716" width="28" height="13" rx="4" fill="rgba(16,185,129,0.3)"/>
+  <text x="69" y="726" font-size="8" fill="#6ee7b7" text-anchor="middle">GET</text>
+  <text x="90" y="726" font-size="9" fill="rgba(255,255,255,0.8)">/student/me</text>
+  <rect x="55" y="736" width="30" height="13" rx="4" fill="rgba(59,130,246,0.3)"/>
+  <text x="70" y="746" font-size="8" fill="#93c5fd" text-anchor="middle">POST</text>
+  <text x="92" y="746" font-size="9" fill="rgba(255,255,255,0.8)">/send-otp</text>
+  <rect x="55" y="756" width="28" height="13" rx="4" fill="rgba(16,185,129,0.3)"/>
+  <text x="69" y="766" font-size="8" fill="#6ee7b7" text-anchor="middle">GET</text>
+  <text x="90" y="766" font-size="9" fill="rgba(255,255,255,0.8)">/staff/login</text>
+  <text x="130" y="795" font-size="9" fill="rgba(255,255,255,0.3)" text-anchor="middle">Phone · OTP · Role</text>
+
+  <!-- ─── API GROUP 2: STUDENTS ─── -->
+  <rect x="232" y="640" width="180" height="170" rx="12" fill="rgba(168,85,247,0.15)" stroke="rgba(168,85,247,0.5)" stroke-width="1.5"/>
+  <text x="322" y="662" font-size="12" font-weight="700" fill="#d8b4fe" text-anchor="middle">STUDENTS</text>
+  <line x1="252" y1="668" x2="392" y2="668" stroke="rgba(168,85,247,0.3)" stroke-width="1"/>
+  <rect x="247" y="676" width="28" height="13" rx="4" fill="rgba(16,185,129,0.3)"/>
+  <text x="261" y="686" font-size="8" fill="#6ee7b7" text-anchor="middle">GET</text>
+  <text x="282" y="686" font-size="9" fill="rgba(255,255,255,0.8)">/admin/students</text>
+  <rect x="247" y="696" width="30" height="13" rx="4" fill="rgba(59,130,246,0.3)"/>
+  <text x="262" y="706" font-size="8" fill="#93c5fd" text-anchor="middle">POST</text>
+  <text x="284" y="706" font-size="9" fill="rgba(255,255,255,0.8)">/admin/students</text>
+  <rect x="247" y="716" width="26" height="13" rx="4" fill="rgba(245,158,11,0.3)"/>
+  <text x="260" y="726" font-size="8" fill="#fcd34d" text-anchor="middle">PUT</text>
+  <text x="282" y="726" font-size="9" fill="rgba(255,255,255,0.8)">/admin/students/:id</text>
+  <rect x="247" y="736" width="28" height="13" rx="4" fill="rgba(16,185,129,0.3)"/>
+  <text x="261" y="746" font-size="8" fill="#6ee7b7" text-anchor="middle">GET</text>
+  <text x="282" y="746" font-size="9" fill="rgba(255,255,255,0.8)">/student/:id</text>
+  <rect x="247" y="756" width="28" height="13" rx="4" fill="rgba(16,185,129,0.3)"/>
+  <text x="261" y="766" font-size="8" fill="#6ee7b7" text-anchor="middle">GET</text>
+  <text x="282" y="766" font-size="9" fill="rgba(255,255,255,0.8)">/student/progress</text>
+  <text x="322" y="795" font-size="9" fill="rgba(255,255,255,0.3)" text-anchor="middle">CRUD · Progress · Bulk</text>
+
+  <!-- ─── API GROUP 3: STAFF ─── -->
+  <rect x="424" y="640" width="180" height="170" rx="12" fill="rgba(59,130,246,0.15)" stroke="rgba(59,130,246,0.5)" stroke-width="1.5"/>
+  <text x="514" y="662" font-size="12" font-weight="700" fill="#93c5fd" text-anchor="middle">STAFF</text>
+  <line x1="444" y1="668" x2="584" y2="668" stroke="rgba(59,130,246,0.3)" stroke-width="1"/>
+  <rect x="439" y="676" width="28" height="13" rx="4" fill="rgba(16,185,129,0.3)"/>
+  <text x="453" y="686" font-size="8" fill="#6ee7b7" text-anchor="middle">GET</text>
+  <text x="474" y="686" font-size="9" fill="rgba(255,255,255,0.8)">/admin/staff</text>
+  <rect x="439" y="696" width="30" height="13" rx="4" fill="rgba(59,130,246,0.3)"/>
+  <text x="454" y="706" font-size="8" fill="#93c5fd" text-anchor="middle">POST</text>
+  <text x="476" y="706" font-size="9" fill="rgba(255,255,255,0.8)">/admin/staff</text>
+  <rect x="439" y="716" width="28" height="13" rx="4" fill="rgba(16,185,129,0.3)"/>
+  <text x="453" y="726" font-size="8" fill="#6ee7b7" text-anchor="middle">GET</text>
+  <text x="474" y="726" font-size="9" fill="rgba(255,255,255,0.8)">/teacher/students</text>
+  <rect x="439" y="736" width="30" height="13" rx="4" fill="rgba(59,130,246,0.3)"/>
+  <text x="454" y="746" font-size="8" fill="#93c5fd" text-anchor="middle">POST</text>
+  <text x="476" y="746" font-size="9" fill="rgba(255,255,255,0.8)">/teacher/attendance</text>
+  <rect x="439" y="756" width="44" height="13" rx="4" fill="rgba(168,85,247,0.3)"/>
+  <text x="461" y="766" font-size="8" fill="#d8b4fe" text-anchor="middle">PATCH</text>
+  <text x="490" y="766" font-size="9" fill="rgba(255,255,255,0.8)">/staff/profile</text>
+  <text x="514" y="795" font-size="9" fill="rgba(255,255,255,0.3)" text-anchor="middle">CRUD · Assignments</text>
+
+  <!-- ─── API GROUP 4: CURRICULUM ─── -->
+  <rect x="616" y="640" width="180" height="170" rx="12" fill="rgba(16,185,129,0.15)" stroke="rgba(16,185,129,0.5)" stroke-width="1.5"/>
+  <text x="706" y="662" font-size="12" font-weight="700" fill="#6ee7b7" text-anchor="middle">CURRICULUM</text>
+  <line x1="636" y1="668" x2="776" y2="668" stroke="rgba(16,185,129,0.3)" stroke-width="1"/>
+  <rect x="631" y="676" width="28" height="13" rx="4" fill="rgba(16,185,129,0.3)"/>
+  <text x="645" y="686" font-size="8" fill="#6ee7b7" text-anchor="middle">GET</text>
+  <text x="666" y="686" font-size="9" fill="rgba(255,255,255,0.8)">/admin/grades</text>
+  <rect x="631" y="696" width="30" height="13" rx="4" fill="rgba(59,130,246,0.3)"/>
+  <text x="646" y="706" font-size="8" fill="#93c5fd" text-anchor="middle">POST</text>
+  <text x="668" y="706" font-size="9" fill="rgba(255,255,255,0.8)">/admin/grades</text>
+  <rect x="631" y="716" width="28" height="13" rx="4" fill="rgba(16,185,129,0.3)"/>
+  <text x="645" y="726" font-size="8" fill="#6ee7b7" text-anchor="middle">GET</text>
+  <text x="666" y="726" font-size="9" fill="rgba(255,255,255,0.8)">/admin/subjects</text>
+  <rect x="631" y="736" width="30" height="13" rx="4" fill="rgba(59,130,246,0.3)"/>
+  <text x="646" y="746" font-size="8" fill="#93c5fd" text-anchor="middle">POST</text>
+  <text x="668" y="746" font-size="9" fill="rgba(255,255,255,0.8)">/admin/syllabus</text>
+  <rect x="631" y="756" width="28" height="13" rx="4" fill="rgba(16,185,129,0.3)"/>
+  <text x="645" y="766" font-size="8" fill="#6ee7b7" text-anchor="middle">GET</text>
+  <text x="666" y="766" font-size="9" fill="rgba(255,255,255,0.8)">/student/materials</text>
+  <text x="706" y="795" font-size="9" fill="rgba(255,255,255,0.3)" text-anchor="middle">Grades · Syllabus · Content</text>
+
+  <!-- ─── API GROUP 5: SCHEDULING ─── -->
+  <rect x="808" y="640" width="180" height="170" rx="12" fill="rgba(245,158,11,0.15)" stroke="rgba(245,158,11,0.5)" stroke-width="1.5"/>
+  <text x="898" y="662" font-size="12" font-weight="700" fill="#fcd34d" text-anchor="middle">SCHEDULING</text>
+  <line x1="828" y1="668" x2="968" y2="668" stroke="rgba(245,158,11,0.3)" stroke-width="1"/>
+  <rect x="823" y="676" width="28" height="13" rx="4" fill="rgba(16,185,129,0.3)"/>
+  <text x="837" y="686" font-size="8" fill="#6ee7b7" text-anchor="middle">GET</text>
+  <text x="858" y="686" font-size="9" fill="rgba(255,255,255,0.8)">/exam-sessions</text>
+  <rect x="823" y="696" width="30" height="13" rx="4" fill="rgba(59,130,246,0.3)"/>
+  <text x="838" y="706" font-size="8" fill="#93c5fd" text-anchor="middle">POST</text>
+  <text x="860" y="706" font-size="9" fill="rgba(255,255,255,0.8)">/exam-sessions</text>
+  <rect x="823" y="716" width="44" height="13" rx="4" fill="rgba(168,85,247,0.3)"/>
+  <text x="845" y="726" font-size="8" fill="#d8b4fe" text-anchor="middle">PATCH</text>
+  <text x="874" y="726" font-size="9" fill="rgba(255,255,255,0.8)">/exam-sessions/:id</text>
+  <rect x="823" y="736" width="28" height="13" rx="4" fill="rgba(16,185,129,0.3)"/>
+  <text x="837" y="746" font-size="8" fill="#6ee7b7" text-anchor="middle">GET</text>
+  <text x="858" y="746" font-size="9" fill="rgba(255,255,255,0.8)">/student/schedule</text>
+  <rect x="823" y="756" width="30" height="13" rx="4" fill="rgba(59,130,246,0.3)"/>
+  <text x="838" y="766" font-size="8" fill="#93c5fd" text-anchor="middle">POST</text>
+  <text x="860" y="766" font-size="9" fill="rgba(255,255,255,0.8)">/reschedule</text>
+  <text x="898" y="795" font-size="9" fill="rgba(255,255,255,0.3)" text-anchor="middle">Sessions · Exams · Makeup</text>
+
+  <!-- ─── API GROUP 6: PACKAGES ─── -->
+  <rect x="1000" y="640" width="180" height="170" rx="12" fill="rgba(239,68,68,0.15)" stroke="rgba(239,68,68,0.5)" stroke-width="1.5"/>
+  <text x="1090" y="662" font-size="12" font-weight="700" fill="#fca5a5" text-anchor="middle">PACKAGES</text>
+  <line x1="1020" y1="668" x2="1160" y2="668" stroke="rgba(239,68,68,0.3)" stroke-width="1"/>
+  <rect x="1015" y="676" width="28" height="13" rx="4" fill="rgba(16,185,129,0.3)"/>
+  <text x="1029" y="686" font-size="8" fill="#6ee7b7" text-anchor="middle">GET</text>
+  <text x="1050" y="686" font-size="9" fill="rgba(255,255,255,0.8)">/admin/packages</text>
+  <rect x="1015" y="696" width="30" height="13" rx="4" fill="rgba(59,130,246,0.3)"/>
+  <text x="1030" y="706" font-size="8" fill="#93c5fd" text-anchor="middle">POST</text>
+  <text x="1052" y="706" font-size="9" fill="rgba(255,255,255,0.8)">/admin/packages</text>
+  <rect x="1015" y="716" width="26" height="13" rx="4" fill="rgba(245,158,11,0.3)"/>
+  <text x="1028" y="726" font-size="8" fill="#fcd34d" text-anchor="middle">PUT</text>
+  <text x="1050" y="726" font-size="9" fill="rgba(255,255,255,0.8)">/admin/packages/:id</text>
+  <rect x="1015" y="736" width="28" height="13" rx="4" fill="rgba(16,185,129,0.3)"/>
+  <text x="1029" y="746" font-size="8" fill="#6ee7b7" text-anchor="middle">GET</text>
+  <text x="1050" y="746" font-size="9" fill="rgba(255,255,255,0.8)">/student/packages</text>
+  <rect x="1015" y="756" width="30" height="13" rx="4" fill="rgba(59,130,246,0.3)"/>
+  <text x="1030" y="766" font-size="8" fill="#93c5fd" text-anchor="middle">POST</text>
+  <text x="1052" y="766" font-size="9" fill="rgba(255,255,255,0.8)">/student/packages</text>
+  <text x="1090" y="795" font-size="9" fill="rgba(255,255,255,0.3)" text-anchor="middle">Grade+Course Filter</text>
+
+  <!-- ─── API GROUP 7: INVOICES ─── -->
+  <rect x="1192" y="640" width="175" height="170" rx="12" fill="rgba(6,182,212,0.15)" stroke="rgba(6,182,212,0.5)" stroke-width="1.5"/>
+  <text x="1279" y="662" font-size="12" font-weight="700" fill="#67e8f9" text-anchor="middle">INVOICES</text>
+  <line x1="1212" y1="668" x2="1347" y2="668" stroke="rgba(6,182,212,0.3)" stroke-width="1"/>
+  <rect x="1207" y="676" width="28" height="13" rx="4" fill="rgba(16,185,129,0.3)"/>
+  <text x="1221" y="686" font-size="8" fill="#6ee7b7" text-anchor="middle">GET</text>
+  <text x="1242" y="686" font-size="9" fill="rgba(255,255,255,0.8)">/admin/invoices</text>
+  <rect x="1207" y="696" width="30" height="13" rx="4" fill="rgba(59,130,246,0.3)"/>
+  <text x="1222" y="706" font-size="8" fill="#93c5fd" text-anchor="middle">POST</text>
+  <text x="1244" y="706" font-size="9" fill="rgba(255,255,255,0.8)">/admin/invoices</text>
+  <rect x="1207" y="716" width="44" height="13" rx="4" fill="rgba(168,85,247,0.3)"/>
+  <text x="1229" y="726" font-size="8" fill="#d8b4fe" text-anchor="middle">PATCH</text>
+  <text x="1258" y="726" font-size="9" fill="rgba(255,255,255,0.8)">/admin/invoices/:id</text>
+  <rect x="1207" y="736" width="28" height="13" rx="4" fill="rgba(16,185,129,0.3)"/>
+  <text x="1221" y="746" font-size="8" fill="#6ee7b7" text-anchor="middle">GET</text>
+  <text x="1242" y="746" font-size="9" fill="rgba(255,255,255,0.8)">/student/:id/payments</text>
+  <rect x="1207" y="756" width="28" height="13" rx="4" fill="rgba(16,185,129,0.3)"/>
+  <text x="1221" y="766" font-size="8" fill="#6ee7b7" text-anchor="middle">GET</text>
+  <text x="1242" y="766" font-size="9" fill="rgba(255,255,255,0.8)">/payment-dashboard</text>
+  <text x="1279" y="795" font-size="9" fill="rgba(255,255,255,0.3)" text-anchor="middle">PDF · Bulk · Status</text>
+
+  <!-- ─── API GROUP 8: RAZORPAY ─── -->
+  <rect x="1380" y="640" width="180" height="170" rx="12" fill="rgba(251,146,60,0.15)" stroke="rgba(251,146,60,0.5)" stroke-width="1.5"/>
+  <text x="1470" y="662" font-size="12" font-weight="700" fill="#fb923c" text-anchor="middle">RAZORPAY</text>
+  <line x1="1400" y1="668" x2="1540" y2="668" stroke="rgba(251,146,60,0.3)" stroke-width="1"/>
+  <rect x="1395" y="676" width="30" height="13" rx="4" fill="rgba(59,130,246,0.3)"/>
+  <text x="1410" y="686" font-size="8" fill="#93c5fd" text-anchor="middle">POST</text>
+  <text x="1432" y="686" font-size="9" fill="rgba(255,255,255,0.8)">/create-order</text>
+  <rect x="1395" y="696" width="30" height="13" rx="4" fill="rgba(59,130,246,0.3)"/>
+  <text x="1410" y="706" font-size="8" fill="#93c5fd" text-anchor="middle">POST</text>
+  <text x="1432" y="706" font-size="9" fill="rgba(255,255,255,0.8)">/verify-payment</text>
+  <rect x="1395" y="716" width="30" height="13" rx="4" fill="rgba(59,130,246,0.3)"/>
+  <text x="1410" y="726" font-size="8" fill="#93c5fd" text-anchor="middle">POST</text>
+  <text x="1432" y="726" font-size="9" fill="rgba(255,255,255,0.8)">/subscriptions</text>
+  <rect x="1395" y="736" width="28" height="13" rx="4" fill="rgba(16,185,129,0.3)"/>
+  <text x="1409" y="746" font-size="8" fill="#6ee7b7" text-anchor="middle">GET</text>
+  <text x="1430" y="746" font-size="9" fill="rgba(255,255,255,0.8)">/admin/subscriptions</text>
+  <rect x="1395" y="756" width="26" height="13" rx="4" fill="rgba(245,158,11,0.3)"/>
+  <text x="1408" y="766" font-size="8" fill="#fcd34d" text-anchor="middle">PUT</text>
+  <text x="1430" y="766" font-size="9" fill="rgba(255,255,255,0.8)">/subscriptions/:id</text>
+  <text x="1470" y="795" font-size="9" fill="rgba(255,255,255,0.3)" text-anchor="middle">HMAC · Orders · Verify</text>
+
+  <!-- Method legend -->
+  <rect x="40" y="826" width="28" height="13" rx="4" fill="rgba(16,185,129,0.3)"/>
+  <text x="54" y="836" font-size="8" fill="#6ee7b7" text-anchor="middle">GET</text>
+  <text x="72" y="836" font-size="9" fill="rgba(255,255,255,0.4)">Read</text>
+  <rect x="110" y="826" width="30" height="13" rx="4" fill="rgba(59,130,246,0.3)"/>
+  <text x="125" y="836" font-size="8" fill="#93c5fd" text-anchor="middle">POST</text>
+  <text x="145" y="836" font-size="9" fill="rgba(255,255,255,0.4)">Create</text>
+  <rect x="190" y="826" width="26" height="13" rx="4" fill="rgba(245,158,11,0.3)"/>
+  <text x="203" y="836" font-size="8" fill="#fcd34d" text-anchor="middle">PUT</text>
+  <text x="222" y="836" font-size="9" fill="rgba(255,255,255,0.4)">Update</text>
+  <rect x="270" y="826" width="44" height="13" rx="4" fill="rgba(168,85,247,0.3)"/>
+  <text x="292" y="836" font-size="8" fill="#d8b4fe" text-anchor="middle">PATCH</text>
+  <text x="320" y="836" font-size="9" fill="rgba(255,255,255,0.4)">Partial Update</text>
+
+  <!-- ═══════════════════ CONNECTING ARROWS LAYER 2 → 3 ═══════════════════ -->
+  <line x1="800" y1="850" x2="800" y2="896" stroke="#64748b" stroke-width="1.5" stroke-dasharray="6,3" marker-end="url(#arrowGray)"/>
+  <text x="815" y="878" font-size="9" fill="rgba(100,116,139,0.9)">SQLAlchemy ORM</text>
+
+  <!-- ═══════════════════ LAYER 3 HEADER ═══════════════════ -->
+  <text x="50" y="920" font-size="11" font-weight="600" fill="rgba(255,255,255,0.4)" letter-spacing="2">LAYER 3 — POSTGRESQL DATABASE · SQLALCHEMY 2 · AUTO-MIGRATIONS</text>
+  <line x1="50" y1="926" x2="1550" y2="926" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+
+  <!-- DB banner -->
+  <rect x="40" y="936" width="1520" height="50" rx="12" fill="url(#dbGrad)" stroke="rgba(59,130,246,0.4)" stroke-width="1.5"/>
+  <text x="80" y="963" font-size="16" font-weight="700" fill="white">🐘 PostgreSQL · 18 Tables · 4 Domains</text>
+  <text x="80" y="978" font-size="10" fill="rgba(255,255,255,0.4)">Base.metadata.create_all(bind=engine) · ALTER TABLE IF NOT EXISTS migrations · Relationship cascade</text>
+
+  <!-- ─── DB DOMAIN 1: USERS ─── -->
+  <rect x="40" y="1002" width="360" height="240" rx="12" fill="rgba(99,102,241,0.12)" stroke="rgba(99,102,241,0.4)" stroke-width="1.5"/>
+  <text x="220" y="1024" font-size="13" font-weight="700" fill="#a5b4fc" text-anchor="middle">USERS DOMAIN</text>
+  <line x1="60" y1="1030" x2="380" y2="1030" stroke="rgba(99,102,241,0.3)" stroke-width="1"/>
+  <!-- Student table -->
+  <rect x="58" y="1038" width="150" height="90" rx="8" fill="rgba(99,102,241,0.1)" stroke="rgba(99,102,241,0.3)" stroke-width="1"/>
+  <text x="133" y="1055" font-size="10" font-weight="600" fill="#a5b4fc" text-anchor="middle">students</text>
+  <text x="68" y="1070" font-size="9" fill="rgba(255,255,255,0.6)">id · name · phone</text>
+  <text x="68" y="1083" font-size="9" fill="rgba(255,255,255,0.6)">email · current_grade</text>
+  <text x="68" y="1096" font-size="9" fill="rgba(255,255,255,0.6)">instrument · status</text>
+  <text x="68" y="1109" font-size="9" fill="rgba(255,255,255,0.6)">desired_course · otp</text>
+  <text x="68" y="1122" font-size="9" fill="rgba(255,255,255,0.4)">10 columns</text>
+  <!-- Staff table -->
+  <rect x="222" y="1038" width="150" height="90" rx="8" fill="rgba(99,102,241,0.1)" stroke="rgba(99,102,241,0.3)" stroke-width="1"/>
+  <text x="297" y="1055" font-size="10" font-weight="600" fill="#a5b4fc" text-anchor="middle">staff</text>
+  <text x="232" y="1070" font-size="9" fill="rgba(255,255,255,0.6)">id · name · phone</text>
+  <text x="232" y="1083" font-size="9" fill="rgba(255,255,255,0.6)">email · role</text>
+  <text x="232" y="1096" font-size="9" fill="rgba(255,255,255,0.6)">specialization · status</text>
+  <text x="232" y="1109" font-size="9" fill="rgba(255,255,255,0.6)">otp · experience</text>
+  <text x="232" y="1122" font-size="9" fill="rgba(255,255,255,0.4)">9 columns</text>
+  <!-- Relationship line -->
+  <line x1="210" y1="1083" x2="220" y2="1083" stroke="rgba(99,102,241,0.4)" stroke-width="1" stroke-dasharray="3,2"/>
+  <!-- Teacher assignments table -->
+  <rect x="58" y="1142" width="314" height="50" rx="8" fill="rgba(99,102,241,0.1)" stroke="rgba(99,102,241,0.3)" stroke-width="1"/>
+  <text x="215" y="1159" font-size="10" font-weight="600" fill="#a5b4fc" text-anchor="middle">teacher_student_assignments</text>
+  <text x="68" y="1175" font-size="9" fill="rgba(255,255,255,0.6)">id · teacher_id (FK) · student_id (FK) · subject_id · is_active</text>
+  <text x="215" y="1220" font-size="9" fill="rgba(255,255,255,0.3)" text-anchor="middle">Many-to-Many via junction table</text>
+
+  <!-- ─── DB DOMAIN 2: CURRICULUM ─── -->
+  <rect x="420" y="1002" width="360" height="240" rx="12" fill="rgba(16,185,129,0.12)" stroke="rgba(16,185,129,0.4)" stroke-width="1.5"/>
+  <text x="600" y="1024" font-size="13" font-weight="700" fill="#6ee7b7" text-anchor="middle">CURRICULUM DOMAIN</text>
+  <line x1="440" y1="1030" x2="760" y2="1030" stroke="rgba(16,185,129,0.3)" stroke-width="1"/>
+  <rect x="438" y="1038" width="148" height="90" rx="8" fill="rgba(16,185,129,0.1)" stroke="rgba(16,185,129,0.3)" stroke-width="1"/>
+  <text x="512" y="1055" font-size="10" font-weight="600" fill="#6ee7b7" text-anchor="middle">grades</text>
+  <text x="448" y="1070" font-size="9" fill="rgba(255,255,255,0.6)">id · name · level</text>
+  <text x="448" y="1083" font-size="9" fill="rgba(255,255,255,0.6)">description · order</text>
+  <text x="448" y="1096" font-size="9" fill="rgba(255,255,255,0.6)">is_active</text>
+  <text x="448" y="1109" font-size="9" fill="rgba(255,255,255,0.4)">6 columns</text>
+  <rect x="600" y="1038" width="148" height="90" rx="8" fill="rgba(16,185,129,0.1)" stroke="rgba(16,185,129,0.3)" stroke-width="1"/>
+  <text x="674" y="1055" font-size="10" font-weight="600" fill="#6ee7b7" text-anchor="middle">subjects</text>
+  <text x="610" y="1070" font-size="9" fill="rgba(255,255,255,0.6)">id · name · grade_id (FK)</text>
+  <text x="610" y="1083" font-size="9" fill="rgba(255,255,255,0.6)">description · type</text>
+  <text x="610" y="1096" font-size="9" fill="rgba(255,255,255,0.6)">is_active</text>
+  <text x="610" y="1109" font-size="9" fill="rgba(255,255,255,0.4)">6 columns</text>
+  <rect x="438" y="1142" width="310" height="50" rx="8" fill="rgba(16,185,129,0.1)" stroke="rgba(16,185,129,0.3)" stroke-width="1"/>
+  <text x="593" y="1159" font-size="10" font-weight="600" fill="#6ee7b7" text-anchor="middle">syllabus_items · student_progress</text>
+  <text x="448" y="1175" font-size="9" fill="rgba(255,255,255,0.6)">topic · completed · score · feedback · exam_results</text>
+  <text x="600" y="1220" font-size="9" fill="rgba(255,255,255,0.3)" text-anchor="middle">Grade → Subject → Syllabus → Progress</text>
+
+  <!-- ─── DB DOMAIN 3: SCHEDULING ─── -->
+  <rect x="800" y="1002" width="360" height="240" rx="12" fill="rgba(245,158,11,0.12)" stroke="rgba(245,158,11,0.4)" stroke-width="1.5"/>
+  <text x="980" y="1024" font-size="13" font-weight="700" fill="#fcd34d" text-anchor="middle">SCHEDULING DOMAIN</text>
+  <line x1="820" y1="1030" x2="1140" y2="1030" stroke="rgba(245,158,11,0.3)" stroke-width="1"/>
+  <rect x="818" y="1038" width="148" height="90" rx="8" fill="rgba(245,158,11,0.1)" stroke="rgba(245,158,11,0.3)" stroke-width="1"/>
+  <text x="892" y="1055" font-size="10" font-weight="600" fill="#fcd34d" text-anchor="middle">exam_sessions</text>
+  <text x="828" y="1070" font-size="9" fill="rgba(255,255,255,0.6)">id · student_id (FK)</text>
+  <text x="828" y="1083" font-size="9" fill="rgba(255,255,255,0.6)">teacher_id (FK)</text>
+  <text x="828" y="1096" font-size="9" fill="rgba(255,255,255,0.6)">scheduled_date · status</text>
+  <text x="828" y="1109" font-size="9" fill="rgba(255,255,255,0.6)">grade_id · subject_id</text>
+  <text x="828" y="1122" font-size="9" fill="rgba(255,255,255,0.4)">12 columns</text>
+  <rect x="980" y="1038" width="148" height="90" rx="8" fill="rgba(245,158,11,0.1)" stroke="rgba(245,158,11,0.3)" stroke-width="1"/>
+  <text x="1054" y="1055" font-size="10" font-weight="600" fill="#fcd34d" text-anchor="middle">attendance</text>
+  <text x="990" y="1070" font-size="9" fill="rgba(255,255,255,0.6)">id · session_id (FK)</text>
+  <text x="990" y="1083" font-size="9" fill="rgba(255,255,255,0.6)">student_id (FK)</text>
+  <text x="990" y="1096" font-size="9" fill="rgba(255,255,255,0.6)">status · date</text>
+  <text x="990" y="1109" font-size="9" fill="rgba(255,255,255,0.6)">notes · makeup_for</text>
+  <text x="990" y="1122" font-size="9" fill="rgba(255,255,255,0.4)">7 columns</text>
+  <rect x="818" y="1142" width="310" height="50" rx="8" fill="rgba(245,158,11,0.1)" stroke="rgba(245,158,11,0.3)" stroke-width="1"/>
+  <text x="973" y="1159" font-size="10" font-weight="600" fill="#fcd34d" text-anchor="middle">reschedule_requests</text>
+  <text x="828" y="1175" font-size="9" fill="rgba(255,255,255,0.6)">id · session_id (FK) · student_id (FK) · reason · new_date · status</text>
+  <text x="980" y="1220" font-size="9" fill="rgba(255,255,255,0.3)" text-anchor="middle">Session → Attendance → Makeup</text>
+
+  <!-- ─── DB DOMAIN 4: PAYMENTS ─── -->
+  <rect x="1180" y="1002" width="380" height="240" rx="12" fill="rgba(251,146,60,0.12)" stroke="rgba(251,146,60,0.4)" stroke-width="1.5"/>
+  <text x="1370" y="1024" font-size="13" font-weight="700" fill="#fb923c" text-anchor="middle">PAYMENTS DOMAIN ✨</text>
+  <line x1="1200" y1="1030" x2="1540" y2="1030" stroke="rgba(251,146,60,0.3)" stroke-width="1"/>
+  <rect x="1198" y="1038" width="148" height="90" rx="8" fill="rgba(251,146,60,0.1)" stroke="rgba(251,146,60,0.3)" stroke-width="1"/>
+  <text x="1272" y="1055" font-size="10" font-weight="600" fill="#fb923c" text-anchor="middle">packages</text>
+  <text x="1208" y="1070" font-size="9" fill="rgba(255,255,255,0.6)">id · name · price</text>
+  <text x="1208" y="1083" font-size="9" fill="rgba(255,255,255,0.6)">applicable_grades (JSON)</text>
+  <text x="1208" y="1096" font-size="9" fill="rgba(255,255,255,0.6)">applicable_courses (JSON)</text>
+  <text x="1208" y="1109" font-size="9" fill="rgba(255,255,255,0.6)">sessions · validity_days</text>
+  <text x="1208" y="1122" font-size="9" fill="rgba(255,255,255,0.4)">12 columns</text>
+  <rect x="1360" y="1038" width="148" height="90" rx="8" fill="rgba(251,146,60,0.1)" stroke="rgba(251,146,60,0.3)" stroke-width="1"/>
+  <text x="1434" y="1055" font-size="10" font-weight="600" fill="#fb923c" text-anchor="middle">invoices</text>
+  <text x="1370" y="1070" font-size="9" fill="rgba(255,255,255,0.6)">id · student_id (FK)</text>
+  <text x="1370" y="1083" font-size="9" fill="rgba(255,255,255,0.6)">package_id (FK)</text>
+  <text x="1370" y="1096" font-size="9" fill="rgba(255,255,255,0.6)">amount · status · date</text>
+  <text x="1370" y="1109" font-size="9" fill="rgba(255,255,255,0.6)">tax · razorpay_order_id</text>
+  <text x="1370" y="1122" font-size="9" fill="rgba(255,255,255,0.4)">16 columns</text>
+  <rect x="1198" y="1142" width="310" height="50" rx="8" fill="rgba(251,146,60,0.1)" stroke="rgba(251,146,60,0.3)" stroke-width="1"/>
+  <text x="1353" y="1159" font-size="10" font-weight="600" fill="#fb923c" text-anchor="middle">student_packages · subscriptions</text>
+  <text x="1208" y="1175" font-size="9" fill="rgba(255,255,255,0.6)">sessions_used · status · billing_cycle · auto_renew · MRR</text>
+  <text x="1370" y="1220" font-size="9" fill="rgba(255,255,255,0.3)" text-anchor="middle">Package → Invoice → Subscription</text>
+
+  <!-- ═══════════════════ CONNECTING ARROWS LAYER 3 → 4 ═══════════════════ -->
+  <line x1="800" y1="1260" x2="800" y2="1305" stroke="#64748b" stroke-width="1.5" stroke-dasharray="6,3" marker-end="url(#arrowGray)"/>
+  <text x="815" y="1286" font-size="9" fill="rgba(100,116,139,0.9)">API Calls</text>
+
+  <!-- ═══════════════════ LAYER 4 HEADER ═══════════════════ -->
+  <text x="50" y="1328" font-size="11" font-weight="600" fill="rgba(255,255,255,0.4)" letter-spacing="2">LAYER 4 — EXTERNAL SERVICES · THIRD-PARTY INTEGRATIONS</text>
+  <line x1="50" y1="1334" x2="1550" y2="1334" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+
+  <!-- ─── RAZORPAY SERVICE ─── -->
+  <rect x="40" y="1344" width="740" height="200" rx="16" fill="rgba(251,146,60,0.12)" stroke="rgba(251,146,60,0.5)" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="410" y="1372" font-size="16" font-weight="700" fill="#fb923c" text-anchor="middle">Razorpay Payment Gateway</text>
+  <text x="410" y="1390" font-size="11" fill="rgba(255,255,255,0.5)" text-anchor="middle">razorpay==1.4.2 · Python SDK · HMAC-SHA256 Verification</text>
+  <line x1="60" y1="1398" x2="760" y2="1398" stroke="rgba(251,146,60,0.2)" stroke-width="1"/>
+  <!-- Flow steps -->
+  <rect x="60" y="1408" width="120" height="50" rx="8" fill="rgba(251,146,60,0.2)" stroke="rgba(251,146,60,0.4)" stroke-width="1"/>
+  <text x="120" y="1430" font-size="10" font-weight="600" fill="#fb923c" text-anchor="middle">1. Create Order</text>
+  <text x="120" y="1445" font-size="9" fill="rgba(255,255,255,0.6)" text-anchor="middle">rzp.order.create()</text>
+  <text x="192" y="1434" font-size="16" fill="rgba(251,146,60,0.7)">→</text>
+  <rect x="205" y="1408" width="120" height="50" rx="8" fill="rgba(251,146,60,0.2)" stroke="rgba(251,146,60,0.4)" stroke-width="1"/>
+  <text x="265" y="1430" font-size="10" font-weight="600" fill="#fb923c" text-anchor="middle">2. Checkout JS</text>
+  <text x="265" y="1445" font-size="9" fill="rgba(255,255,255,0.6)" text-anchor="middle">window.Razorpay</text>
+  <text x="337" y="1434" font-size="16" fill="rgba(251,146,60,0.7)">→</text>
+  <rect x="350" y="1408" width="120" height="50" rx="8" fill="rgba(251,146,60,0.2)" stroke="rgba(251,146,60,0.4)" stroke-width="1"/>
+  <text x="410" y="1430" font-size="10" font-weight="600" fill="#fb923c" text-anchor="middle">3. User Pays</text>
+  <text x="410" y="1445" font-size="9" fill="rgba(255,255,255,0.6)" text-anchor="middle">UPI/Card/NB</text>
+  <text x="482" y="1434" font-size="16" fill="rgba(251,146,60,0.7)">→</text>
+  <rect x="495" y="1408" width="120" height="50" rx="8" fill="rgba(251,146,60,0.2)" stroke="rgba(251,146,60,0.4)" stroke-width="1"/>
+  <text x="555" y="1430" font-size="10" font-weight="600" fill="#fb923c" text-anchor="middle">4. Verify HMAC</text>
+  <text x="555" y="1445" font-size="9" fill="rgba(255,255,255,0.6)" text-anchor="middle">SHA256 signature</text>
+  <text x="627" y="1434" font-size="16" fill="rgba(251,146,60,0.7)">→</text>
+  <rect x="640" y="1408" width="96" height="50" rx="8" fill="rgba(16,185,129,0.2)" stroke="rgba(16,185,129,0.4)" stroke-width="1"/>
+  <text x="688" y="1430" font-size="10" font-weight="600" fill="#34d399" text-anchor="middle">5. Activate</text>
+  <text x="688" y="1445" font-size="9" fill="rgba(255,255,255,0.6)" text-anchor="middle">Package Live</text>
+  <!-- Test mode note -->
+  <rect x="60" y="1472" width="676" height="26" rx="6" fill="rgba(245,158,11,0.1)" stroke="rgba(245,158,11,0.3)" stroke-width="1"/>
+  <text x="398" y="1489" font-size="10" fill="rgba(253,224,71,0.8)" text-anchor="middle">⚠ Test Mode: When RAZORPAY_KEY_ID='rzp_test_placeholder' — simulates payment with 1.2s delay, skips HMAC verification</text>
+  <!-- Key details -->
+  <text x="60" y="1522" font-size="10" fill="rgba(255,255,255,0.4)">Supported: UPI · Cards · Net Banking · Wallets · EMI</text>
+  <text x="500" y="1522" font-size="10" fill="rgba(255,255,255,0.4)">SDK: razorpay.Client(auth=(KEY_ID, KEY_SECRET))</text>
+
+  <!-- ─── GOOGLE SHEETS SERVICE ─── -->
+  <rect x="808" y="1344" width="752" height="200" rx="16" fill="rgba(16,185,129,0.12)" stroke="rgba(16,185,129,0.5)" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="1184" y="1372" font-size="16" font-weight="700" fill="#34d399" text-anchor="middle">Google Sheets Integration</text>
+  <text x="1184" y="1390" font-size="11" fill="rgba(255,255,255,0.5)" text-anchor="middle">gspread>=6.0.0 · google-auth>=2.0.0 · Service Account OAuth2</text>
+  <line x1="828" y1="1398" x2="1540" y2="1398" stroke="rgba(16,185,129,0.2)" stroke-width="1"/>
+  <!-- Features -->
+  <rect x="828" y="1408" width="200" height="50" rx="8" fill="rgba(16,185,129,0.1)" stroke="rgba(16,185,129,0.3)" stroke-width="1"/>
+  <text x="928" y="1428" font-size="10" font-weight="600" fill="#6ee7b7" text-anchor="middle">Student Import</text>
+  <text x="928" y="1443" font-size="9" fill="rgba(255,255,255,0.5)" text-anchor="middle">Bulk upload from Sheet</text>
+  <rect x="1044" y="1408" width="200" height="50" rx="8" fill="rgba(16,185,129,0.1)" stroke="rgba(16,185,129,0.3)" stroke-width="1"/>
+  <text x="1144" y="1428" font-size="10" font-weight="600" fill="#6ee7b7" text-anchor="middle">Data Export</text>
+  <text x="1144" y="1443" font-size="9" fill="rgba(255,255,255,0.5)" text-anchor="middle">Write back to Sheets</text>
+  <rect x="1260" y="1408" width="200" height="50" rx="8" fill="rgba(16,185,129,0.1)" stroke="rgba(16,185,129,0.3)" stroke-width="1"/>
+  <text x="1360" y="1428" font-size="10" font-weight="600" fill="#6ee7b7" text-anchor="middle">Sync Reports</text>
+  <text x="1360" y="1443" font-size="9" fill="rgba(255,255,255,0.5)" text-anchor="middle">Attendance &amp; Payments</text>
+  <text x="828" y="1522" font-size="10" fill="rgba(255,255,255,0.4)">Auth: google.oauth2.service_account · Credentials: Service Account JSON · Scope: spreadsheets</text>
+
+  <!-- ═══════════════════ KEY DATA FLOWS ═══════════════════ -->
+  <text x="50" y="1580" font-size="11" font-weight="600" fill="rgba(255,255,255,0.4)" letter-spacing="2">KEY DATA FLOWS</text>
+  <line x1="50" y1="1586" x2="1550" y2="1586" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+
+  <!-- Flow 1: Student Login -->
+  <rect x="40" y="1596" width="740" height="100" rx="12" fill="rgba(99,102,241,0.1)" stroke="rgba(99,102,241,0.3)" stroke-width="1"/>
+  <text x="60" y="1618" font-size="11" font-weight="700" fill="#a5b4fc">① Student Login Flow</text>
+  <text x="60" y="1640" font-size="10" fill="rgba(255,255,255,0.6)">StudentLogin.jsx</text>
+  <text x="172" y="1640" font-size="10" fill="rgba(167,139,250,0.6)">→ POST /send-otp →</text>
+  <text x="310" y="1640" font-size="10" fill="rgba(255,255,255,0.6)">Phone Verify</text>
+  <text x="390" y="1640" font-size="10" fill="rgba(167,139,250,0.6)">→ POST /verify-otp →</text>
+  <text x="530" y="1640" font-size="10" fill="rgba(255,255,255,0.6)">localStorage</text>
+  <text x="60" y="1660" font-size="9" fill="rgba(255,255,255,0.4)">localStorage.setItem('student', JSON.stringify(data)) → student_id used in all subsequent API calls</text>
+  <text x="60" y="1678" font-size="9" fill="rgba(255,255,255,0.4)">OTP stored in students.otp column → verified server-side → cleared after success</text>
+
+  <!-- Flow 2: Payment Flow -->
+  <rect x="808" y="1596" width="752" height="100" rx="12" fill="rgba(251,146,60,0.1)" stroke="rgba(251,146,60,0.3)" stroke-width="1"/>
+  <text x="828" y="1618" font-size="11" font-weight="700" fill="#fb923c">② Payment Flow (Razorpay)</text>
+  <text x="828" y="1640" font-size="10" fill="rgba(255,255,255,0.6)">StudentPayments</text>
+  <text x="948" y="1640" font-size="10" fill="rgba(251,146,60,0.6)">→ POST create-order →</text>
+  <text x="1083" y="1640" font-size="10" fill="rgba(255,255,255,0.6)">Razorpay Checkout</text>
+  <text x="1210" y="1640" font-size="10" fill="rgba(251,146,60,0.6)">→ POST verify →</text>
+  <text x="1310" y="1640" font-size="10" fill="rgba(255,255,255,0.6)">Active Package</text>
+  <text x="828" y="1660" font-size="9" fill="rgba(255,255,255,0.4)">Grade+course filter → package list → Razorpay order → HMAC verify → Invoice created → StudentPackage activated</text>
+  <text x="828" y="1678" font-size="9" fill="rgba(255,255,255,0.4)">Test mode: RAZORPAY_KEY_ID='rzp_test_placeholder' → simulates with 1.2s delay</text>
+
+  <!-- Flow 3: Attendance Flow -->
+  <rect x="40" y="1712" width="740" height="100" rx="12" fill="rgba(245,158,11,0.1)" stroke="rgba(245,158,11,0.3)" stroke-width="1"/>
+  <text x="60" y="1734" font-size="11" font-weight="700" fill="#fcd34d">③ Attendance &amp; Session Tracking Flow</text>
+  <text x="60" y="1756" font-size="10" fill="rgba(255,255,255,0.6)">Teacher marks</text>
+  <text x="165" y="1756" font-size="10" fill="rgba(245,158,11,0.6)">→ POST /attendance →</text>
+  <text x="305" y="1756" font-size="10" fill="rgba(255,255,255,0.6)">attendance table</text>
+  <text x="405" y="1756" font-size="10" fill="rgba(245,158,11,0.6)">→ session count++</text>
+  <text x="530" y="1756" font-size="10" fill="rgba(255,255,255,0.6)">StudentPackage</text>
+  <text x="60" y="1776" font-size="9" fill="rgba(255,255,255,0.4)">sessions_used incremented on each attendance mark → triggers renewal reminder when sessions_used ≥ 80%</text>
+  <text x="60" y="1794" font-size="9" fill="rgba(255,255,255,0.4)">Makeup sessions tracked separately → makeup_used counter → reschedule_requests linked</text>
+
+  <!-- Flow 4: Admin Dashboard Flow -->
+  <rect x="808" y="1712" width="752" height="100" rx="12" fill="rgba(16,185,129,0.1)" stroke="rgba(16,185,129,0.3)" stroke-width="1"/>
+  <text x="828" y="1734" font-size="11" font-weight="700" fill="#34d399">④ Admin Payment Dashboard Flow</text>
+  <text x="828" y="1756" font-size="10" fill="rgba(255,255,255,0.6)">PaymentDashboard</text>
+  <text x="960" y="1756" font-size="10" fill="rgba(16,185,129,0.6)">→ GET /payment-dashboard →</text>
+  <text x="1130" y="1756" font-size="10" fill="rgba(255,255,255,0.6)">8 KPI Cards</text>
+  <text x="1230" y="1756" font-size="10" fill="rgba(16,185,129,0.6)">→ SVG Charts</text>
+  <text x="828" y="1776" font-size="9" fill="rgba(255,255,255,0.4)">Aggregates: invoices JOIN subscriptions → Total/Received/Due/Overdue/MRR/Renewals/Sessions/Active</text>
+  <text x="828" y="1794" font-size="9" fill="rgba(255,255,255,0.4)">Time filter: Today/Week/Month/Quarterly/Half-Year/Yearly/Custom → filtered SQL queries</text>
+
+  <!-- ═══════════════════ ER RELATIONSHIPS ═══════════════════ -->
+  <text x="50" y="1848" font-size="11" font-weight="600" fill="rgba(255,255,255,0.4)" letter-spacing="2">ENTITY RELATIONSHIPS</text>
+  <line x1="50" y1="1854" x2="1550" y2="1854" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+
+  <rect x="40" y="1864" width="1520" height="180" rx="12" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+
+  <!-- Academic ER -->
+  <text x="60" y="1886" font-size="11" font-weight="700" fill="rgba(255,255,255,0.6)">Academic Domain</text>
+  <text x="60" y="1908" font-size="10" fill="rgba(255,255,255,0.7)">Student (1) ←→ (N) ExamSession (N) ←→ (1) Staff</text>
+  <text x="60" y="1926" font-size="10" fill="rgba(255,255,255,0.7)">Student (1) ←→ (N) Attendance</text>
+  <text x="60" y="1944" font-size="10" fill="rgba(255,255,255,0.7)">Grade (1) ←→ (N) Subject (1) ←→ (N) SyllabusItem</text>
+  <text x="60" y="1962" font-size="10" fill="rgba(255,255,255,0.7)">Student (1) ←→ (N) StudentProgress</text>
+  <text x="60" y="1980" font-size="10" fill="rgba(255,255,255,0.7)">Staff (M) ←→ (N) Student via TeacherStudentAssignment</text>
+  <text x="60" y="1998" font-size="10" fill="rgba(255,255,255,0.7)">ExamSession (1) ←→ (N) RescheduleRequest</text>
+  <text x="60" y="2016" font-size="10" fill="rgba(255,255,255,0.7)">Student (1) ←→ (N) Material (via subject_id)</text>
+
+  <!-- Payment ER -->
+  <text x="800" y="1886" font-size="11" font-weight="700" fill="rgba(251,146,60,0.8)">Payment Domain</text>
+  <text x="800" y="1908" font-size="10" fill="rgba(255,255,255,0.7)">Package (1) ←→ (N) StudentPackage (M) ←→ (N) Student</text>
+  <text x="800" y="1926" font-size="10" fill="rgba(255,255,255,0.7)">Student (1) ←→ (N) Invoice (N) ←→ (1) Package</text>
+  <text x="800" y="1944" font-size="10" fill="rgba(255,255,255,0.7)">Student (1) ←→ (N) Subscription (N) ←→ (1) Package</text>
+  <text x="800" y="1962" font-size="10" fill="rgba(255,255,255,0.7)">Package.applicable_grades → JSON array → grade filter</text>
+  <text x="800" y="1980" font-size="10" fill="rgba(255,255,255,0.7)">Package.applicable_courses → JSON array → course filter</text>
+  <text x="800" y="1998" font-size="10" fill="rgba(255,255,255,0.7)">Invoice.razorpay_order_id → links to Razorpay API</text>
+  <text x="800" y="2016" font-size="10" fill="rgba(255,255,255,0.7)">StudentPackage.sessions_used → triggers renewal alerts</text>
+
+  <!-- ═══════════════════ FOOTER ═══════════════════ -->
+  <rect x="0" y="2060" width="1600" height="440" fill="rgba(0,0,0,0.3)"/>
+  <text x="50" y="2088" font-size="11" font-weight="600" fill="rgba(255,255,255,0.4)" letter-spacing="2">TECH STACK SUMMARY</text>
+  <line x1="50" y1="2094" x2="1550" y2="2094" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+
+  <!-- Frontend stack -->
+  <text x="60" y="2118" font-size="12" font-weight="700" fill="rgba(99,102,241,0.9)">Frontend</text>
+  <text x="60" y="2138" font-size="10" fill="rgba(255,255,255,0.6)">React 18 + Vite 4 · React Router v7 · Tailwind CSS v3.4</text>
+  <text x="60" y="2155" font-size="10" fill="rgba(255,255,255,0.6)">lucide-react v0.259.0 · date-fns v4 · Razorpay checkout.js (CDN)</text>
+  <text x="60" y="2172" font-size="10" fill="rgba(255,255,255,0.6)">Pure SVG Charts (no library) · localStorage Auth · Mobile-First</text>
+  <text x="60" y="2189" font-size="10" fill="rgba(255,255,255,0.6)">Design: #463a7a purple theme · rounded-[32px] · Outfit font</text>
+  <text x="60" y="2206" font-size="10" fill="rgba(255,255,255,0.6)">3 Portals: Admin · Teacher · Student · 35+ Routes</text>
+
+  <!-- Backend stack -->
+  <text x="440" y="2118" font-size="12" font-weight="700" fill="rgba(168,85,247,0.9)">Backend</text>
+  <text x="440" y="2138" font-size="10" fill="rgba(255,255,255,0.6)">FastAPI 0.104.1 · Python 3.12 · Uvicorn 0.24.0</text>
+  <text x="440" y="2155" font-size="10" fill="rgba(255,255,255,0.6)">SQLAlchemy 2.0.23 · Pydantic v2.5.0 · python-multipart</text>
+  <text x="440" y="2172" font-size="10" fill="rgba(255,255,255,0.6)">psycopg2-binary 2.9.9 · python-dotenv · requests</text>
+  <text x="440" y="2189" font-size="10" fill="rgba(255,255,255,0.6)">Auto-migration: Base.metadata.create_all() + ALTER IF NOT EXISTS</text>
+  <text x="440" y="2206" font-size="10" fill="rgba(255,255,255,0.6)">40+ Endpoints · 8 Modules · CORS Middleware</text>
+
+  <!-- Database stack -->
+  <text x="820" y="2118" font-size="12" font-weight="700" fill="rgba(59,130,246,0.9)">Database</text>
+  <text x="820" y="2138" font-size="10" fill="rgba(255,255,255,0.6)">PostgreSQL (Supabase/Neon) · 18 SQLAlchemy Models</text>
+  <text x="820" y="2155" font-size="10" fill="rgba(255,255,255,0.6)">4 Domains: Users · Curriculum · Scheduling · Payments</text>
+  <text x="820" y="2172" font-size="10" fill="rgba(255,255,255,0.6)">JSON columns for grade/course arrays (Text + json.loads)</text>
+  <text x="820" y="2189" font-size="10" fill="rgba(255,255,255,0.6)">Relationship cascades · FK constraints · Index on id/phone</text>
+  <text x="820" y="2206" font-size="10" fill="rgba(255,255,255,0.6)">Connection: DATABASE_URL env var</text>
+
+  <!-- Payments stack -->
+  <text x="1200" y="2118" font-size="12" font-weight="700" fill="rgba(251,146,60,0.9)">Payments &amp; External</text>
+  <text x="1200" y="2138" font-size="10" fill="rgba(255,255,255,0.6)">Razorpay Python SDK v1.4.2 · HMAC-SHA256 verification</text>
+  <text x="1200" y="2155" font-size="10" fill="rgba(255,255,255,0.6)">gspread>=6.0.0 · google-auth · Service Account OAuth2</text>
+  <text x="1200" y="2172" font-size="10" fill="rgba(255,255,255,0.6)">Test mode fallback for development</text>
+  <text x="1200" y="2189" font-size="10" fill="rgba(255,255,255,0.6)">UPI · Cards · Net Banking · Wallets</text>
+  <text x="1200" y="2206" font-size="10" fill="rgba(255,255,255,0.6)">ENV: RAZORPAY_KEY_ID · RAZORPAY_KEY_SECRET</text>
+
+  <!-- Bottom bar -->
+  <line x1="50" y1="2230" x2="1550" y2="2230" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+  <text x="800" y="2256" font-size="11" fill="rgba(255,255,255,0.3)" text-anchor="middle">Vama Academy ERP — High Level Design Diagram · Generated 2026-05-26</text>
+  <text x="800" y="2276" font-size="10" fill="rgba(255,255,255,0.2)" text-anchor="middle">React 18 + FastAPI + PostgreSQL + Razorpay · 3 Portals · 40+ Endpoints · 18 DB Models · 4 External Services</text>
+
+  <!-- Decorative corner elements -->
+  <circle cx="1560" cy="100" r="60" fill="rgba(139,92,246,0.05)" stroke="rgba(139,92,246,0.1)" stroke-width="1"/>
+  <circle cx="1560" cy="100" r="40" fill="rgba(139,92,246,0.05)" stroke="rgba(139,92,246,0.1)" stroke-width="1"/>
+  <circle cx="40" cy="2460" r="80" fill="rgba(59,130,246,0.04)" stroke="rgba(59,130,246,0.08)" stroke-width="1"/>
+</svg>

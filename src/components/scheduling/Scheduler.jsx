@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
     format, addDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth,
-    eachDayOfInterval, isSameMonth, isSameDay, addMonths, addWeeks, parse,
+    eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, addWeeks, parse,
 } from 'date-fns';
 import {
     ChevronLeft, ChevronRight, Plus, ChevronDown,
@@ -228,6 +228,93 @@ function MonthPill({ session, onClick }) {
     );
 }
 
+// ── Mini date-picker popup ─────────────────────────────────────────────────
+function DatePickerPopup({ currentDate, onSelect, onClose }) {
+    const [pickerMonth, setPickerMonth] = useState(startOfMonth(currentDate));
+    const ref = useRef(null);
+
+    useEffect(() => {
+        const handle = (e) => { if (ref.current && !ref.current.contains(e.target)) onClose(); };
+        document.addEventListener('mousedown', handle);
+        return () => document.removeEventListener('mousedown', handle);
+    }, [onClose]);
+
+    const days = eachDayOfInterval({
+        start: startOfWeek(pickerMonth, { weekStartsOn: 1 }),
+        end:   endOfWeek(endOfMonth(pickerMonth), { weekStartsOn: 1 }),
+    });
+
+    return (
+        <div
+            ref={ref}
+            className="absolute top-full left-1/2 -translate-x-1/2 mt-2 z-50 bg-white rounded-2xl shadow-2xl border border-gray-100 p-4 w-[272px] select-none"
+            style={{ minWidth: 272 }}
+        >
+            {/* Month navigation */}
+            <div className="flex items-center justify-between mb-3">
+                <button
+                    onClick={() => setPickerMonth(m => subMonths(m, 1))}
+                    className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-500 transition-colors"
+                >
+                    <ChevronLeft size={14} />
+                </button>
+                <span className="text-sm font-bold text-gray-800">
+                    {format(pickerMonth, 'MMMM yyyy')}
+                </span>
+                <button
+                    onClick={() => setPickerMonth(m => addMonths(m, 1))}
+                    className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-500 transition-colors"
+                >
+                    <ChevronRight size={14} />
+                </button>
+            </div>
+
+            {/* Day-of-week headers */}
+            <div className="grid grid-cols-7 mb-1">
+                {['M','T','W','T','F','S','S'].map((d, i) => (
+                    <div key={i} className="text-center text-[11px] font-semibold text-gray-400 py-1">
+                        {d}
+                    </div>
+                ))}
+            </div>
+
+            {/* Day cells */}
+            <div className="grid grid-cols-7 gap-y-0.5">
+                {days.map(day => {
+                    const inMonth  = isSameMonth(day, pickerMonth);
+                    const isToday  = isSameDay(day, new Date());
+                    const isSel    = isSameDay(day, currentDate);
+                    return (
+                        <button
+                            key={day.toString()}
+                            onClick={() => { onSelect(day); onClose(); }}
+                            className={cn(
+                                "mx-auto w-8 h-8 flex items-center justify-center rounded-full text-xs font-medium transition-colors",
+                                !inMonth && "text-gray-300 hover:bg-gray-50",
+                                inMonth && !isToday && !isSel && "text-gray-700 hover:bg-[#463A7A]/10 hover:text-[#463A7A]",
+                                isToday && !isSel && "bg-[#463A7A] text-white font-bold",
+                                isSel   && "bg-[#463A7A] text-white font-bold ring-2 ring-[#463A7A]/30",
+                            )}
+                        >
+                            {format(day, 'd')}
+                        </button>
+                    );
+                })}
+            </div>
+
+            {/* Jump to today shortcut */}
+            <div className="mt-3 pt-3 border-t border-gray-100 text-center">
+                <button
+                    onClick={() => { onSelect(new Date()); onClose(); }}
+                    className="text-xs font-semibold text-[#463A7A] hover:underline"
+                >
+                    Go to today
+                </button>
+            </div>
+        </div>
+    );
+}
+
 export default function Scheduler() {
     const [currentDate, setCurrentDate]         = useState(new Date());
     const [viewMode, setViewMode]               = useState('week');
@@ -240,6 +327,7 @@ export default function Scheduler() {
     const [enrollmentFilter, setEnrollmentFilter] = useState('');
     const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
     const [selectedSession, setSelectedSession] = useState(null);
+    const [showDatePicker, setShowDatePicker] = useState(false);
 
     useEffect(() => {
         fetchSessions();
@@ -249,7 +337,7 @@ export default function Scheduler() {
     const fetchTeachers = async () => {
         try {
             const res = await api.get('/staff');
-            setTeachers(res.data.filter(s => s.calendar === true));
+            setTeachers(res.data.filter(s => s.calendar !== false));
         } catch (e) { console.error(e); }
     };
 
@@ -318,17 +406,25 @@ export default function Scheduler() {
                     {days.map(day => {
                         const isToday = isSameDay(day, new Date());
                         return (
-                            <div key={day.toString()}
-                                className={cn("flex-1 py-3 text-center border-r border-gray-100 last:border-0", isToday && "bg-[#463A7A]/5")}>
+                            <button
+                                key={day.toString()}
+                                onClick={() => { setCurrentDate(day); setViewMode('day'); }}
+                                className={cn(
+                                    "flex-1 py-3 text-center border-r border-gray-100 last:border-0 transition-colors hover:bg-[#463A7A]/5 cursor-pointer",
+                                    isToday && "bg-[#463A7A]/5"
+                                )}
+                            >
                                 <div className={cn("text-[11px] font-semibold uppercase tracking-wide mb-1",
                                     isToday ? "text-[#463A7A]" : "text-gray-400")}>
                                     {format(day, 'EEE')}
                                 </div>
-                                <div className={cn("text-lg font-bold leading-none",
-                                    isToday ? "text-[#463A7A]" : "text-gray-800")}>
+                                <div className={cn(
+                                    "text-lg font-bold leading-none mx-auto w-8 h-8 flex items-center justify-center rounded-full transition-colors",
+                                    isToday ? "bg-[#463A7A] text-white" : "text-gray-800 hover:bg-[#463A7A]/10 hover:text-[#463A7A]"
+                                )}>
                                     {format(day, 'd')}
                                 </div>
-                            </div>
+                            </button>
                         );
                     })}
                 </div>
@@ -426,7 +522,6 @@ export default function Scheduler() {
                             .sort((a, b) => toMins(a.start_time) - toMins(b.start_time));
                         const isCurrentMonth = isSameMonth(day, monthStart);
                         const isToday = isSameDay(day, new Date());
-
                         return (
                             <div key={day.toString()}
                                 className={cn(
@@ -434,22 +529,35 @@ export default function Scheduler() {
                                     !isCurrentMonth ? "bg-gray-50/60" : "bg-white",
                                     isToday && "bg-[#463A7A]/3"
                                 )}>
-                                {/* Date number */}
+                                {/* Date number — click to drill into day */}
                                 <div className="mb-1.5">
-                                    <span className={cn(
-                                        "text-xs font-bold inline-flex items-center justify-center w-6 h-6 rounded-full",
-                                        isToday
-                                            ? "bg-[#463A7A] text-white"
-                                            : isCurrentMonth ? "text-gray-700" : "text-gray-300"
-                                    )}>
+                                    <button
+                                        onClick={() => { setCurrentDate(day); setViewMode('day'); }}
+                                        className={cn(
+                                            "text-xs font-bold inline-flex items-center justify-center w-6 h-6 rounded-full transition-colors",
+                                            isToday
+                                                ? "bg-[#463A7A] text-white"
+                                                : isCurrentMonth
+                                                    ? "text-gray-700 hover:bg-[#463A7A] hover:text-white"
+                                                    : "text-gray-300 hover:bg-gray-200 hover:text-gray-600"
+                                        )}
+                                    >
                                         {format(day, 'd')}
-                                    </span>
+                                    </button>
                                 </div>
-                                {/* Session pills */}
+                                {/* Session pills — click pill for detail, click "more" to open day view */}
                                 <div className="space-y-0.5 overflow-y-auto max-h-[calc(100%-28px)]">
-                                    {daySessions.map(s => (
+                                    {daySessions.slice(0, 3).map(s => (
                                         <MonthPill key={s.id} session={s} onClick={handleSessionClick} />
                                     ))}
+                                    {daySessions.length > 3 && (
+                                        <button
+                                            onClick={() => { setCurrentDate(day); setViewMode('day'); }}
+                                            className="w-full text-left text-[9px] font-bold text-[#463A7A] hover:underline px-1 py-0.5"
+                                        >
+                                            +{daySessions.length - 3} more
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         );
@@ -529,24 +637,36 @@ export default function Scheduler() {
 
                     <div className="flex items-center gap-3">
                         {/* Date nav */}
-                        <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden shadow-sm">
+                        <div className="flex items-center border border-gray-200 rounded-lg shadow-sm">
                             <button onClick={() => navigate('prev')}
-                                className="px-3 py-2 border-r border-gray-200 hover:bg-gray-50 text-gray-600 transition-colors">
+                                className="px-3 py-2 border-r border-gray-200 hover:bg-gray-50 text-gray-600 transition-colors rounded-l-lg">
                                 <ChevronLeft size={15} />
                             </button>
-                            <button onClick={() => setCurrentDate(new Date())}
+                            <button onClick={() => { setCurrentDate(new Date()); setViewMode('day'); }}
                                 className="px-3 py-2 text-sm font-medium text-gray-700 border-r border-gray-200 hover:bg-gray-50 transition-colors">
                                 Today
                             </button>
-                            <div className="px-4 py-2 text-sm font-semibold text-gray-700 min-w-[190px] text-center bg-gray-50/50">
-                                {viewMode === 'month'
-                                    ? format(currentDate, 'MMMM yyyy')
-                                    : viewMode === 'week'
-                                        ? `${format(startOfWeek(currentDate, { weekStartsOn: 1 }), 'MMM d')} – ${format(endOfWeek(currentDate, { weekStartsOn: 1 }), 'MMM d, yyyy')}`
-                                        : format(currentDate, 'EEEE, MMM d, yyyy')}
+                            <div className="relative">
+                                <button
+                                    onClick={() => setShowDatePicker(v => !v)}
+                                    className="px-4 py-2 text-sm font-semibold text-gray-700 min-w-[190px] text-center hover:bg-[#463A7A]/5 hover:text-[#463A7A] transition-colors"
+                                >
+                                    {viewMode === 'month'
+                                        ? format(currentDate, 'MMMM yyyy')
+                                        : viewMode === 'week'
+                                            ? `${format(startOfWeek(currentDate, { weekStartsOn: 1 }), 'MMM d')} – ${format(endOfWeek(currentDate, { weekStartsOn: 1 }), 'MMM d, yyyy')}`
+                                            : format(currentDate, 'EEEE, MMM d, yyyy')}
+                                </button>
+                                {showDatePicker && (
+                                    <DatePickerPopup
+                                        currentDate={currentDate}
+                                        onSelect={(day) => { setCurrentDate(day); setViewMode('day'); }}
+                                        onClose={() => setShowDatePicker(false)}
+                                    />
+                                )}
                             </div>
                             <button onClick={() => navigate('next')}
-                                className="px-3 py-2 border-l border-gray-200 hover:bg-gray-50 text-gray-600 transition-colors">
+                                className="px-3 py-2 border-l border-gray-200 hover:bg-gray-50 text-gray-600 transition-colors rounded-r-lg">
                                 <ChevronRight size={15} />
                             </button>
                         </div>

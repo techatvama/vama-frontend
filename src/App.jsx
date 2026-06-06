@@ -36,6 +36,11 @@ import ExamSessionManager from './components/admin/ExamSessionManager';
 import SyllabusBuilder from './components/admin/SyllabusBuilder';
 import PaymentManager from './components/admin/PaymentManager';
 import PaymentAnalytics from './components/admin/PaymentAnalytics';
+import PaymentDashboard from './components/admin/PaymentDashboard';
+import PackageManager from './components/admin/PackageManager';
+import InvoiceManager from './components/admin/InvoiceManager';
+import SubscriptionManager from './components/admin/SubscriptionManager';
+import PaymentHistory from './components/admin/PaymentHistory';
 
 // Admin Dashboard
 import AdminDashboard from './components/admin/AdminDashboard';
@@ -66,8 +71,13 @@ export default function App() {
           <Route path="/admin/teacher-assignments" element={<TeacherAssignmentManager />} />
           <Route path="/admin/exams" element={<ExamSessionManager />} />
           <Route path="/admin/syllabus" element={<SyllabusBuilder />} />
-          <Route path="/admin/payments" element={<PaymentManager />} />
+          <Route path="/admin/payments" element={<PaymentDashboard />} />
+          <Route path="/admin/payments/legacy" element={<PaymentManager />} />
           <Route path="/admin/analytics" element={<PaymentAnalytics />} />
+          <Route path="/admin/packages" element={<PackageManager />} />
+          <Route path="/admin/invoices" element={<InvoiceManager />} />
+          <Route path="/admin/subscriptions" element={<SubscriptionManager />} />
+          <Route path="/admin/payments/history" element={<PaymentHistory />} />
         </Route>
 
         {/* Teacher Portal Routes */}
