@@ -40,7 +40,10 @@
       "Bash(python3 -c \"import json,sys; data=json.load\\(sys.stdin\\); print\\(f'{len\\(data\\)} teachers found'\\); [print\\(f'  #{s[\\\\\"id\\\\\"]} {s[\\\\\"name\\\\\"]} \\({s[\\\\\"email\\\\\"]}\\)'\\) for s in data]\")",
       "Bash(python migrate_exam_sessions_optional.py)",
       "Bash(npx tsc *)",
-      "Bash(node -e \"const icons = require\\('/Users/yadavvignesh/vama-frontend/node_modules/lucide-react'\\); const names = Object.keys\\(icons\\); console.log\\(names.filter\\(n => /grid|layout/i.test\\(n\\)\\).join\\(', '\\)\\)\")"
+      "Bash(node -e \"const icons = require\\('/Users/yadavvignesh/vama-frontend/node_modules/lucide-react'\\); const names = Object.keys\\(icons\\); console.log\\(names.filter\\(n => /grid|layout/i.test\\(n\\)\\).join\\(', '\\)\\)\")",
+      "Bash(curl -s -X POST http://127.0.0.1:8000/student/login -H 'Content-Type: application/json' -d '{\"email\":\"test@gmail.com\",\"password\":\"vama@1234\"}')",
+      "Bash(curl -s -X POST http://127.0.0.1:8000/teacher/login -H 'Content-Type: application/json' -d '{\"email\":\"raja@gmail.com\",\"password\":\"vama@1234\"}')",
+      "Bash(curl -s -X POST http://127.0.0.1:8000/student/login -H 'Content-Type: application/json' -d '{\"email\":\"test@gmail.com\",\"password\":\"wrongpass\"}')"
     ],
     "additionalDirectories": [
       "/Users/yadavvignesh/vama-backend"
