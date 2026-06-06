@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import { useAutoRefresh } from '../../hooks/useAutoRefresh';
 import {
     format,
     startOfMonth,
@@ -58,11 +59,7 @@ export default function TeacherCalendar() {
         if (teacher) fetchSessions();
     }, [currentDate, teacher]);
 
-    useEffect(() => {
-        if (!teacher) return;
-        const interval = setInterval(() => fetchSessions(), 20000);
-        return () => clearInterval(interval);
-    }, [teacher, currentDate]);
+    useAutoRefresh(() => { if (teacher) fetchSessions(); }, 20000);
 
     const fetchSessions = async () => {
         if (!teacher) return;

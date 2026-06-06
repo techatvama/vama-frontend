@@ -1,4 +1,7 @@
 import React from 'react';
+import { NotificationProvider } from './context/NotificationContext';
+import NotificationsPage from './components/admin/NotificationsPage';
+import SettingsPage from './components/admin/SettingsPage';
 import Dashboard from './components/Dashboard';
 import { BrowserRouter, Route, Routes } from 'react-router';
 import Sidebar from './components/Sidebar';
@@ -49,6 +52,7 @@ import StaffProfilePage from './components/admin/StaffProfilePage';
 
 export default function App() {
   return (
+    <NotificationProvider>
     <BrowserRouter>
       <Routes>
         {/* Admin/Internal Routes */}
@@ -78,6 +82,9 @@ export default function App() {
           <Route path="/admin/invoices" element={<InvoiceManager />} />
           <Route path="/admin/subscriptions" element={<SubscriptionManager />} />
           <Route path="/admin/payments/history" element={<PaymentHistory />} />
+          <Route path="/notifications" element={<NotificationsPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/settings/:section" element={<SettingsPage />} />
         </Route>
 
         {/* Teacher Portal Routes */}
@@ -104,5 +111,6 @@ export default function App() {
         </Route>
       </Routes>
     </BrowserRouter>
+    </NotificationProvider>
   )
 }

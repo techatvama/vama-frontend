@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useAutoRefresh } from '../../hooks/useAutoRefresh';
 import { api } from '../../lib/api';
 import {
     CreditCard, CheckCircle2, Clock, AlertCircle, Download,
@@ -313,20 +314,21 @@ export default function StudentPayments() {
     }, []);
 
     // ── load active package + invoices ─────────────────────────────────
-    useEffect(() => {
+    const fetchPayments = useCallback(async () => {
         if (!student?.id) return;
-        (async () => {
-            setLoadingData(true);
-            try {
-                const res = await api.get(`/student/${student.id}/payments`);
-                setPayData(res.data);
-            } catch {
-                setPayData(mockStudentData());
-            } finally {
-                setLoadingData(false);
-            }
-        })();
+        setLoadingData(true);
+        try {
+            const res = await api.get(`/student/${student.id}/payments`);
+            setPayData(res.data);
+        } catch {
+            setPayData(mockStudentData());
+        } finally {
+            setLoadingData(false);
+        }
     }, [student?.id]);
+
+    useEffect(() => { fetchPayments(); }, [fetchPayments]);
+    useAutoRefresh(fetchPayments, 45000);
 
     // ── load eligible packages when Browse tab opens ───────────────────
     useEffect(() => {

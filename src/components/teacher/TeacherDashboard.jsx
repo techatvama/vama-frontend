@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useAutoRefresh } from '../../hooks/useAutoRefresh';
 import { api } from '../../lib/api';
 import { parseSubject } from '../../lib/utils';
 import {
@@ -35,13 +36,8 @@ export default function TeacherDashboard() {
         }
     }, [navigate]);
 
-    useEffect(() => {
-        if (teacher) {
-            fetchDashboardData();
-        }
-    }, [teacher]);
-
-    const fetchDashboardData = async () => {
+    const fetchDashboardData = useCallback(async () => {
+        if (!teacher) return;
         setLoading(true);
         try {
             const today = format(new Date(), 'yyyy-MM-dd');
@@ -56,7 +52,10 @@ export default function TeacherDashboard() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [teacher]);
+
+    useEffect(() => { if (teacher) fetchDashboardData(); }, [teacher, fetchDashboardData]);
+    useAutoRefresh(fetchDashboardData, 30000);
 
     if (!teacher) return null;
 

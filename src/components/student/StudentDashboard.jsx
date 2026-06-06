@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { api } from '../../lib/api';
+import { useAutoRefresh } from '../../hooks/useAutoRefresh';
 import { parseSubject } from '../../lib/utils';
 import {
     Calendar,
@@ -27,18 +28,21 @@ export default function StudentDashboard() {
     const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
 
+    const [studentId, setStudentId] = useState(null);
+
     useEffect(() => {
         const stored = localStorage.getItem('student');
         if (stored) {
             const s = JSON.parse(stored);
             setStudent(s);
-            fetchDashboardData(s.id);
+            setStudentId(s.id);
         } else {
             navigate('/student-login');
         }
     }, [navigate]);
 
-    const fetchDashboardData = async (studentId) => {
+    const fetchDashboardData = useCallback(async () => {
+        if (!studentId) return;
         setLoading(true);
         try {
             const today = format(new Date(), 'yyyy-MM-dd');
@@ -55,7 +59,10 @@ export default function StudentDashboard() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [studentId]);
+
+    useEffect(() => { if (studentId) fetchDashboardData(); }, [studentId, fetchDashboardData]);
+    useAutoRefresh(fetchDashboardData, 30000);
 
     const calculateOverallProgress = () => {
         if (!progress?.syllabus?.modules) return 0;

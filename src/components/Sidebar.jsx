@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
+import { useNotifications } from "../context/NotificationContext";
 import {
   FaCalendarAlt,
   FaUserFriends,
@@ -29,6 +30,7 @@ import {
 import { Link, Outlet, useLocation } from "react-router";
 
 export default function Sidebar() {
+  const { unreadCount } = useNotifications();
   const [isExpanded, setIsExpanded] = useState(true);
   const [expandedMenu, setExpandedMenu] = useState(null);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
@@ -179,8 +181,22 @@ export default function Sidebar() {
                   to={item.link}
                   className={`flex items-center ${isExpanded ? "gap-3" : "justify-center"} p-2.5 rounded-lg transition-colors ${isActive(item.link) ? "bg-white/20" : "hover:bg-white/10"}`}
                 >
-                  <Icon size={18} />
-                  {isExpanded && <span className="text-sm">{item.label}</span>}
+                  <div className="relative flex-shrink-0">
+                    <Icon size={18} />
+                    {item.link === "/notifications" && unreadCount > 0 && (
+                      <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center leading-none">
+                        {unreadCount > 99 ? "99+" : unreadCount}
+                      </span>
+                    )}
+                  </div>
+                  {isExpanded && (
+                    <span className="text-sm flex-1">{item.label}</span>
+                  )}
+                  {isExpanded && item.link === "/notifications" && unreadCount > 0 && (
+                    <span className="ml-auto px-1.5 py-0.5 bg-red-500 text-white text-[9px] font-bold rounded-full leading-none">
+                      {unreadCount > 99 ? "99+" : unreadCount}
+                    </span>
+                  )}
                 </Link>
               )}
 
