@@ -42,6 +42,11 @@ export default function StudentSidebar() {
         return () => window.removeEventListener('resize', checkMobile);
     }, [navigate]);
 
+    // Close on every route change — works for NavLink clicks AND browser back button
+    useEffect(() => {
+        setIsMobileOpen(false);
+    }, [pathname]);
+
     const handleLogout = () => {
         localStorage.removeItem('student');
         navigate('/student-login');
