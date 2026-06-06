@@ -58,6 +58,8 @@ export default function StudentSidebar() {
 
     if (!student) return null;
 
+    const closeMobile = () => setIsMobileOpen(false);
+
     const SidebarContent = () => (
         <>
             {/* Brand */}
@@ -83,6 +85,7 @@ export default function StudentSidebar() {
                         <NavLink
                             key={item.path}
                             to={item.path}
+                            onClick={closeMobile}
                             className={`flex items-center ${isExpanded ? 'justify-between' : 'justify-center'} px-4 py-4 rounded-[24px] transition-all group ${isActive
                                 ? 'bg-[#463a7a] text-white shadow-xl shadow-indigo-900/20'
                                 : 'text-slate-400 hover:text-[#463a7a] hover:bg-slate-50'

@@ -84,6 +84,7 @@ export default function TeacherSidebar() {
                         <NavLink
                             key={item.path}
                             to={item.path}
+                            onClick={() => isMobile && setIsMobileOpen(false)}
                             className={`flex items-center ${isExpanded ? 'justify-between' : 'justify-center'} px-4 py-3.5 rounded-2xl transition-all group ${isActive
                                     ? 'bg-white/10 text-white shadow-xl shadow-black/10'
                                     : 'text-white/60 hover:text-white hover:bg-white/5'
