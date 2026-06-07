@@ -4,11 +4,12 @@ import {
     Building2, Mail, CreditCard, Palette, Database, Shield,
     Save, Eye, EyeOff, Send, Check, AlertCircle, Loader2,
     Plus, X, MapPin, Clock, Bell, ChevronRight, RefreshCw,
-    Globe, Phone, FileText, Hash, Percent
+    Globe, Phone, FileText, Hash, Percent, Users
 } from 'lucide-react';
 
 const SECTIONS = [
     { id: 'academy',     label: 'Academy Profile',   icon: Building2,   desc: 'Name, contact & legal info' },
+    { id: 'centers',     label: 'Centers & Access',   icon: Users,       desc: 'Manage centers & admins' },
     { id: 'branches',    label: 'Branches',           icon: MapPin,      desc: 'Manage centre locations' },
     { id: 'email',       label: 'Email & SMTP',       icon: Mail,        desc: 'Invoice & notification email' },
     { id: 'payments',    label: 'Payments & Tax',     icon: CreditCard,  desc: 'GST, invoices, currency' },
@@ -66,12 +67,48 @@ export default function SettingsPage() {
     const [testingEmail, setTestingEmail] = useState(false);
     const [testResult, setTestResult] = useState(null);
 
+    // Centers & Access
+    const [centers, setCenters] = useState([]);
+    const [staffList, setStaffList] = useState([]);
+    const [newCenter, setNewCenter] = useState({ name: '', address: '' });
+    const [savingCenter, setSavingCenter] = useState(false);
+
     useEffect(() => {
         api.get('/admin/settings')
             .then(r => setSettings(r.data))
             .catch(() => setError('Could not load settings'))
             .finally(() => setLoading(false));
     }, []);
+
+    const loadCentersData = async () => {
+        try {
+            const [c, s] = await Promise.all([api.get('/centers'), api.get('/staff')]);
+            setCenters(c.data);
+            setStaffList(s.data);
+        } catch { setError('Could not load centers'); }
+    };
+
+    useEffect(() => {
+        if (active === 'centers') loadCentersData();
+    }, [active]);
+
+    const addCenter = async () => {
+        if (!newCenter.name.trim()) return;
+        setSavingCenter(true);
+        try {
+            await api.post('/centers', newCenter);
+            setNewCenter({ name: '', address: '' });
+            await loadCentersData();
+        } catch { setError('Failed to add center'); }
+        finally { setSavingCenter(false); }
+    };
+
+    const updateStaffAccess = async (staffId, access_role, center_id) => {
+        try {
+            await api.put(`/admin/staff/${staffId}/access`, { access_role, center_id });
+            await loadCentersData();
+        } catch { setError('Failed to update access'); }
+    };
 
     const set = (key, val) => {
         setSaved(false);
@@ -225,6 +262,86 @@ export default function SettingsPage() {
                                     </Field>
                                 </div>
                                 <SaveBar saving={saving} saved={saved} onSave={save} />
+                            </>
+                        )}
+
+                        {/* ── Centers & Access ── */}
+                        {active === 'centers' && (
+                            <>
+                                <div>
+                                    <h2 className="text-lg font-bold text-slate-900">Centers & Access Control</h2>
+                                    <p className="text-sm text-slate-400 mt-0.5">Each center has its own admin who only sees their center's students, staff, classes and payments.</p>
+                                </div>
+
+                                {/* Center list */}
+                                <div>
+                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Centers</p>
+                                    <div className="space-y-2">
+                                        {centers.map(c => (
+                                            <div key={c.id} className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3">
+                                                <Building2 size={15} className="text-[#463a7a] flex-shrink-0" />
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-sm font-bold text-slate-800 truncate">{c.name}</p>
+                                                    {c.address && <p className="text-xs text-slate-400 truncate">{c.address}</p>}
+                                                </div>
+                                                <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">Active</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    {/* Add center */}
+                                    <div className="flex gap-2 mt-3">
+                                        <input value={newCenter.name} onChange={e => setNewCenter(p => ({ ...p, name: e.target.value }))}
+                                            placeholder="Center name (e.g. Vama - Whitefield)"
+                                            className="flex-1 bg-white border border-slate-200 rounded-2xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[#463a7a]/10 focus:border-[#463a7a]/40" />
+                                        <button onClick={addCenter} disabled={savingCenter || !newCenter.name.trim()}
+                                            className="px-4 py-2.5 bg-[#463a7a] text-white rounded-2xl text-sm font-bold hover:bg-[#342a5b] disabled:opacity-50 transition-all flex items-center gap-2">
+                                            {savingCenter ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />} Add
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Staff access roles */}
+                                <div>
+                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Staff Access & Center Assignment</p>
+                                    <div className="bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden">
+                                        <table className="w-full text-sm">
+                                            <thead>
+                                                <tr className="border-b border-slate-200 bg-slate-100">
+                                                    <th className="px-4 py-2.5 text-left text-xs font-bold text-slate-500 uppercase tracking-wide">Name</th>
+                                                    <th className="px-4 py-2.5 text-left text-xs font-bold text-slate-500 uppercase tracking-wide">Access Role</th>
+                                                    <th className="px-4 py-2.5 text-left text-xs font-bold text-slate-500 uppercase tracking-wide">Center</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-100">
+                                                {staffList.map(s => (
+                                                    <tr key={s.id} className="hover:bg-white transition-colors">
+                                                        <td className="px-4 py-2.5 font-semibold text-slate-800">{s.name}</td>
+                                                        <td className="px-4 py-2.5">
+                                                            <select value={s.access_role || 'teacher'}
+                                                                onChange={e => updateStaffAccess(s.id, e.target.value, s.center_id)}
+                                                                className="bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs font-semibold outline-none focus:border-[#463a7a]/40 cursor-pointer">
+                                                                <option value="teacher">Teacher</option>
+                                                                <option value="center_admin">Center Admin</option>
+                                                                <option value="super_admin">Super Admin</option>
+                                                            </select>
+                                                        </td>
+                                                        <td className="px-4 py-2.5">
+                                                            <select value={s.center_id || ''}
+                                                                onChange={e => updateStaffAccess(s.id, s.access_role || 'teacher', e.target.value ? Number(e.target.value) : null)}
+                                                                className="bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs font-semibold outline-none focus:border-[#463a7a]/40 cursor-pointer">
+                                                                <option value="">— None —</option>
+                                                                {centers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                                            </select>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <p className="text-[11px] text-slate-400 mt-2">
+                                        <strong>Super Admin</strong> sees all centers. <strong>Center Admin</strong> is restricted to their assigned center. <strong>Teachers</strong> use the teacher portal.
+                                    </p>
+                                </div>
                             </>
                         )}
 

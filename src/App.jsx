@@ -1,5 +1,7 @@
 import React from 'react';
 import { NotificationProvider } from './context/NotificationContext';
+import { AdminProvider } from './context/AdminContext';
+import AdminLogin from './components/admin/AdminLogin';
 import NotificationsPage from './components/admin/NotificationsPage';
 import SettingsPage from './components/admin/SettingsPage';
 import Dashboard from './components/Dashboard';
@@ -52,9 +54,13 @@ import StaffProfilePage from './components/admin/StaffProfilePage';
 
 export default function App() {
   return (
+    <AdminProvider>
     <NotificationProvider>
     <BrowserRouter>
       <Routes>
+        {/* Admin Login (public) */}
+        <Route path="/admin-login" element={<AdminLogin />} />
+
         {/* Admin/Internal Routes */}
         <Route path="/" element={<Sidebar />}>
           <Route index element={<AdminDashboard />} />
@@ -112,5 +118,6 @@ export default function App() {
       </Routes>
     </BrowserRouter>
     </NotificationProvider>
+    </AdminProvider>
   )
 }

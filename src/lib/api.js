@@ -5,6 +5,32 @@ export const api = axios.create({
     timeout: 15000,
 });
 
+// ── Auto-inject center_id for Center Admins ──────────────────────────────────
+// Super admins see everything (no center_id). Center admins are scoped to their
+// own center on GET list endpoints. Reads the logged-in admin from localStorage.
+const CENTER_SCOPED_GET = [
+    /^\/students(\?|$)/,
+    /^\/staff(\?|$)/,
+    /^\/batches(\?|$)/,
+    /^\/calendar\/filtered/,
+    /^\/admin\/invoices/,
+];
+
+api.interceptors.request.use((config) => {
+    try {
+        const admin = JSON.parse(localStorage.getItem('admin') || 'null');
+        if (admin?.access_role === 'center_admin' && admin?.center_id) {
+            const method = (config.method || 'get').toLowerCase();
+            const url = config.url || '';
+            const scoped = CENTER_SCOPED_GET.some(rx => rx.test(url));
+            if (method === 'get' && scoped) {
+                config.params = { ...(config.params || {}), center_id: admin.center_id };
+            }
+        }
+    } catch { /* ignore */ }
+    return config;
+});
+
 // ── Notification auto-fire on every successful write ─────────────────────────
 
 const RESOURCE_PATTERNS = [

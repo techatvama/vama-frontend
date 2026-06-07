@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNotifications } from "../context/NotificationContext";
+import { useAdmin } from "../context/AdminContext";
 import {
   FaCalendarAlt,
   FaUserFriends,
@@ -25,17 +26,31 @@ import {
   FaAward,
   FaTachometerAlt,
   FaBox,
-  FaSync
+  FaSync,
+  FaSignOutAlt,
+  FaBuilding
 } from "react-icons/fa";
-import { Link, Outlet, useLocation } from "react-router";
+import { Link, Outlet, useLocation, useNavigate } from "react-router";
 
 export default function Sidebar() {
   const { unreadCount } = useNotifications();
+  const { admin, logout, isSuperAdmin, centerName } = useAdmin();
   const [isExpanded, setIsExpanded] = useState(true);
   const [expandedMenu, setExpandedMenu] = useState(null);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+
+  // Auth guard — redirect to admin login if not authenticated
+  useEffect(() => {
+    if (!admin) navigate('/admin-login');
+  }, [admin, navigate]);
+
+  const handleLogout = () => {
+    logout();
+    navigate('/admin-login');
+  };
 
   // Check for mobile screen
   useEffect(() => {
@@ -104,17 +119,12 @@ export default function Sidebar() {
     },
     { icon: FaBell, label: "Notifications", link: "/notifications" },
     { icon: FaFileAlt, label: "Reports", link: "/reports" },
-    {
-      icon: FaCog,
-      label: "Settings",
-      link: "/settings",
-      submenus: [
-        { icon: FaUserCog, label: "Account", link: "/settings/account" },
-        { icon: FaShieldAlt, label: "Security", link: "/settings/security" },
-        { icon: FaPalette, label: "Appearance", link: "/settings/appearance" },
-      ]
-    },
-  ];
+    { icon: FaCog, label: "Settings", link: "/settings" },
+  ].filter(item => {
+    // Only super admins see global Settings
+    if (item.label === "Settings" && !isSuperAdmin) return false;
+    return true;
+  });
 
   const toggleSubmenu = (label) => {
     setExpandedMenu(expandedMenu === label ? null : label);
@@ -224,19 +234,41 @@ export default function Sidebar() {
       </nav>
 
       {/* Footer */}
-      {isExpanded && (
-        <div className="p-3 border-t border-white/10">
+      <div className="p-3 border-t border-white/10 space-y-2">
+        {/* Center badge */}
+        {isExpanded && (
+          <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-white/10">
+            <FaBuilding size={11} className="text-white/70 flex-shrink-0" />
+            <span className="text-[11px] font-semibold text-white/90 truncate">
+              {isSuperAdmin ? "All Centers" : (centerName || "No center assigned")}
+            </span>
+          </div>
+        )}
+
+        {/* Admin profile */}
+        {isExpanded && (
           <div className="flex items-center gap-2 p-2 rounded-lg bg-white/5">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center text-xs font-bold">
-              VA
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center text-xs font-bold flex-shrink-0">
+              {(admin?.name || "VA").slice(0, 2).toUpperCase()}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium truncate">Vama Admin</p>
-              <p className="text-[10px] text-white/60 truncate">admin@vama.com</p>
+              <p className="text-xs font-medium truncate">{admin?.name || "Vama Admin"}</p>
+              <p className="text-[10px] text-white/60 truncate">
+                {isSuperAdmin ? "Super Admin" : "Center Admin"}
+              </p>
             </div>
           </div>
-        </div>
-      )}
+        )}
+
+        {/* Logout */}
+        <button
+          onClick={handleLogout}
+          className={`w-full flex items-center ${isExpanded ? "gap-3 px-2" : "justify-center"} py-2 rounded-lg text-white/70 hover:text-white hover:bg-red-500/20 transition-colors`}
+        >
+          <FaSignOutAlt size={16} className="flex-shrink-0" />
+          {isExpanded && <span className="text-sm font-medium">Sign Out</span>}
+        </button>
+      </div>
     </>
   );
 
