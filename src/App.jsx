@@ -4,6 +4,7 @@ import { AdminProvider } from './context/AdminContext';
 import AdminLogin from './components/admin/AdminLogin';
 import NotificationsPage from './components/admin/NotificationsPage';
 import SettingsPage from './components/admin/SettingsPage';
+import ReportsPage from './components/admin/ReportsPage';
 import Dashboard from './components/Dashboard';
 import { BrowserRouter, Route, Routes } from 'react-router';
 import Sidebar from './components/Sidebar';
@@ -88,6 +89,7 @@ export default function App() {
           <Route path="/admin/invoices" element={<InvoiceManager />} />
           <Route path="/admin/subscriptions" element={<SubscriptionManager />} />
           <Route path="/admin/payments/history" element={<PaymentHistory />} />
+          <Route path="/reports" element={<ReportsPage />} />
           <Route path="/notifications" element={<NotificationsPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/settings/:section" element={<SettingsPage />} />
