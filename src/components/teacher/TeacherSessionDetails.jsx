@@ -113,7 +113,7 @@ export default function TeacherSessionDetails() {
 
     const handleAttendanceChange = async (studentId, status) => {
         const notes = (feedbackState[studentId] || '').trim();
-        if (!notes) {
+        if (status === 'present' && !notes) {
             setFeedbackError(String(studentId));
             return;
         }
@@ -121,7 +121,7 @@ export default function TeacherSessionDetails() {
         setSavingAttendance(prev => ({ ...prev, [studentId]: true }));
         try {
             await api.put(`/sessions/${sessionId}/attendance/${studentId}`, null, {
-                params: { status, notes, require_feedback: true }
+                params: { status, notes, require_feedback: true, bypass_package: true }
             });
             await fetchEnrolledStudents();
             setLastRefresh(new Date());
@@ -349,7 +349,7 @@ export default function TeacherSessionDetails() {
                                                     <MessageSquare size={13} className="absolute left-3 top-3 text-slate-300 pointer-events-none" />
                                                     <textarea
                                                         rows={2}
-                                                        placeholder="Write feedback before marking attendance..."
+                                                        placeholder="Write feedback before marking present (optional for absent)..."
                                                         value={feedbackState[student.id] || ''}
                                                         onChange={(e) => {
                                                             setFeedbackState(prev => ({ ...prev, [student.id]: e.target.value }));
@@ -364,7 +364,7 @@ export default function TeacherSessionDetails() {
                                                 {hasError && (
                                                     <p className="mt-1 text-[9px] font-black text-red-500 uppercase tracking-widest flex items-center gap-1">
                                                         <AlertCircle size={9} />
-                                                        Feedback required before marking attendance
+                                                        Feedback required before marking present
                                                     </p>
                                                 )}
                                             </div>
@@ -392,9 +392,7 @@ export default function TeacherSessionDetails() {
                                                     className={`flex-1 flex items-center justify-center gap-1.5 lg:gap-2 px-3 lg:px-5 py-2.5 lg:py-3.5 rounded-xl lg:rounded-2xl font-black text-[10px] lg:text-xs transition-all
                                                         ${isAbsent
                                                             ? 'bg-red-500 text-white shadow-lg shadow-red-500/20'
-                                                            : hasFeedback
-                                                            ? 'bg-slate-50 text-slate-500 hover:bg-red-50 hover:text-red-600 border border-slate-100'
-                                                            : 'bg-slate-50 text-slate-200 border border-slate-100 cursor-not-allowed'}`}
+                                                            : 'bg-slate-50 text-slate-500 hover:bg-red-50 hover:text-red-600 border border-slate-100'}`}
                                                 >
                                                     {savingAttendance[student.id]
                                                         ? <Loader2 size={14} className="animate-spin" />

@@ -5,18 +5,37 @@ export const api = axios.create({
     timeout: 15000,
 });
 
-// ── Auto-inject center_id for Center Admins ──────────────────────────────────
-// Super admins see everything (no center_id). Center admins are scoped to their
-// own center on GET list endpoints. Reads the logged-in admin from localStorage.
-const CENTER_SCOPED_GET = [
-    /^\/students(\?|$)/,
-    /^\/staff(\?|$)/,
-    /^\/batches(\?|$)/,
-    /^\/calendar\/filtered/,
-    /^\/admin\/invoices/,
-];
-
+// ── Auto-inject JWT token for all authenticated requests ───────────────────
+// Reads from admin/teacher/student localStorage keys based on who's logged in.
 api.interceptors.request.use((config) => {
+    try {
+        // Try to get token from any of the three user types
+        let token = null;
+        const admin = localStorage.getItem('admin_token');
+        const teacher = localStorage.getItem('teacher_token');
+        const student = localStorage.getItem('student_token');
+
+        token = admin || teacher || student;
+
+        if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+        }
+    } catch { /* ignore */ }
+
+    // ── Auto-inject center_id for Center Admins ──────────────────────────────────
+    // Super admins see everything (no center_id). Center admins are scoped to their
+    // own center on GET list endpoints. Reads the logged-in admin from localStorage.
+    const CENTER_SCOPED_GET = [
+        /^\/students(\?|$)/,
+        /^\/staff(\?|$)/,
+        /^\/batches(\?|$)/,
+        /^\/calendar\/filtered/,
+        /^\/scheduling\/calendar/,
+        /^\/admin\/invoices/,
+        /^\/admin\/student-applications/,
+        /^\/admin\/reports/,
+    ];
+
     try {
         const admin = JSON.parse(localStorage.getItem('admin') || 'null');
         if (admin?.access_role === 'center_admin' && admin?.center_id) {
@@ -58,6 +77,9 @@ const RESOURCE_PATTERNS = [
     { pattern: /\/admin\/exam-sessions\/\d+/,        label: 'Exam session',   icon: '📝', category: 'exam' },
     { pattern: /\/admin\/exam-sessions/,             label: 'Exam session',   icon: '📝', category: 'exam' },
     { pattern: /\/enrollments/,                      label: 'Enrollment',     icon: '✅', category: 'student' },
+    { pattern: /\/admin\/student-applications\/\d+\/approve/, label: 'Application', icon: '📥', category: 'student', action: { post: 'Approved' } },
+    { pattern: /\/admin\/student-applications\/\d+\/reject/,  label: 'Application', icon: '📥', category: 'student', action: { post: 'Rejected' } },
+    { pattern: /\/admin\/student-applications/,      label: 'Application',    icon: '📥', category: 'student' },
     { pattern: /\/attendances\/\d+/,                 label: 'Attendance',     icon: '📋', category: 'attendance' },
     { pattern: /\/attendances/,                      label: 'Attendance',     icon: '📋', category: 'attendance' },
     { pattern: /\/reschedule/,                       label: 'Reschedule',     icon: '🗓️', category: 'schedule' },
@@ -86,6 +108,46 @@ function buildMessage(url, method, req, res) {
     if (url.includes('attendance'))   return req.status ? `Marked ${req.status}` : '';
     return '';
 }
+
+// ── Auto-refresh access token on 401 ─────────────────────────────────────────
+let _refreshing = null;
+
+api.interceptors.response.use(null, async (err) => {
+    const original = err.config;
+    const status = err.response?.status;
+    const detail = err.response?.data?.detail || '';
+
+    // Only attempt refresh for token-expired 401s (not wrong password, not forbidden)
+    if (
+        status === 401 &&
+        (detail === 'Invalid or expired token' || detail === 'Not authenticated') &&
+        !original._retried
+    ) {
+        original._retried = true;
+        const refreshToken = localStorage.getItem('admin_refresh_token');
+        if (!refreshToken) return Promise.reject(err);
+
+        try {
+            // Deduplicate concurrent refresh calls
+            if (!_refreshing) {
+                _refreshing = axios.post(`${API_BASE}/auth/refresh`, { refresh_token: refreshToken })
+                    .finally(() => { _refreshing = null; });
+            }
+            const { data } = await _refreshing;
+            if (data.access_token) {
+                localStorage.setItem('admin_token', data.access_token);
+                original.headers.Authorization = `Bearer ${data.access_token}`;
+                return api(original);
+            }
+        } catch {
+            // Refresh failed — clear tokens, redirect to login
+            localStorage.removeItem('admin_token');
+            localStorage.removeItem('admin_refresh_token');
+            window.location.href = '/admin-login';
+        }
+    }
+    return Promise.reject(err);
+});
 
 api.interceptors.response.use(
     res => {

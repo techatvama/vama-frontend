@@ -68,8 +68,7 @@ export default function PaymentManager() {
             setPayments(res.data);
         } catch (err) {
             console.error(err);
-            // Mock data for demonstration
-            setPayments(generateMockPayments());
+            setPayments([]);
         } finally {
             setLoading(false);
         }
@@ -82,25 +81,6 @@ export default function PaymentManager() {
         } catch (err) {
             console.error(err);
         }
-    };
-
-    const generateMockPayments = () => {
-        const statuses = ['paid', 'pending', 'overdue', 'cancelled'];
-        const types = ['Monthly Tuition', 'Exam Fee', 'Material Fee', 'Registration Fee'];
-        const names = ['Sridat Agrawal', 'Rudransh Tripathy', 'Advaita Gokul', 'Ryan varma Gadiraju', 'Akira Bajpai', 'Shourya Patil', 'Shreya Patil', 'Ivan Joseph Abin', 'Anaika Yadav', 'Mega Nachiyar Kabilan'];
-
-        return Array.from({ length: 174 }, (_, i) => ({
-            id: 3487 - i,
-            student_name: names[i % names.length],
-            student_id: 1000 + (i % names.length),
-            amount: (Math.random() * 5000 + 2000).toFixed(2),
-            due_date: new Date(2026, 1, Math.floor(Math.random() * 28) + 1).toISOString(),
-            issue_date: new Date(2026, 0, Math.floor(Math.random() * 31) + 1).toISOString(),
-            paid_date: statuses[i % statuses.length] === 'paid' ? new Date(2026, 1, Math.floor(Math.random() * 15) + 1).toISOString() : null,
-            status: statuses[i % statuses.length],
-            payment_type: types[i % types.length],
-            description: `Payment for ${types[i % types.length].toLowerCase()}`,
-        }));
     };
 
     const filterPayments = () => {

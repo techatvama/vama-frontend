@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { X } from 'lucide-react'
+import { X, Loader2 } from 'lucide-react'
 
 export default function AddStaffModal({ open, onClose, onSave, initialData }) {
   const [form, setForm] = useState({
@@ -10,28 +10,23 @@ export default function AddStaffModal({ open, onClose, onSave, initialData }) {
     role: '',
     takesClasses: true,
   })
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
   useEffect(() => {
     if (open) {
+      setError('')
       if (initialData) {
         setForm({
-          firstName: initialData.firstName || initialData.name.split(' ')[0] || '',
-          lastName: initialData.lastName || initialData.name.split(' ').slice(1).join(' ') || '',
+          firstName: initialData.firstName || initialData.name?.split(' ')[0] || '',
+          lastName: initialData.lastName || initialData.name?.split(' ').slice(1).join(' ') || '',
           email: initialData.email || '',
           phone: initialData.phone || '',
           role: initialData.role || '',
           takesClasses: initialData.takesClasses !== undefined ? initialData.takesClasses : true,
         })
       } else {
-        // Reset for adding new staff
-        setForm({
-          firstName: '',
-          lastName: '',
-          email: '',
-          phone: '',
-          role: '',
-          takesClasses: true,
-        })
+        setForm({ firstName: '', lastName: '', email: '', phone: '', role: '', takesClasses: true })
       }
     }
   }, [open, initialData])
@@ -44,21 +39,34 @@ export default function AddStaffModal({ open, onClose, onSave, initialData }) {
     setForm((f) => ({ ...f, [name]: type === 'checkbox' ? checked : value }))
   }
 
-  function submit(e) {
+  async function submit(e) {
     e.preventDefault()
     if (!form.firstName || !form.lastName || !form.email || !form.role) return
+    setLoading(true)
+    setError('')
     const newStaff = {
       name: form.firstName + ' ' + form.lastName,
       role: form.role,
-      phone: form.phone || '—',
+      phone: form.phone || '',
       email: form.email,
       calendar: !!form.takesClasses,
       firstName: form.firstName,
       lastName: form.lastName,
-      takesClasses: form.takesClasses
+      takesClasses: form.takesClasses,
     }
-    onSave(newStaff)
-    onClose()
+    try {
+      await onSave(newStaff)
+      onClose()
+    } catch (err) {
+      const detail = err.response?.data?.detail
+      setError(
+        Array.isArray(detail)
+          ? detail.map(d => d.msg).join(', ')
+          : (detail || 'Failed to save staff. Please try again.')
+      )
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -72,6 +80,9 @@ export default function AddStaffModal({ open, onClose, onSave, initialData }) {
         </div>
 
         <form onSubmit={submit} className="space-y-5 px-6 py-5">
+          {error && (
+            <div className="bg-red-50 border-l-4 border-red-500 p-3 rounded text-sm text-red-700">{error}</div>
+          )}
           <div>
             <h3 className="text-base font-semibold text-slate-900">Personal information</h3>
           </div>
@@ -122,12 +133,12 @@ export default function AddStaffModal({ open, onClose, onSave, initialData }) {
           </label>
 
           <div className="flex justify-end gap-3 border-t pt-4">
-            <button type="button" onClick={onClose} className="rounded-lg border px-4 py-2 text-sm">Cancel</button>
-            <button type="submit"
-              className="rounded-lg px-4 py-2 text-sm font-semibold text-white hover:opacity-90 transition-opacity"
+            <button type="button" onClick={onClose} disabled={loading} className="rounded-lg border px-4 py-2 text-sm disabled:opacity-60">Cancel</button>
+            <button type="submit" disabled={loading}
+              className="rounded-lg px-4 py-2 text-sm font-semibold text-white hover:opacity-90 transition-opacity disabled:opacity-60 flex items-center gap-2"
               style={{ backgroundColor: '#463a7a' }}
             >
-              Save
+              {loading ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving...</> : 'Save'}
             </button>
           </div>
         </form>

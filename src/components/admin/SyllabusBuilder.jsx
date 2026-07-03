@@ -80,7 +80,6 @@ export default function SyllabusBuilder() {
                 params: { subject_id: selectedSubject, grade_id: selectedGrade }
             });
             if (res.data.length > 0) {
-                // Get full details with modules/contents
                 const detailRes = await api.get(`/admin/syllabi/${res.data[0].id}`);
                 setCurrentSyllabus(detailRes.data);
             } else {
@@ -88,6 +87,7 @@ export default function SyllabusBuilder() {
             }
         } catch (err) {
             console.error(err);
+            setCurrentSyllabus(null);
         } finally {
             setFetchingSyllabus(false);
         }
@@ -95,16 +95,13 @@ export default function SyllabusBuilder() {
 
     const handleCreateSyllabus = async () => {
         try {
-            const subjectName = subjects.find(s => s.id === parseInt(selectedSubject))?.name;
-            const gradeName = grades.find(g => g.id === parseInt(selectedGrade))?.name;
-
             const res = await api.post('/admin/syllabi', {
-                name: `${subjectName} - ${gradeName} Syllabus`,
                 subject_id: parseInt(selectedSubject),
-                grade_id: parseInt(selectedGrade)
+                grade_id: parseInt(selectedGrade),
             });
-            setCurrentSyllabus({ ...res.data, modules: [] });
+            setCurrentSyllabus(res.data);
         } catch (err) {
+            console.error(err);
             alert("Failed to create syllabus");
         }
     };

@@ -309,7 +309,7 @@ export default function TeacherStudentDetail() {
                                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Live Progress</span>
                             </div>
                             <div className="p-4 sm:p-6">
-                                <StudentProgressEditor key={progressKey} studentIdFromProps={studentId} />
+                                <StudentProgressEditor key={progressKey} studentIdFromProps={studentId} allowAddContent={true} />
                             </div>
                         </div>
                     </div>

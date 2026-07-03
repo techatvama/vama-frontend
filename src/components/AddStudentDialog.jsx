@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { X, Loader2 } from "lucide-react";
 import { api } from "../lib/api";
+import { useAppData } from "../context/AppDataContext";
 
 export default function AddStudentDialog({ isOpen, onClose, onSubmit, initialData }) {
+  const { subjects } = useAppData();
   // Define initial state matching the user's desired structure
   const initialFormValues = {
     first_name: "",
@@ -110,7 +112,7 @@ export default function AddStudentDialog({ isOpen, onClose, onSubmit, initialDat
         updatedStudent = res.data;
       } else {
         // Add Mode
-        await api.post("/add-student", payload);
+        await api.post("/students", payload);
       }
 
       // Pass the updated student back so parent can update local state
@@ -148,6 +150,9 @@ export default function AddStudentDialog({ isOpen, onClose, onSubmit, initialDat
           </button>
         </div>
 
+        {/* Form — wraps scrollable body + footer so the submit button is inside */}
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
+
         {/* Form Content */}
         <div className="overflow-y-auto p-6 flex-1">
           {error && (
@@ -156,7 +161,7 @@ export default function AddStudentDialog({ isOpen, onClose, onSubmit, initialDat
             </div>
           )}
 
-          <form id="student-form" onSubmit={handleSubmit} className="space-y-6">
+          <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
               {/* First Name */}
@@ -328,11 +333,7 @@ export default function AddStudentDialog({ isOpen, onClose, onSubmit, initialDat
                   required
                 >
                   <option value="">Select a course</option>
-                  <option value="Guitar">Guitar</option>
-                  <option value="Keyboard">Keyboard</option>
-                  <option value="Drums">Drums</option>
-                  <option value="Vocals">Vocals</option>
-                  <option value="Violin">Violin</option>
+                  {subjects.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
                 </select>
               </div>
 
@@ -365,7 +366,6 @@ export default function AddStudentDialog({ isOpen, onClose, onSubmit, initialDat
                   <option value="">Select a center</option>
                   <option value="Vama - Gunjur">Vama - Gunjur</option>
                   <option value="Vama - Varthur">Vama - Varthur</option>
-                  <option value="Vama - Kadubeesnahali">Vama - Kadubeesnahali</option>
                   <option value="Vama - Banaswadi">Vama - Banaswadi</option>
                 </select>
               </div>
@@ -448,10 +448,10 @@ export default function AddStudentDialog({ isOpen, onClose, onSubmit, initialDat
               </div>
 
             </div>
-          </form>
+          </div>
         </div>
 
-        {/* Footer */}
+        {/* Footer — inside the form so submit button works natively */}
         <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-100 bg-slate-50/50">
           <button
             type="button"
@@ -462,7 +462,6 @@ export default function AddStudentDialog({ isOpen, onClose, onSubmit, initialDat
           </button>
           <button
             type="submit"
-            form="student-form"
             disabled={loading}
             className="px-5 py-2.5 rounded-lg bg-[#463a7a] text-white font-medium hover:bg-[#382e61] transition-all shadow-lg shadow-indigo-500/30 disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-2"
           >
@@ -476,6 +475,8 @@ export default function AddStudentDialog({ isOpen, onClose, onSubmit, initialDat
             )}
           </button>
         </div>
+
+        </form>
       </div>
     </div>
   );

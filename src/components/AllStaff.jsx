@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 import { Plus, Search, Edit, Trash2, ChevronLeft, ChevronRight, Calendar } from 'lucide-react'
 import AddStaffModal from './AddStaffModal.jsx'
@@ -95,17 +95,13 @@ export default function AllStaff() {
   }, [filtered, currentPage, rowsPerPage])
 
   async function handleSaveStaff(staffData) {
-    try {
-      if (editingStaff) {
-        await api.put(`/staff/${editingStaff.id}`, { ...staffData, id: editingStaff.id })
-      } else {
-        await api.post('/add-staff', staffData)
-      }
-      fetchStaff()
-      setEditingStaff(null)
-    } catch {
-      alert('Failed to save staff')
+    if (editingStaff) {
+      await api.put(`/staff/${editingStaff.id}`, { ...staffData, id: editingStaff.id })
+    } else {
+      await api.post('/add-staff', staffData)
     }
+    fetchStaff()
+    setEditingStaff(null)
   }
 
   function openEditModal(staff) { setEditingStaff(staff); setOpen(true) }

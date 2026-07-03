@@ -1,13 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
-import { api } from '../../lib/api';
+import { api, API_BASE } from '../../lib/api';
 import {
     FileText, Plus, Search, X, Loader2, Download,
     CheckCircle2, Clock, AlertCircle, ChevronLeft, ChevronRight,
     Eye, Send, Mail, MessageSquare, Users,
-    ChevronDown, ChevronUp, RefreshCw, Info
+    ChevronDown, ChevronUp, RefreshCw, Info, Banknote, Trash2
 } from 'lucide-react';
 import { format } from 'date-fns';
+import RecordPaymentDialog from './RecordPaymentDialog';
 
 const STATUSES = ['all', 'paid', 'pending', 'overdue', 'partial', 'cancelled'];
 const DATE_FILTERS = [
@@ -27,115 +28,8 @@ function generateInvoiceNumber(existingInvoices = []) {
 }
 
 function downloadInvoicePDF(invoice) {
-    const fmt = (d) => { try { return d ? format(new Date(d), 'MMMM d, yyyy') : '-'; } catch { return '-'; } };
-    const money = (n) => (n || 0).toLocaleString('en-IN');
-    const html = `<!DOCTYPE html>
-<html><head><meta charset="UTF-8"><title>${invoice.invoice_number}</title>
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,sans-serif;color:#1e293b;background:#fff}
-.page{max-width:800px;margin:0 auto;padding:56px 48px}
-.hdr{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:36px}
-.logo{display:flex;align-items:center;gap:14px}
-.logo-box{width:54px;height:54px;background:linear-gradient(135deg,#463a7a,#2d2550);border-radius:14px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:24px;font-weight:900;flex-shrink:0}
-.logo-txt h1{font-size:21px;font-weight:800;color:#463a7a}
-.logo-txt p{font-size:10px;color:#94a3b8;margin-top:2px;text-transform:uppercase;letter-spacing:.1em}
-.inv-badge{text-align:right}
-.inv-badge h2{font-size:34px;font-weight:900;color:#463a7a;letter-spacing:-1.5px}
-.inv-badge .num{font-size:12px;color:#94a3b8;font-weight:600;margin-top:4px}
-.chip{display:inline-block;padding:3px 12px;border-radius:999px;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.1em;margin-top:10px}
-.chip-paid{background:#dcfce7;color:#16a34a;border:1.5px solid #86efac}
-.chip-pending{background:#dbeafe;color:#2563eb;border:1.5px solid #93c5fd}
-.chip-overdue{background:#fee2e2;color:#dc2626;border:1.5px solid #fca5a5}
-.chip-partial{background:#fef3c7;color:#d97706;border:1.5px solid #fcd34d}
-.chip-cancelled{background:#f1f5f9;color:#64748b;border:1.5px solid #e2e8f0}
-.hr{height:1px;background:#f1f5f9;margin:30px 0}
-.two-col{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-bottom:28px}
-.blk label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#94a3b8;display:block;margin-bottom:6px}
-.blk .name{font-size:17px;font-weight:800;color:#1e293b;margin-bottom:4px}
-.blk p{font-size:12px;color:#64748b;margin-top:3px}
-.three-col{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:36px}
-.dc{background:#f8fafc;border-radius:10px;padding:14px}
-.dc label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#94a3b8;display:block;margin-bottom:5px}
-.dc p{font-size:13px;font-weight:700;color:#1e293b}
-table{width:100%;border-collapse:collapse;margin-bottom:20px}
-thead{background:#463a7a}
-thead th{padding:11px 16px;text-align:left;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.1em;color:#fff}
-thead th:last-child{text-align:right}
-tbody tr{border-bottom:1px solid #f1f5f9}
-tbody td{padding:13px 16px;font-size:12px;color:#475569}
-tbody td:last-child{text-align:right;font-weight:700;color:#1e293b}
-.totals{max-width:280px;margin-left:auto}
-.tr{display:flex;justify-content:space-between;padding:6px 0;font-size:12px;color:#64748b}
-.tr.disc{color:#16a34a}
-.tr.final{border-top:2px solid #463a7a;margin-top:8px;padding-top:14px;font-size:21px;font-weight:900;color:#463a7a}
-.notes-box{background:#f8fafc;border-radius:10px;padding:16px;margin-top:28px}
-.notes-box label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#94a3b8;display:block;margin-bottom:6px}
-.notes-box p{font-size:12px;color:#475569;line-height:1.6}
-.footer{margin-top:52px;text-align:center;border-top:1px solid #f1f5f9;padding-top:20px;color:#94a3b8;font-size:10px;line-height:1.9}
-.footer strong{color:#463a7a}
-@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
-</style>
-</head><body><div class="page">
-<div class="hdr">
-  <div class="logo">
-    <div class="logo-box">V</div>
-    <div class="logo-txt"><h1>Vama Academy</h1><p>School of Music &amp; Arts</p></div>
-  </div>
-  <div class="inv-badge">
-    <h2>INVOICE</h2>
-    <p class="num">${invoice.invoice_number}</p>
-    <span class="chip chip-${invoice.status || 'pending'}">${invoice.status || 'pending'}</span>
-  </div>
-</div>
-<div class="hr"></div>
-<div class="two-col">
-  <div class="blk">
-    <label>Bill To</label>
-    <p class="name">${invoice.student_name || 'Student'}</p>
-    ${invoice.grade ? `<p>${invoice.grade}${invoice.course ? ' · ' + invoice.course : ''}</p>` : ''}
-  </div>
-  <div class="blk">
-    <label>From</label>
-    <p class="name">Vama Academy</p>
-    <p>School of Music &amp; Arts</p>
-    <p>techatvama@gmail.com</p>
-  </div>
-</div>
-<div class="three-col">
-  <div class="dc"><label>Issue Date</label><p>${fmt(invoice.issue_date)}</p></div>
-  <div class="dc"><label>Due Date</label><p>${fmt(invoice.due_date)}</p></div>
-  <div class="dc"><label>Payment Mode</label><p>${invoice.payment_mode || invoice.payment_type || '-'}</p></div>
-</div>
-<table>
-  <thead><tr><th>Description</th><th>Sessions</th><th>Amount (₹)</th></tr></thead>
-  <tbody>
-    <tr>
-      <td>${invoice.description || invoice.package_name || invoice.payment_type || 'Music Lessons'}</td>
-      <td>${invoice.sessions_count || '-'}</td>
-      <td>${money(invoice.amount)}</td>
-    </tr>
-  </tbody>
-</table>
-<div class="totals">
-  <div class="tr"><span>Subtotal</span><span>₹${money(invoice.amount)}</span></div>
-  ${(invoice.tax_amount || 0) > 0 ? `<div class="tr"><span>Tax / GST</span><span>+₹${money(invoice.tax_amount)}</span></div>` : ''}
-  ${(invoice.discount_amount || 0) > 0 ? `<div class="tr disc"><span>Discount</span><span>-₹${money(invoice.discount_amount)}</span></div>` : ''}
-  <div class="tr final"><span>Total Due</span><span>₹${money(invoice.total_amount)}</span></div>
-  ${invoice.status === 'paid' && invoice.paid_date ? `<div class="tr" style="color:#16a34a"><span>Paid On</span><span>${fmt(invoice.paid_date)}</span></div>` : ''}
-</div>
-${invoice.notes ? `<div class="notes-box"><label>Notes</label><p>${invoice.notes}</p></div>` : ''}
-<div class="footer">
-  <p>Thank you for learning with <strong>Vama Academy</strong> — School of Music &amp; Arts</p>
-  <p>For queries: techatvama@gmail.com</p>
-  <p style="margin-top:4px;font-size:9px">Computer-generated invoice · No signature required</p>
-</div>
-</div></body></html>`;
-    const blob = new Blob([html], { type: 'text/html' });
-    const url = URL.createObjectURL(blob);
-    const win = window.open(url, '_blank');
-    if (!win) { alert('Allow popups to download PDF'); URL.revokeObjectURL(url); return; }
-    win.addEventListener('load', () => { win.print(); URL.revokeObjectURL(url); });
+    const win = window.open(`${API_BASE}/admin/invoices/${invoice.id}/html`, '_blank');
+    if (!win) alert('Allow pop-ups for this site to open the invoice PDF.');
 }
 
 function StatusBadge({ status }) {
@@ -155,213 +49,92 @@ function StatusBadge({ status }) {
     );
 }
 
-function EmailSendModal({ invoice, students, onClose }) {
-    const student = students.find(s => s.id === invoice.student_id);
-    const [to, setTo] = useState(student?.email || '');
-    const [subject, setSubject] = useState(`Invoice ${invoice.invoice_number} – Vama Academy`);
-    const [body, setBody] = useState(
-        `Dear ${invoice.student_name || 'Student'},\n\nPlease find your invoice details below:\n\nInvoice No: ${invoice.invoice_number}\nAmount Due: ₹${(invoice.total_amount || 0).toLocaleString('en-IN')}\nDue Date: ${invoice.due_date ? format(new Date(invoice.due_date), 'MMMM d, yyyy') : '-'}\n\nFor questions, reply to this email.\n\nWarm regards,\nVama Academy Team`
-    );
+function EmailSendModal({ invoice, onClose }) {
+    const isOverdue = invoice.status === 'overdue';
+    const [kind, setKind] = useState(isOverdue ? 'reminder' : 'invoice');
     const [sending, setSending] = useState(false);
     const [sent, setSent] = useState(false);
     const [error, setError] = useState('');
 
-    const handleSend = async (e) => {
-        e.preventDefault();
+    const handleSend = async () => {
         setSending(true);
         setError('');
         try {
-            await api.post(`/admin/invoices/${invoice.id}/send-email`, { to_email: to, subject, body });
+            await api.post(`/admin/invoices/${invoice.id}/send`, { kind });
             setSent(true);
         } catch (err) {
-            setError(err?.response?.data?.detail || 'Failed to send. Check SMTP configuration in backend (.env: SMTP_USER, SMTP_PASS).');
+            setError(err?.response?.data?.detail || 'Failed to send. Check SMTP settings (.env: SMTP_USER, SMTP_PASS).');
         } finally {
             setSending(false);
         }
     };
 
+    const isReminder = kind === 'reminder';
+    const headerCls = isReminder ? 'bg-gradient-to-br from-red-700 to-red-500' : 'bg-gradient-to-br from-[#463a7a] to-[#2d2550]';
+    const btnCls = isReminder ? 'bg-red-600 hover:bg-red-700' : 'bg-[#463a7a] hover:bg-[#2d2550]';
+    const balance = (invoice.total_amount || 0) - (invoice.paid_amount || 0);
+
     return (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-md">
-            <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden">
-                <div className="bg-gradient-to-br from-blue-600 to-blue-800 p-6 flex items-center justify-between">
+            <div className="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden">
+                <div className={`${headerCls} p-5 flex items-center justify-between`}>
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center">
-                            <Mail size={18} className="text-white" />
+                        <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center">
+                            {isReminder ? <AlertCircle size={17} className="text-white" /> : <Mail size={17} className="text-white" />}
                         </div>
                         <div>
-                            <h3 className="text-lg font-bold text-white">Send Invoice</h3>
-                            <p className="text-blue-200 text-xs">{invoice.invoice_number}</p>
+                            <h3 className="text-base font-black text-white">{isReminder ? 'Send Reminder' : 'Send Invoice'}</h3>
+                            <p className="text-white/60 text-xs">{invoice.invoice_number}</p>
                         </div>
                     </div>
-                    <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-2xl text-white/60 hover:text-white transition-all"><X size={20} /></button>
+                    <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-xl text-white/60 hover:text-white transition-all"><X size={18} /></button>
                 </div>
+
                 {sent ? (
                     <div className="p-10 text-center">
                         <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-4">
                             <CheckCircle2 size={28} className="text-emerald-500" />
                         </div>
-                        <h4 className="text-lg font-bold text-slate-900 mb-2">Email Sent!</h4>
-                        <p className="text-sm text-slate-500 mb-6">Invoice sent to {to}</p>
+                        <h4 className="text-lg font-black text-slate-900 mb-1">{isReminder ? 'Reminder Sent!' : 'Invoice Sent!'}</h4>
+                        <p className="text-sm text-slate-500 mb-6">Sent to <span className="font-bold text-slate-700">{invoice.student_email || 'student email'}</span></p>
                         <button onClick={onClose} className="px-8 py-3 bg-emerald-500 text-white rounded-2xl font-bold text-sm hover:bg-emerald-600 transition-all">Done</button>
                     </div>
                 ) : (
-                    <form onSubmit={handleSend} className="p-6 space-y-4">
-                        <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">To</label>
-                            <input type="email" required value={to} onChange={e => setTo(e.target.value)} placeholder="student@email.com"
-                                className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3.5 text-sm text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                    <div className="p-5 space-y-4">
+                        {/* Type toggle */}
+                        <div className="flex gap-2 p-1 bg-slate-100 rounded-2xl">
+                            {[['invoice', 'Invoice'], ['reminder', 'Reminder']].map(([v, l]) => (
+                                <button key={v} type="button" onClick={() => setKind(v)}
+                                    className={`flex-1 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${kind === v ? (v === 'reminder' ? 'bg-red-600 text-white shadow' : 'bg-[#463a7a] text-white shadow') : 'text-slate-400 hover:text-slate-600'}`}>
+                                    {l}
+                                </button>
+                            ))}
                         </div>
-                        <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Subject</label>
-                            <input type="text" value={subject} onChange={e => setSubject(e.target.value)}
-                                className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3.5 text-sm text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+
+                        {/* Info card */}
+                        <div className={`rounded-2xl p-4 ${isReminder ? 'bg-red-50 border border-red-100' : 'bg-slate-50 border border-slate-100'}`}>
+                            <p className="text-xs font-bold text-slate-500 mb-2">Will be sent to</p>
+                            <p className="text-sm font-black text-slate-900">{invoice.student_name}</p>
+                            <p className="text-xs text-slate-500">{invoice.student_email || 'No email on record'}</p>
+                            {isReminder && balance > 0 && (
+                                <div className="mt-3 pt-3 border-t border-red-200">
+                                    <p className="text-xs text-red-700 font-bold">Balance due: <span className="text-red-600 font-black">₹{balance.toLocaleString('en-IN')}</span></p>
+                                    {invoice.due_date && <p className="text-xs text-red-600">Due: {format(new Date(invoice.due_date), 'MMM d, yyyy')}</p>}
+                                </div>
+                            )}
                         </div>
-                        <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Message</label>
-                            <textarea rows={7} value={body} onChange={e => setBody(e.target.value)}
-                                className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3.5 text-sm text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 resize-none" />
-                        </div>
+
                         {error && <p className="text-xs text-red-600 bg-red-50 rounded-2xl p-3 border border-red-100">{error}</p>}
-                        <div className="flex gap-3 pt-1">
-                            <button type="button" onClick={onClose} className="flex-1 py-3.5 bg-slate-100 text-slate-600 rounded-2xl font-bold text-sm hover:bg-slate-200 transition-all">Cancel</button>
-                            <button type="submit" disabled={sending} className="flex-1 py-3.5 bg-blue-600 text-white rounded-2xl font-bold text-sm hover:bg-blue-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50">
-                                {sending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
-                                Send Email
+                        <div className="flex gap-3">
+                            <button onClick={onClose} className="flex-1 py-3 bg-slate-100 text-slate-600 rounded-2xl font-bold text-sm hover:bg-slate-200 transition-all">Cancel</button>
+                            <button onClick={handleSend} disabled={sending || !invoice.student_email} className={`flex-1 py-3 text-white rounded-2xl font-black text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50 ${btnCls}`}>
+                                {sending ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}
+                                Send
                             </button>
                         </div>
-                    </form>
+                        {!invoice.student_email && <p className="text-[10px] text-amber-600 text-center">No email on this student's record — update their profile first.</p>}
+                    </div>
                 )}
-            </div>
-        </div>
-    );
-}
-
-function InvoiceDetailModal({ invoice, onClose, onMarkPaid, onSendEmail }) {
-    if (!invoice) return null;
-    const paidPct = Math.min(100, Math.round(((invoice.paid_amount || 0) / (invoice.total_amount || 1)) * 100));
-    const safeDate = (d) => { try { return d ? format(new Date(d), 'MMM d, yyyy') : '—'; } catch { return '—'; } };
-
-    const handleWhatsApp = () => {
-        const msg = encodeURIComponent(`Hi! Invoice ${invoice.invoice_number} for ₹${(invoice.total_amount || 0).toLocaleString('en-IN')} from Vama Academy. Due: ${safeDate(invoice.due_date)}. Thank you!`);
-        window.open(`https://wa.me/?text=${msg}`, '_blank');
-    };
-
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
-            <div className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
-                {/* Header */}
-                <div className="bg-gradient-to-br from-[#463a7a] to-[#2d2550] p-8 text-white flex-shrink-0">
-                    <div className="flex items-start justify-between">
-                        <div>
-                            <p className="text-white/50 text-xs font-bold uppercase tracking-widest mb-1">{invoice.invoice_number}</p>
-                            <h3 className="text-2xl font-bold tracking-tight">{invoice.student_name}</h3>
-                            <p className="text-white/60 text-sm mt-1">{[invoice.payment_type, invoice.grade, invoice.course].filter(Boolean).join(' · ')}</p>
-                        </div>
-                        <div className="flex items-center gap-3">
-                            <StatusBadge status={invoice.status} />
-                            <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-2xl transition-all"><X size={20} /></button>
-                        </div>
-                    </div>
-                    <div className="mt-5">
-                        <div className="flex items-center justify-between mb-1.5">
-                            <span className="text-xs font-semibold text-white/60">Payment Progress</span>
-                            <span className="text-xs font-bold text-white">{paidPct}%</span>
-                        </div>
-                        <div className="h-2 bg-white/20 rounded-full overflow-hidden">
-                            <div className="h-full bg-white rounded-full transition-all" style={{ width: `${paidPct}%` }} />
-                        </div>
-                    </div>
-                </div>
-
-                {/* Body */}
-                <div className="p-8 overflow-y-auto space-y-6">
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="bg-slate-50 rounded-2xl p-4">
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Base Amount</p>
-                            <p className="text-xl font-bold text-slate-900">₹{(invoice.amount || 0).toLocaleString('en-IN')}</p>
-                        </div>
-                        <div className="bg-slate-50 rounded-2xl p-4">
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Tax (GST)</p>
-                            <p className="text-xl font-bold text-amber-600">+₹{(invoice.tax_amount || 0).toLocaleString('en-IN')}</p>
-                        </div>
-                        {(invoice.discount_amount || 0) > 0 && (
-                            <div className="bg-emerald-50 rounded-2xl p-4">
-                                <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-1">Discount</p>
-                                <p className="text-xl font-bold text-emerald-600">-₹{(invoice.discount_amount).toLocaleString('en-IN')}</p>
-                            </div>
-                        )}
-                        <div className="bg-gradient-to-br from-[#463a7a]/5 to-[#463a7a]/10 rounded-2xl p-4 border border-[#463a7a]/10">
-                            <p className="text-[10px] font-bold text-[#463a7a] uppercase tracking-widest mb-1">Total Due</p>
-                            <p className="text-xl font-bold text-[#463a7a]">₹{(invoice.total_amount || 0).toLocaleString('en-IN')}</p>
-                        </div>
-                    </div>
-
-                    {(invoice.sessions_count || 0) > 0 && (
-                        <div className="bg-slate-50 rounded-2xl p-5">
-                            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Session Summary</p>
-                            <div className="grid grid-cols-3 gap-4">
-                                {[
-                                    { v: invoice.sessions_count, l: 'Package Sessions', c: 'text-slate-900' },
-                                    { v: invoice.attendance_sessions || 0, l: 'Attended', c: 'text-[#463a7a]' },
-                                    { v: (invoice.sessions_count || 0) - (invoice.attendance_sessions || 0), l: 'Remaining', c: 'text-emerald-600' },
-                                ].map((d, i) => (
-                                    <div key={i} className="text-center">
-                                        <p className={`text-2xl font-bold ${d.c}`}>{d.v}</p>
-                                        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mt-0.5">{d.l}</p>
-                                    </div>
-                                ))}
-                            </div>
-                            <div className="mt-3 h-2 bg-slate-200 rounded-full overflow-hidden">
-                                <div className="h-full bg-gradient-to-r from-[#463a7a] to-violet-500 rounded-full"
-                                    style={{ width: `${Math.round(((invoice.attendance_sessions || 0) / (invoice.sessions_count || 1)) * 100)}%` }} />
-                            </div>
-                        </div>
-                    )}
-
-                    <div className="grid grid-cols-3 gap-4">
-                        {[
-                            { label: 'Issue Date', val: safeDate(invoice.issue_date), color: 'text-slate-900' },
-                            { label: 'Due Date', val: safeDate(invoice.due_date), color: invoice.status === 'overdue' ? 'text-red-600' : 'text-slate-900' },
-                            { label: 'Paid Date', val: safeDate(invoice.paid_date), color: 'text-emerald-600' },
-                        ].map((d, i) => (
-                            <div key={i}>
-                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{d.label}</p>
-                                <p className={`text-sm font-bold ${d.color}`}>{d.val}</p>
-                            </div>
-                        ))}
-                    </div>
-
-                    {invoice.notes && (
-                        <div className="bg-blue-50 rounded-2xl p-4 border border-blue-100">
-                            <p className="text-xs font-bold text-blue-600 uppercase tracking-widest mb-1">Notes</p>
-                            <p className="text-sm font-medium text-slate-700">{invoice.notes}</p>
-                        </div>
-                    )}
-                </div>
-
-                {/* Footer */}
-                <div className="p-8 pt-0 flex-shrink-0">
-                    <div className="flex gap-3 flex-wrap">
-                        {invoice.status !== 'paid' && (
-                            <button onClick={() => { onMarkPaid(invoice.id); onClose(); }}
-                                className="flex-1 py-3.5 bg-emerald-500 text-white rounded-2xl font-bold text-xs uppercase tracking-widest hover:bg-emerald-600 transition-all flex items-center justify-center gap-2">
-                                <CheckCircle2 size={16} /> Mark Paid
-                            </button>
-                        )}
-                        <button onClick={() => downloadInvoicePDF(invoice)}
-                            className="flex-1 py-3.5 bg-[#463a7a] text-white rounded-2xl font-bold text-xs uppercase tracking-widest hover:bg-[#2d2550] transition-all flex items-center justify-center gap-2">
-                            <Download size={16} /> Download PDF
-                        </button>
-                        <button onClick={() => onSendEmail(invoice)}
-                            className="flex-1 py-3.5 bg-blue-50 text-blue-700 rounded-2xl font-bold text-xs uppercase tracking-widest hover:bg-blue-100 transition-all flex items-center justify-center gap-2">
-                            <Mail size={16} /> Email
-                        </button>
-                        <button onClick={handleWhatsApp}
-                            className="flex-1 py-3.5 bg-emerald-50 text-emerald-700 rounded-2xl font-bold text-xs uppercase tracking-widest hover:bg-emerald-100 transition-all flex items-center justify-center gap-2">
-                            <MessageSquare size={16} /> WhatsApp
-                        </button>
-                    </div>
-                </div>
             </div>
         </div>
     );
@@ -397,7 +170,6 @@ export default function InvoiceManager() {
     const [page, setPage] = useState(1);
     const [perPage, setPerPage] = useState(25);
     const [selectedIds, setSelectedIds] = useState(new Set());
-    const [selectedInvoice, setSelectedInvoice] = useState(null);
     const [showCreateForm, setShowCreateForm] = useState(false);
     const [students, setStudents] = useState([]);
     const [packages, setPackages] = useState([]);
@@ -407,6 +179,10 @@ export default function InvoiceManager() {
     const [sortBy, setSortBy] = useState('issue_date');
     const [sortDir, setSortDir] = useState('desc');
     const [emailTarget, setEmailTarget] = useState(null);
+    const [paymentTarget, setPaymentTarget] = useState(null);
+    const [pkgSearch, setPkgSearch] = useState('');
+    const [pkgDropOpen, setPkgDropOpen] = useState(false);
+    const pkgRef = useRef(null);
 
     useEffect(() => { loadData(); }, []);
     useEffect(() => { applyFilters(); }, [invoices, search, statusFilter, dateFilter, sortBy, sortDir]);
@@ -473,11 +249,30 @@ export default function InvoiceManager() {
             : inv));
     };
 
+    const deleteInvoice = async (inv) => {
+        if (!window.confirm(`Delete invoice ${inv.invoice_number}? Items, payments and installments are removed. This cannot be undone.`)) return;
+        try { await api.delete(`/admin/invoices/${inv.id}`); setInvoices(prev => prev.filter(x => x.id !== inv.id)); }
+        catch (e) { alert(e.response?.data?.detail || 'Failed to delete invoice'); }
+    };
+
     const handleBulkMarkPaid = () => {
         setInvoices(prev => prev.map(inv =>
             selectedIds.has(inv.id) && inv.status !== 'paid'
                 ? { ...inv, status: 'paid', paid_date: new Date().toISOString(), paid_amount: inv.total_amount }
                 : inv));
+        setSelectedIds(new Set());
+    };
+
+    const handleBulkSendReminders = async () => {
+        const targets = invoices.filter(inv => selectedIds.has(inv.id) && inv.status !== 'paid');
+        if (!targets.length) return;
+        if (!window.confirm(`Send payment reminders to ${targets.length} student(s)?`)) return;
+        let sent = 0;
+        for (const inv of targets) {
+            try { await api.post(`/admin/invoices/${inv.id}/send`, { kind: 'reminder' }); sent++; }
+            catch { /* skip if no email */ }
+        }
+        alert(`Reminder sent to ${sent} of ${targets.length} student(s).`);
         setSelectedIds(new Set());
     };
 
@@ -505,6 +300,8 @@ export default function InvoiceManager() {
     const openCreateForm = () => {
         setFormData({ ...EMPTY_FORM, invoice_number: generateInvoiceNumber(invoices) });
         setFormError('');
+        setPkgSearch('');
+        setPkgDropOpen(true);
         setShowCreateForm(true);
     };
 
@@ -513,22 +310,30 @@ export default function InvoiceManager() {
         setSubmitting(true);
         setFormError('');
         const amount = parseFloat(formData.amount) || 0;
-        const taxAmount = amount * (parseFloat(formData.tax_percentage) || 0) / 100;
-        const discount = parseFloat(formData.discount_amount) || 0;
-        const total = amount + taxAmount - discount;
+        const sessions = parseInt(formData.sessions_count) || 1;
+        const perSession = sessions > 0 ? Math.round((amount / sessions) * 100) / 100 : amount;
         const selectedPkg = packages.find(p => p.id === parseInt(formData.package_id));
+        const validityDays = formData.validity_days;
+        const validTill = validityDays
+            ? new Date(Date.now() + validityDays * 86400000).toISOString().split('T')[0]
+            : null;
         const payload = {
-            ...formData,
             student_id: parseInt(formData.student_id),
-            package_id: formData.package_id ? parseInt(formData.package_id) : null,
-            payment_type: selectedPkg ? selectedPkg.name : null,
-            payment_mode: formData.payment_mode,
-            amount,
-            tax_amount: taxAmount,
-            discount_amount: discount,
-            total_amount: total,
             issue_date: formData.issue_date || new Date().toISOString().split('T')[0],
-            status: 'pending',
+            due_date: formData.due_date,
+            discount_percentage: 0,
+            discount_amount: parseFloat(formData.discount_amount) || 0,
+            tax_percentage: parseFloat(formData.tax_percentage) || 0,
+            notes: formData.description || null,
+            send_email: false,
+            items: [{
+                package_id: formData.package_id ? parseInt(formData.package_id) : null,
+                label: selectedPkg ? selectedPkg.name : (formData.description || 'Invoice Item'),
+                description: formData.description || '',
+                quantity: sessions,
+                unit_price: perSession,
+                valid_till: validTill,
+            }],
         };
         try {
             await api.post('/admin/invoices', payload);
@@ -588,10 +393,10 @@ export default function InvoiceManager() {
                             <p className="text-white/50 text-sm">Track, create, and manage all student invoices</p>
                         </div>
                         <div className="flex items-center gap-3">
-                            <button className="px-5 py-3 bg-white/10 hover:bg-white/20 text-white rounded-2xl font-bold text-xs uppercase tracking-widest flex items-center gap-2 transition-all border border-white/10">
-                                <Users size={15} /> Bulk Generate
+                            <button onClick={() => navigate('/admin/billing-settings')} className="px-5 py-3 bg-white/10 hover:bg-white/20 text-white rounded-2xl font-bold text-xs uppercase tracking-widest flex items-center gap-2 transition-all border border-white/10">
+                                <Info size={15} /> Settings
                             </button>
-                            <button onClick={openCreateForm} className="px-5 py-3 bg-white text-[#463a7a] rounded-2xl font-bold text-xs uppercase tracking-widest shadow-xl hover:scale-105 transition-all flex items-center gap-2">
+                            <button onClick={() => navigate('/admin/invoices/new')} className="px-5 py-3 bg-white text-[#463a7a] rounded-2xl font-bold text-xs uppercase tracking-widest shadow-xl hover:scale-105 transition-all flex items-center gap-2">
                                 <Plus size={15} /> New Invoice
                             </button>
                         </div>
@@ -658,7 +463,7 @@ export default function InvoiceManager() {
                             <button onClick={handleBulkMarkPaid} className="px-4 py-2 bg-emerald-500 text-white rounded-2xl text-xs font-bold uppercase tracking-widest hover:bg-emerald-400 transition-all flex items-center gap-1.5">
                                 <CheckCircle2 size={14} /> Mark All Paid
                             </button>
-                            <button className="px-4 py-2 bg-white/10 text-white rounded-2xl text-xs font-bold uppercase tracking-widest hover:bg-white/20 transition-all flex items-center gap-1.5">
+                            <button onClick={handleBulkSendReminders} className="px-4 py-2 bg-red-500 text-white rounded-2xl text-xs font-bold uppercase tracking-widest hover:bg-red-400 transition-all flex items-center gap-1.5">
                                 <Send size={14} /> Send Reminders
                             </button>
                             <button onClick={() => setSelectedIds(new Set())} className="p-2 hover:bg-white/10 rounded-xl text-white/60 hover:text-white transition-all"><X size={16} /></button>
@@ -762,12 +567,13 @@ export default function InvoiceManager() {
                                             </td>
                                             <td className="px-5 py-4" onClick={e => e.stopPropagation()}>
                                                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    <button onClick={() => setSelectedInvoice(inv)} className="p-1.5 hover:bg-slate-100 rounded-xl text-slate-400 hover:text-[#463a7a] transition-all" title="View"><Eye size={14} /></button>
+                                                    <button onClick={() => setPaymentTarget(inv)} className="p-1.5 hover:bg-slate-100 rounded-xl text-slate-400 hover:text-[#463a7a] transition-all" title="View & Record Payment"><Eye size={14} /></button>
                                                     {inv.status !== 'paid' && (
                                                         <button onClick={() => handleMarkPaid(inv.id)} className="p-1.5 hover:bg-emerald-50 rounded-xl text-slate-400 hover:text-emerald-600 transition-all" title="Mark Paid"><CheckCircle2 size={14} /></button>
                                                     )}
                                                     <button onClick={() => setEmailTarget(inv)} className="p-1.5 hover:bg-blue-50 rounded-xl text-slate-400 hover:text-blue-500 transition-all" title="Send Email"><Mail size={14} /></button>
                                                     <button onClick={() => downloadInvoicePDF(inv)} className="p-1.5 hover:bg-slate-100 rounded-xl text-slate-400 hover:text-slate-700 transition-all" title="Download PDF"><Download size={14} /></button>
+                                                    <button onClick={() => deleteInvoice(inv)} className="p-1.5 hover:bg-red-50 rounded-xl text-slate-400 hover:text-red-500 transition-all" title="Delete invoice"><Trash2 size={14} /></button>
                                                 </div>
                                             </td>
                                         </tr>
@@ -800,19 +606,14 @@ export default function InvoiceManager() {
                 </div>
             </div>
 
-            {/* Detail Modal */}
-            {selectedInvoice && (
-                <InvoiceDetailModal
-                    invoice={selectedInvoice}
-                    onClose={() => setSelectedInvoice(null)}
-                    onMarkPaid={handleMarkPaid}
-                    onSendEmail={(inv) => { setSelectedInvoice(null); setEmailTarget(inv); }}
-                />
-            )}
-
             {/* Email Modal */}
             {emailTarget && (
-                <EmailSendModal invoice={emailTarget} students={students} onClose={() => setEmailTarget(null)} />
+                <EmailSendModal invoice={emailTarget} onClose={() => setEmailTarget(null)} />
+            )}
+
+            {/* Record Payment */}
+            {paymentTarget && (
+                <RecordPaymentDialog invoiceId={paymentTarget.id} onClose={() => setPaymentTarget(null)} onRecorded={loadData} />
             )}
 
             {/* Create Invoice Modal */}
@@ -867,21 +668,49 @@ export default function InvoiceManager() {
                                     )}
                                 </div>
 
-                                {/* Package — required, auto-fills everything */}
-                                <div className="space-y-1.5">
+                                {/* Package — searchable combobox */}
+                                <div className="space-y-1.5" ref={pkgRef}>
                                     <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Package *</label>
-                                    <select required value={formData.package_id} onChange={e => handlePackageChange(e.target.value)}
-                                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3.5 text-slate-900 font-medium text-sm focus:outline-none focus:ring-2 focus:ring-[#463a7a]/10 appearance-none cursor-pointer">
-                                        <option value="">Select a package...</option>
-                                        {packages.map(p => (
-                                            <option key={p.id} value={p.id}>
-                                                {p.name}
-                                                {p.total_sessions ? ` · ${p.total_sessions} sessions` : ''}
-                                                {p.validity_days ? ` · ${p.validity_days} days` : ''}
-                                                {p.price ? ` — ₹${Number(p.price).toLocaleString('en-IN')}` : ''}
-                                            </option>
-                                        ))}
-                                    </select>
+                                    {formData.package_id ? (
+                                        <div className="flex items-center gap-2 bg-violet-50 border border-violet-200 rounded-2xl px-4 py-3">
+                                            <span className="text-sm font-black text-[#463a7a] flex-1">
+                                                {packages.find(p => String(p.id) === String(formData.package_id))?.name || 'Selected package'}
+                                            </span>
+                                            <button type="button" onClick={() => { handlePackageChange(''); setPkgSearch(''); }} className="text-[10px] font-black text-violet-400 hover:text-red-500 uppercase tracking-widest">change</button>
+                                        </div>
+                                    ) : (
+                                        <div className="relative" ref={pkgRef}>
+                                            <Search size={14} className="absolute left-3.5 top-3.5 text-slate-400 pointer-events-none" />
+                                            <input
+                                                type="text"
+                                                autoFocus
+                                                placeholder="Search package by name..."
+                                                value={pkgSearch}
+                                                onChange={e => setPkgSearch(e.target.value)}
+                                                onBlur={() => setTimeout(() => setPkgDropOpen(false), 160)}
+                                                onFocus={() => setPkgDropOpen(true)}
+                                                className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3.5 pl-9 text-slate-900 font-medium text-sm focus:outline-none focus:ring-2 focus:ring-[#463a7a]/10"
+                                                autoComplete="off"
+                                            />
+                                            <div className={`absolute z-30 mt-1 w-full bg-white border border-slate-200 rounded-2xl shadow-2xl max-h-56 overflow-y-auto ${pkgDropOpen ? '' : 'hidden'}`}>
+                                                {packages
+                                                    .filter(p => !pkgSearch || p.name.toLowerCase().includes(pkgSearch.toLowerCase()))
+                                                    .map(p => (
+                                                        <button key={p.id} type="button"
+                                                            onMouseDown={e => { e.preventDefault(); handlePackageChange(String(p.id)); setPkgSearch(''); setPkgDropOpen(false); }}
+                                                            className="w-full text-left px-4 py-3 hover:bg-violet-50 border-b border-slate-50 last:border-0">
+                                                            <p className="text-sm font-black text-slate-800">{p.name}</p>
+                                                            <p className="text-[11px] text-slate-400 font-bold mt-0.5">
+                                                                {p.total_sessions ? `${p.total_sessions} sessions · ` : ''}{p.validity_days ? `${p.validity_days} days · ` : ''}₹{Number(p.price || 0).toLocaleString('en-IN')}
+                                                            </p>
+                                                        </button>
+                                                    ))}
+                                                {packages.filter(p => !pkgSearch || p.name.toLowerCase().includes(pkgSearch.toLowerCase())).length === 0 && (
+                                                    <p className="text-sm text-slate-400 text-center py-4">{pkgSearch ? `No match for "${pkgSearch}"` : 'No packages available'}</p>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
                                     {packages.length === 0 && (
                                         <p className="text-xs text-amber-600 flex items-center gap-1"><Info size={12} /> No packages found — add packages in Package Manager first</p>
                                     )}

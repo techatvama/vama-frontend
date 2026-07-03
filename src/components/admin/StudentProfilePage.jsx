@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { api } from '../../lib/api';
+import AddStudentDialog from '../AddStudentDialog';
 import {
     Mail, Phone, MapPin, Calendar, CreditCard, BookOpen,
     TrendingUp, Clock, CheckCircle, XCircle, AlertCircle,
     ArrowLeft, Loader2, GraduationCap, DollarSign,
-    Star, ChevronRight, Activity, Users
+    Star, ChevronRight, Activity, Users, Pencil
 } from 'lucide-react';
 
 const formatDate = (val) => {
@@ -59,15 +60,16 @@ export default function StudentProfilePage() {
     const [student, setStudent] = useState(null);
     const [error, setError] = useState(null);
     const [activeTab, setActiveTab] = useState('overview');
+    const [editOpen, setEditOpen] = useState(false);
 
-    useEffect(() => {
+    const load = useCallback(() => {
         setLoading(true);
         setError(null);
-        api.get(`/admin/student/${studentId}/complete-profile`)
+        return api.get(`/admin/student/${studentId}/complete-profile`)
             .then(res => setStudent(res.data))
             .catch(err => {
                 // Try basic fallback
-                api.get(`/students/${studentId}`)
+                return api.get(`/students/${studentId}`)
                     .then(r => setStudent({
                         ...r.data,
                         financial: { total_fees: 0, fees_paid: 0, outstanding: 0, payment_history: [] },
@@ -78,6 +80,8 @@ export default function StudentProfilePage() {
             })
             .finally(() => setLoading(false));
     }, [studentId]);
+
+    useEffect(() => { load(); }, [load]);
 
     if (loading) return (
         <div className="flex items-center justify-center min-h-[60vh]">
@@ -117,13 +121,19 @@ export default function StudentProfilePage() {
     return (
         <div className="min-h-screen bg-slate-50">
             {/* Breadcrumb bar */}
-            <div className="bg-white border-b border-slate-200 px-6 py-3 flex items-center gap-2 text-sm sticky top-0 z-10 shadow-sm">
-                <button onClick={() => navigate('/students')}
-                    className="flex items-center gap-1.5 text-slate-500 hover:text-[#463a7a] font-medium transition-colors">
-                    <ArrowLeft size={15} /> Students
+            <div className="bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between gap-2 text-sm sticky top-0 z-10 shadow-sm">
+                <div className="flex items-center gap-2">
+                    <button onClick={() => navigate('/students')}
+                        className="flex items-center gap-1.5 text-slate-500 hover:text-[#463a7a] font-medium transition-colors">
+                        <ArrowLeft size={15} /> Students
+                    </button>
+                    <ChevronRight size={14} className="text-slate-300" />
+                    <span className="text-slate-800 font-semibold">{fullName}</span>
+                </div>
+                <button onClick={() => setEditOpen(true)}
+                    className="flex items-center gap-1.5 px-3.5 py-2 bg-[#463a7a] text-white rounded-lg text-xs font-bold hover:bg-[#342a5b] transition-colors">
+                    <Pencil size={13} /> Edit Details
                 </button>
-                <ChevronRight size={14} className="text-slate-300" />
-                <span className="text-slate-800 font-semibold">{fullName}</span>
             </div>
 
             <div className="max-w-5xl mx-auto px-5 py-6 space-y-5">
@@ -221,6 +231,16 @@ export default function StudentProfilePage() {
                                             { label: 'Desired Course', value: student.desired_course, icon: BookOpen },
                                             { label: 'Gender', value: student.gender, icon: Users },
                                             { label: 'Date of Birth', value: formatDate(student.date_of_birth), icon: Calendar },
+                                            { label: 'Guardian Email', value: student.guardian_email, icon: Mail },
+                                            { label: 'Emergency Contact', value: student.emergency_contact, icon: Phone },
+                                            { label: 'Parent Name', value: student.parent_name, icon: Users },
+                                            { label: 'City', value: student.city, icon: MapPin },
+                                            { label: 'State', value: student.state, icon: MapPin },
+                                            { label: 'Class Frequency', value: student.class_frequency, icon: Calendar },
+                                            { label: 'Preferred Contact', value: student.preferred_mode_of_contact, icon: Phone },
+                                            { label: 'Blood Group', value: student.blood_group, icon: AlertCircle },
+                                            { label: 'Allergies', value: student.allergies, icon: AlertCircle },
+                                            { label: 'Referrer', value: student.referrer, icon: Users },
                                         ].filter(f => f.value).map(field => (
                                             <div key={field.label} className="flex items-center gap-3 p-3.5 bg-slate-50 rounded-xl border border-slate-100">
                                                 <div className="p-2 bg-[#463a7a]/10 rounded-lg flex-shrink-0">
@@ -458,6 +478,13 @@ export default function StudentProfilePage() {
                     </div>
                 </div>
             </div>
+
+            <AddStudentDialog
+                isOpen={editOpen}
+                onClose={() => setEditOpen(false)}
+                initialData={student}
+                onSubmit={async () => { await load(); }}
+            />
         </div>
     );
 }

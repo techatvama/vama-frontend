@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { Outlet, useNavigate } from 'react-router';
 import StudentSidebar from './StudentSidebar';
+import ChildSwitcher from './ChildSwitcher';
 
 export default function StudentPortal() {
     const navigate = useNavigate();
@@ -13,10 +14,11 @@ export default function StudentPortal() {
     }, [navigate]);
 
     return (
-        <div className="flex bg-[#f8fafc] min-h-screen font-sans overflow-x-hidden">
+        <div className="flex h-screen overflow-hidden bg-[#f8fafc] font-sans">
             <StudentSidebar />
-            <main className="flex-1 min-w-0 transition-all duration-300">
-                <div className="pt-16 lg:pt-0 min-h-screen border-l border-white/40">
+            <main className="flex-1 min-w-0 overflow-y-auto">
+                <div className="pt-16 lg:pt-0 pb-20 lg:pb-0">
+                    <ChildSwitcher />
                     <Outlet />
                 </div>
             </main>

@@ -4,10 +4,10 @@ import { api } from '../../lib/api';
 import {
     CreditCard, CheckCircle2, Clock, AlertCircle, Download,
     ArrowRight, Zap, Bell, Package, Activity, RefreshCw,
-    ChevronRight, Star, Shield, Sparkles, Lock, X,
+    Shield, Lock, X,
     BadgeCheck, CalendarDays, Layers, Music
 } from 'lucide-react';
-import { format, addDays, differenceInDays } from 'date-fns';
+import { format, differenceInDays } from 'date-fns';
 
 // ─── Load Razorpay script once ────────────────────────────────────────────────
 function useRazorpay() {
@@ -23,45 +23,6 @@ function useRazorpay() {
     return ready;
 }
 
-// ─── Mock fallback data ───────────────────────────────────────────────────────
-function mockPackages(grade, course) {
-    const all = [
-        { id: 1, name: 'Debut Starter', applicable_grades: ['Debut'], applicable_courses: ['Piano', 'Guitar', 'Violin', 'Vocals', 'Drums', 'Keyboard', 'Flute', 'Tabla'], validity_days: 30, total_sessions: 8, makeup_sessions: 1, price: 4500, tax_percentage: 18, total_with_tax: 5310, description: 'Perfect start for new learners' },
-        { id: 2, name: 'Monthly Pro', applicable_grades: ['Grade 1', 'Grade 2', 'Grade 3'], applicable_courses: ['Piano', 'Guitar', 'Violin', 'Vocals', 'Drums'], validity_days: 30, total_sessions: 12, makeup_sessions: 2, price: 6500, tax_percentage: 18, total_with_tax: 7670, description: 'Most popular — great for active learners' },
-        { id: 3, name: 'Quarterly Elite', applicable_grades: ['Grade 2', 'Grade 3', 'Grade 4', 'Grade 5'], applicable_courses: ['Piano', 'Violin', 'Vocals', 'Guitar'], validity_days: 90, total_sessions: 36, makeup_sessions: 4, price: 17500, tax_percentage: 18, total_with_tax: 20650, description: 'Best value — save 10% vs monthly' },
-        { id: 4, name: 'Half-Year Premium', applicable_grades: ['Grade 3', 'Grade 4', 'Grade 5', 'Grade 6'], applicable_courses: ['Piano', 'Violin', 'Guitar', 'Vocals'], validity_days: 180, total_sessions: 72, makeup_sessions: 6, price: 32000, tax_percentage: 18, total_with_tax: 37760, description: 'Serious learners — dedicated progress' },
-        { id: 5, name: 'Annual Gold', applicable_grades: ['Grade 4', 'Grade 5', 'Grade 6', 'Grade 7', 'Grade 8'], applicable_courses: ['Piano', 'Violin', 'Guitar', 'Vocals', 'Drums'], validity_days: 365, total_sessions: 144, makeup_sessions: 12, price: 58000, tax_percentage: 18, total_with_tax: 68440, description: 'Full-year commitment — maximum savings' },
-        { id: 6, name: 'Beginner Trial', applicable_grades: ['Debut', 'Grade 1'], applicable_courses: ['Piano', 'Guitar', 'Violin', 'Vocals', 'Drums', 'Keyboard', 'Flute', 'Tabla'], validity_days: 14, total_sessions: 4, makeup_sessions: 0, price: 1500, tax_percentage: 0, total_with_tax: 1500, description: 'Try before you commit — 2 weeks trial' },
-    ];
-    return all.filter(p => {
-        const gradeOk = p.applicable_grades.length === 0 || p.applicable_grades.includes(grade);
-        const courseOk = p.applicable_courses.length === 0 || p.applicable_courses.includes(course);
-        return gradeOk && courseOk;
-    });
-}
-
-function mockStudentData() {
-    const now = new Date();
-    return {
-        active_package: {
-            id: 2, name: 'Monthly Pro', sessions_total: 12, sessions_used: 8,
-            makeup_sessions: 2, makeup_used: 1,
-            validity_until: addDays(now, 22).toISOString(),
-            start_date: addDays(now, -8).toISOString(), price: 6500,
-        },
-        attendance_timeline: Array.from({ length: 8 }, (_, i) => ({
-            date: addDays(now, -(i * 3 + 1)).toISOString(),
-            status: ['present', 'present', 'present', 'absent', 'present', 'present', 'late', 'present'][i],
-            session_number: 8 - i,
-            topic: ['Scales & Arpeggios', 'Sight Reading', 'Exam Piece A', 'Ear Training', 'Exam Piece B', 'Improvisation', 'Theory', 'Warm Up'][i],
-        })),
-        invoices: [
-            { id: 1, invoice_number: 'INV-04987', amount: 6500, tax_amount: 1170, discount_amount: 0, total_amount: 7670, status: 'paid', payment_type: 'Monthly Pro', issue_date: addDays(now, -30).toISOString(), due_date: addDays(now, -25).toISOString(), paid_date: addDays(now, -27).toISOString() },
-            { id: 2, invoice_number: 'INV-04988', amount: 6500, tax_amount: 1170, discount_amount: 500, total_amount: 7170, status: 'paid', payment_type: 'Monthly Pro', issue_date: addDays(now, -60).toISOString(), due_date: addDays(now, -55).toISOString(), paid_date: addDays(now, -57).toISOString() },
-        ],
-        upcoming_renewals: [{ plan: 'Monthly Pro', amount: 7670, due_date: addDays(now, 22).toISOString(), sessions: 12 }],
-    };
-}
 
 // ─── Ring chart ───────────────────────────────────────────────────────────────
 function Ring({ pct, size = 96, stroke = 9, color = '#463a7a' }) {
@@ -294,7 +255,7 @@ function SuccessScreen({ result, onDone }) {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function StudentPayments() {
-    const razorpayReady = useRazorpay();
+    useRazorpay();
 
     const [student, setStudent] = useState(null);
     const [tab, setTab] = useState('overview');
@@ -314,16 +275,16 @@ export default function StudentPayments() {
     }, []);
 
     // ── load active package + invoices ─────────────────────────────────
-    const fetchPayments = useCallback(async () => {
+    const fetchPayments = useCallback(async (isRefresh = false) => {
         if (!student?.id) return;
-        setLoadingData(true);
+        if (!isRefresh) setLoadingData(true);
         try {
             const res = await api.get(`/student/${student.id}/payments`);
             setPayData(res.data);
         } catch {
-            setPayData(mockStudentData());
+            setPayData(null);
         } finally {
-            setLoadingData(false);
+            if (!isRefresh) setLoadingData(false);
         }
     }, [student?.id]);
 
@@ -339,7 +300,7 @@ export default function StudentPayments() {
                 const res = await api.get(`/student/packages?student_id=${student.id}`);
                 setPackages(res.data);
             } catch {
-                setPackages(mockPackages(student.current_grade || 'Debut', student.desired_course || student.instrument || 'Piano'));
+                setPackages([]);
             } finally {
                 setLoadingPkgs(false);
             }
@@ -594,6 +555,37 @@ export default function StudentPayments() {
                         </div>
                     )}
 
+                    {/* Enrollment-based fee packages (grade/subject matched) */}
+                    {payData?.enrollment_packages?.filter(ep => ep.fee_package_name).length > 0 && (
+                        <div className="bg-white rounded-[28px] border border-slate-100 shadow-lg overflow-hidden">
+                            <div className="px-5 py-4 border-b border-slate-100">
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Fee Package by Enrollment</p>
+                                <p className="text-xs text-slate-400 mt-0.5">Assigned based on your grade & subject</p>
+                            </div>
+                            {payData.enrollment_packages.filter(ep => ep.fee_package_name).map((ep, i) => (
+                                <div key={i} className="px-5 py-4 flex items-center gap-4 border-b border-slate-50 last:border-0">
+                                    <div className="w-10 h-10 rounded-2xl bg-violet-50 flex items-center justify-center flex-shrink-0">
+                                        <Music size={16} className="text-[#463a7a]" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-black text-slate-900 truncate">{ep.fee_package_name}</p>
+                                        <p className="text-[11px] text-slate-400 font-medium">
+                                            {ep.subject} · {ep.grade}{ep.syllabus_type ? ` · ${ep.syllabus_type}` : ''}
+                                        </p>
+                                    </div>
+                                    <div className="text-right flex-shrink-0">
+                                        {ep.fee_package_price != null && (
+                                            <p className="text-sm font-black text-[#463a7a]">₹{ep.fee_package_price.toLocaleString()}</p>
+                                        )}
+                                        {ep.fee_package_sessions && (
+                                            <p className="text-[10px] text-slate-400 font-bold">{ep.fee_package_sessions} sessions</p>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
                     {/* Attendance timeline */}
                     {payData?.attendance_timeline?.length > 0 && (
                         <div className="bg-white rounded-[28px] border border-slate-100 shadow-lg overflow-hidden">
@@ -675,6 +667,22 @@ export default function StudentPayments() {
             ══════════════════════════════════════════════════════════ */}
             {tab === 'history' && (
                 <div className="space-y-3">
+                    {payData?.upcoming_installments?.length > 0 && (
+                        <div className="bg-white rounded-[24px] border border-slate-100 shadow-md overflow-hidden">
+                            <div className="px-5 py-3 border-b border-slate-50 flex items-center gap-2">
+                                <Clock size={15} className="text-amber-500" />
+                                <h3 className="font-black text-slate-900 text-sm">Upcoming Installments</h3>
+                            </div>
+                            <div className="divide-y divide-slate-50">
+                                {payData.upcoming_installments.map((x, i) => (
+                                    <div key={i} className="flex items-center justify-between px-5 py-3">
+                                        <span className="text-sm font-bold text-slate-600">#{x.seq} · {x.invoice_number} · due {x.due_date}</span>
+                                        <span className="text-sm font-black text-slate-900">₹{(Number(x.amount) - Number(x.paid_amount || 0)).toLocaleString('en-IN')}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                     {!payData?.invoices?.length ? (
                         <div className="bg-white rounded-[28px] p-10 text-center border border-slate-100 shadow-lg">
                             <CreditCard size={32} className="mx-auto text-slate-200 mb-3" />

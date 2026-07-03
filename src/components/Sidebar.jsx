@@ -28,7 +28,8 @@ import {
   FaBox,
   FaSync,
   FaSignOutAlt,
-  FaBuilding
+  FaBuilding,
+  FaInbox
 } from "react-icons/fa";
 import { Link, Outlet, useLocation, useNavigate } from "react-router";
 
@@ -90,6 +91,7 @@ export default function Sidebar() {
         { icon: FaUserPlus, label: "Add Student", link: "/students/add" },
         { icon: FaUserCog, label: "Student Progress", link: "/students/progress" },
         { icon: FaBook, label: "Enrollments", link: "/students/enrollments" },
+        { icon: FaInbox, label: "Form Submissions", link: "/students/forms" },
       ]
     },
     {
@@ -112,8 +114,7 @@ export default function Sidebar() {
         { icon: FaListUl, label: "Dashboard", link: "/admin/curriculum" },
         { icon: FaBook, label: "Subjects", link: "/admin/subjects" },
         { icon: FaAward, label: "Grades", link: "/admin/grades" },
-        { icon: FaUserCog, label: "Teacher Appt.", link: "/admin/teacher-assignments" },
-        { icon: FaFileAlt, label: "Exams", link: "/admin/exams" },
+{ icon: FaFileAlt, label: "Exams", link: "/admin/exams" },
         { icon: FaBolt, label: "Syllabus Builder", link: "/admin/syllabus" },
       ]
     },

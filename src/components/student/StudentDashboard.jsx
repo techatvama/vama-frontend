@@ -15,9 +15,11 @@ import {
     Award,
     ChevronRight,
     Loader2,
-    Users
+    Users,
+    Package,
+    AlertTriangle
 } from 'lucide-react';
-import { format, startOfDay, endOfDay } from 'date-fns';
+import { format, differenceInDays } from 'date-fns';
 import { useNavigate } from 'react-router';
 
 export default function StudentDashboard() {
@@ -25,6 +27,7 @@ export default function StudentDashboard() {
     const [todaySessions, setTodaySessions] = useState([]);
     const [progress, setProgress] = useState(null);
     const [materials, setMaterials] = useState([]);
+    const [activePackage, setActivePackage] = useState(null);
     const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
 
@@ -41,23 +44,25 @@ export default function StudentDashboard() {
         }
     }, [navigate]);
 
-    const fetchDashboardData = useCallback(async () => {
+    const fetchDashboardData = useCallback(async (isRefresh = false) => {
         if (!studentId) return;
-        setLoading(true);
+        if (!isRefresh) setLoading(true);
         try {
             const today = format(new Date(), 'yyyy-MM-dd');
-            const [sessionsRes, progressRes, materialsRes] = await Promise.all([
+            const [sessionsRes, progressRes, materialsRes, paymentsRes] = await Promise.all([
                 api.get(`/student/${studentId}/sessions`, { params: { start: today, end: today } }),
                 api.get(`/students/${studentId}/progress`),
-                api.get(`/students/${studentId}/materials`)
+                api.get(`/students/${studentId}/materials`),
+                api.get(`/student/${studentId}/payments`),
             ]);
             setTodaySessions(sessionsRes.data);
             setProgress(progressRes.data);
             setMaterials(materialsRes.data);
+            setActivePackage(paymentsRes.data?.active_package || null);
         } catch (err) {
             console.error(err);
         } finally {
-            setLoading(false);
+            if (!isRefresh) setLoading(false);
         }
     }, [studentId]);
 
@@ -239,24 +244,91 @@ export default function StudentDashboard() {
                         </button>
                     </div>
 
-                    {/* Achievement / Tip Card */}
-                    <div className="bg-gradient-to-br from-[#463a7a] to-[#2d2550] rounded-[32px] sm:rounded-[50px] p-6 sm:p-10 text-white relative overflow-hidden shadow-2xl">
-                        <div className="relative z-10">
-                            <div className="w-14 h-14 bg-white/10 backdrop-blur-md rounded-[20px] flex items-center justify-center mb-10 border border-white/10">
-                                <Zap className="text-yellow-400 fill-current" />
+                    {/* Package Summary Card */}
+                    {activePackage ? (
+                        <PackageSummaryCard pkg={activePackage} onViewPayments={() => navigate('/student-portal/payments')} />
+                    ) : (
+                        <div className="bg-gradient-to-br from-[#463a7a] to-[#2d2550] rounded-[32px] sm:rounded-[50px] p-6 sm:p-10 text-white relative overflow-hidden shadow-2xl">
+                            <div className="relative z-10">
+                                <div className="w-14 h-14 bg-white/10 backdrop-blur-md rounded-[20px] flex items-center justify-center mb-6 border border-white/10">
+                                    <Package className="text-yellow-400" />
+                                </div>
+                                <h3 className="text-xl font-black tracking-tighter leading-none mb-3 uppercase">No Active Package</h3>
+                                <p className="text-indigo-100/60 font-medium text-sm leading-relaxed mb-8">Browse and purchase a package to start booking classes.</p>
+                                <button onClick={() => navigate('/student-portal/payments')} className="w-full py-4 bg-white text-[#463a7a] font-black text-[10px] uppercase tracking-widest rounded-[24px] shadow-xl hover:scale-105 active:scale-95 transition-all">
+                                    View Packages
+                                </button>
                             </div>
-                            <h3 className="text-2xl font-black tracking-tighter leading-none mb-4 uppercase">Practice Tip</h3>
-                            <p className="text-indigo-100/60 font-medium text-sm leading-relaxed mb-10">
-                                "Practice doesn't make perfect. Perfect practice makes perfect." Try practicing in 15-minute focused bursts!
-                            </p>
-                            <button className="w-full py-5 bg-white text-[#463a7a] font-black text-[10px] uppercase tracking-widest rounded-[24px] shadow-xl hover:scale-105 active:scale-95 transition-all">
-                                Log Practice Session
-                            </button>
+                            <Music className="absolute -bottom-10 -right-10 w-48 h-48 text-white/5" />
                         </div>
-                        <Music className="absolute -bottom-10 -right-10 w-48 h-48 text-white/5" />
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function PackageSummaryCard({ pkg, onViewPayments }) {
+    const usedPct = pkg.sessions_total > 0 ? Math.round((pkg.sessions_used / pkg.sessions_total) * 100) : 0;
+    const daysLeft = pkg.validity_until ? differenceInDays(new Date(pkg.validity_until), new Date()) : null;
+    const isLow = pkg.sessions_remaining <= 2 || (daysLeft !== null && daysLeft <= 7);
+    const isExpired = pkg.is_expired || daysLeft < 0;
+    const r = 38, circ = 2 * Math.PI * r;
+    const dash = (Math.min(usedPct, 100) / 100) * circ;
+    const ringColor = usedPct >= 90 ? '#ef4444' : usedPct >= 70 ? '#f59e0b' : '#22c55e';
+
+    return (
+        <div className={`rounded-[32px] sm:rounded-[50px] p-6 sm:p-8 shadow-2xl border relative overflow-hidden ${isExpired ? 'bg-red-50 border-red-200' : isLow ? 'bg-amber-50 border-amber-200' : 'bg-white border-slate-100'}`}>
+            <div className="flex items-center justify-between mb-5">
+                <div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Active Package</p>
+                    <h3 className="text-lg font-black text-slate-900 leading-tight truncate max-w-[160px]">{pkg.name}</h3>
+                </div>
+                <div className="relative flex-shrink-0">
+                    <svg width={96} height={96} className="-rotate-90">
+                        <circle cx={48} cy={48} r={r} fill="none" stroke="#e2e8f0" strokeWidth={8} />
+                        <circle cx={48} cy={48} r={r} fill="none" stroke={ringColor} strokeWidth={8}
+                            strokeDasharray={`${dash} ${circ}`} strokeLinecap="round"
+                            style={{ transition: 'stroke-dasharray 0.7s ease' }} />
+                    </svg>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                        <span className="text-base font-black text-slate-900">{pkg.sessions_remaining}</span>
+                        <span className="text-[8px] font-black text-slate-400 uppercase">left</span>
                     </div>
                 </div>
             </div>
+
+            <div className="space-y-2.5 mb-5">
+                <div className="flex items-center justify-between text-sm">
+                    <span className="text-slate-500 font-bold">Sessions used</span>
+                    <span className="font-black text-slate-900">{pkg.sessions_used} / {pkg.sessions_total}</span>
+                </div>
+                {pkg.makeup_sessions > 0 && (
+                    <div className="flex items-center justify-between text-sm">
+                        <span className="text-slate-500 font-bold">Makeup sessions</span>
+                        <span className="font-black text-slate-900">{pkg.makeup_remaining ?? (pkg.makeup_sessions - (pkg.makeup_used || 0))} / {pkg.makeup_sessions}</span>
+                    </div>
+                )}
+                {daysLeft !== null && (
+                    <div className="flex items-center justify-between text-sm">
+                        <span className="text-slate-500 font-bold">Valid until</span>
+                        <span className={`font-black ${isExpired ? 'text-red-600' : daysLeft <= 7 ? 'text-amber-600' : 'text-slate-900'}`}>
+                            {isExpired ? 'Expired' : `${daysLeft}d left`}
+                        </span>
+                    </div>
+                )}
+            </div>
+
+            {(isLow || isExpired) && (
+                <div className={`flex items-center gap-2 p-3 rounded-2xl text-xs font-bold mb-4 ${isExpired ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>
+                    <AlertTriangle size={13} />
+                    {isExpired ? 'Package expired — renew to continue classes' : isLow ? 'Running low — consider renewing soon' : ''}
+                </div>
+            )}
+
+            <button onClick={onViewPayments} className="w-full py-3 bg-[#463a7a] text-white font-black text-[10px] uppercase tracking-widest rounded-2xl hover:bg-[#342a5b] transition-all flex items-center justify-center gap-2">
+                <Package size={14} /> View / Renew Package
+            </button>
         </div>
     );
 }

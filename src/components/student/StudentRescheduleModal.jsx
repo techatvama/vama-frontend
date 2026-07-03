@@ -29,56 +29,12 @@ export default function StudentRescheduleModal({ session, onClose, onSuccess, st
             setAvailableSlots(res.data);
         } catch (err) {
             console.error(err);
-            // Mock data for demo
-            setAvailableSlots(generateMockSlots());
+            setAvailableSlots([]);
         } finally {
             setLoading(false);
         }
     };
 
-    const generateMockSlots = () => {
-        const slots = [];
-        for (let i = 0; i < 7; i++) {
-            const date = addDays(currentWeek, i);
-            const daySlots = [
-                {
-                    id: i * 10 + 1,
-                    date: date,
-                    start_time: '09:00',
-                    end_time: '10:00',
-                    teacher_name: 'Sarah Johnson',
-                    subject: session.batch?.subject || 'Piano',
-                    enrolled: Math.floor(Math.random() * 8),
-                    capacity: 10,
-                    batch_id: 1
-                },
-                {
-                    id: i * 10 + 2,
-                    date: date,
-                    start_time: '14:00',
-                    end_time: '15:00',
-                    teacher_name: 'Michael Chen',
-                    subject: session.batch?.subject || 'Piano',
-                    enrolled: Math.floor(Math.random() * 8),
-                    capacity: 10,
-                    batch_id: 2
-                },
-                {
-                    id: i * 10 + 3,
-                    date: date,
-                    start_time: '16:00',
-                    end_time: '17:00',
-                    teacher_name: 'Sarah Johnson',
-                    subject: session.batch?.subject || 'Piano',
-                    enrolled: Math.floor(Math.random() * 8),
-                    capacity: 10,
-                    batch_id: 1
-                }
-            ];
-            slots.push(...daySlots);
-        }
-        return slots;
-    };
 
     const handleReschedule = async () => {
         if (!selectedSlot) {

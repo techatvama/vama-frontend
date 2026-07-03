@@ -39,16 +39,16 @@ export default function StudentAttendance() {
         }
     }, [navigate]);
 
-    const fetchAttendance = useCallback(async () => {
+    const fetchAttendance = useCallback(async (isRefresh = false) => {
         if (!studentId) return;
-        setLoading(true);
+        if (!isRefresh) setLoading(true);
         try {
             const res = await api.get(`/student/${studentId}/attendance`);
             setAttendance(res.data);
         } catch (err) {
             console.error(err);
         } finally {
-            setLoading(false);
+            if (!isRefresh) setLoading(false);
         }
     }, [studentId]);
 

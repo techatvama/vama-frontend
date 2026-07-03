@@ -5,15 +5,16 @@ import {
 } from 'date-fns';
 import {
     ChevronLeft, ChevronRight, Plus, ChevronDown,
-    Briefcase, Users, Filter, Check, X,
+    Briefcase, Users, Filter, Check, X, LayoutGrid,
 } from 'lucide-react';
+import SegmentView from './SegmentView';
 import { api } from '../../lib/api';
 import { parseSubject } from '../../lib/utils';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import CreateBatchDialog from './CreateBatchDialog';
+import TemplateBuilder from './TemplateBuilder';
 import ClassSessionCard from './ClassSessionCard';
-import EnhancedSessionDetailDialog from './EnhancedSessionDetailDialog';
+import OccurrenceDetailDialog from './OccurrenceDetailDialog';
 
 const cn = (...inputs) => twMerge(clsx(inputs));
 
@@ -328,6 +329,7 @@ export default function Scheduler() {
     const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
     const [selectedSession, setSelectedSession] = useState(null);
     const [showDatePicker, setShowDatePicker] = useState(false);
+    const [segmentByTeacher, setSegmentByTeacher] = useState(false);
 
     useEffect(() => {
         fetchSessions();
@@ -354,15 +356,15 @@ export default function Scheduler() {
                 start = startOfMonth(currentDate);
                 end   = endOfMonth(currentDate);
             }
-            const res = await api.get('/calendar/filtered', {
+            const res = await api.get('/scheduling/calendar', {
                 params: {
                     start: format(start, 'yyyy-MM-dd'),
                     end:   format(end,   'yyyy-MM-dd'),
-                    enrollment_filter: enrollmentFilter || undefined,
                 },
             });
-            setSessions(res.data);
-            const uniq = [...new Set(res.data.map(s => s.batch?.subject).filter(Boolean))].sort();
+            const occ = res.data.occurrences || [];
+            setSessions(occ);
+            const uniq = [...new Set(occ.map(s => s.batch?.subject).filter(Boolean))].sort();
             setSubjects(uniq.map(s => ({ raw: s, label: parseSubject(s) })));
         } catch (e) {
             console.error(e);
@@ -381,6 +383,12 @@ export default function Scheduler() {
     const filteredSessions = sessions.filter(s => {
         if (selectedTeachers.size > 0 && !selectedTeachers.has(s.batch?.teacher_id)) return false;
         if (selectedSubject && s.batch?.subject !== selectedSubject) return false;
+        if (enrollmentFilter) {
+            const count = s.enrollment_count || 0;
+            const cap = s.batch?.capacity || s.capacity || 0;
+            if (enrollmentFilter === 'fully_booked') { if (!(cap > 0 && count >= cap)) return false; }
+            else if (count !== Number(enrollmentFilter)) return false;
+        }
         return true;
     });
 
@@ -684,6 +692,16 @@ export default function Scheduler() {
                             ))}
                         </div>
 
+                        {/* Segment-by-instructor toggle */}
+                        <button onClick={() => setSegmentByTeacher(v => !v)}
+                            title="Show a side-by-side column per instructor"
+                            className={cn("flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-all border",
+                                segmentByTeacher
+                                    ? "bg-[#463A7A] text-white border-[#463A7A]"
+                                    : "bg-white text-gray-600 border-gray-300 hover:border-gray-400")}>
+                            <LayoutGrid size={15} /> Instructors
+                        </button>
+
                         <button
                             onClick={() => setIsCreateDialogOpen(true)}
                             className="flex items-center gap-2 px-4 py-2 bg-[#463A7A] text-white rounded-lg hover:bg-[#342a5b] transition-all shadow-sm active:scale-95 font-semibold text-sm">
@@ -703,22 +721,35 @@ export default function Scheduler() {
                         </div>
                     ) : (
                         <div className="h-full">
-                            {(viewMode === 'week' || viewMode === 'day') && renderTimeGrid()}
-                            {viewMode === 'month' && renderMonthView()}
+                            {segmentByTeacher ? (
+                                <SegmentView
+                                    sessions={filteredSessions}
+                                    teachers={teachers}
+                                    selectedTeachers={selectedTeachers}
+                                    viewMode={viewMode}
+                                    currentDate={currentDate}
+                                    onSessionClick={handleSessionClick}
+                                />
+                            ) : (
+                                <>
+                                    {(viewMode === 'week' || viewMode === 'day') && renderTimeGrid()}
+                                    {viewMode === 'month' && renderMonthView()}
+                                </>
+                            )}
                         </div>
                     )}
                 </div>
             </div>
 
-            <CreateBatchDialog
-                isOpen={isCreateDialogOpen}
-                onClose={() => setIsCreateDialogOpen(false)}
-                onCreated={() => { fetchSessions(); setIsCreateDialogOpen(false); }}
-            />
+            {isCreateDialogOpen && (
+                <TemplateBuilder
+                    onClose={() => setIsCreateDialogOpen(false)}
+                    onCreated={() => { fetchSessions(); setIsCreateDialogOpen(false); }}
+                />
+            )}
 
             {selectedSession && (
-                <EnhancedSessionDetailDialog
-                    isOpen={!!selectedSession}
+                <OccurrenceDetailDialog
                     session={selectedSession}
                     onClose={() => setSelectedSession(null)}
                     onUpdate={fetchSessions}

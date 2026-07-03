@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VAMA Database ER Diagram</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.6.1/mermaid.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 30px;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        .diagram {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            overflow-x: auto;
+            margin-bottom: 30px;
+        }
+        .legend {
+            background: #f0f4ff;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        .legend h3 {
+            margin-top: 0;
+            color: #667eea;
+        }
+        .legend-item {
+            display: inline-block;
+            margin-right: 30px;
+            margin-bottom: 10px;
+        }
+        .entity-count {
+            text-align: center;
+            margin-top: 20px;
+            color: #666;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎵 VAMA Database Architecture</h1>
+        <p class="subtitle">Entity-Relationship Diagram | Multi-Center Music School ERP</p>
+
+        <div class="diagram">
+            <div class="mermaid">
+graph TB
+    subgraph Core["🏢 Organization Core"]
+        Center["📍 Center<br/>- id, name<br/>- address, phone<br/>- email, is_active"]
+        Staff["👨‍💼 Staff<br/>- id, name, role<br/>- access_role<br/>- center_id"]
+    end
+
+    subgraph Student_Mgmt["👤 Student Management"]
+        Student["📚 Student<br/>- id, first_name<br/>- email, phone<br/>- center_id, teacher_id"]
+        StudentApp["📝 Student Application<br/>- id, first_name<br/>- status, center_id"]
+        StudentProgress["📊 Progress<br/>- id, student_id<br/>- content_id, status"]
+    end
+
+    subgraph Curriculum["📖 Curriculum & Grading"]
+        Syllabus["📚 Syllabus<br/>- id, grade_name<br/>- syllabus_type"]
+        Module["📑 Module<br/>- id, syllabus_id<br/>- name"]
+        Content["✏️ Content<br/>- id, module_id<br/>- title"]
+        Grade["⭐ Grade<br/>- id, name"]
+    end
+
+    subgraph Scheduling["📅 Class Scheduling"]
+        Batch["🎯 Batch<br/>- id, name<br/>- subject, teacher_id"]
+        Template["⏰ Class Template<br/>- id, teacher_id<br/>- start_time, end_time"]
+        Occurrence["📆 Occurrence<br/>- id, template_id<br/>- date, time"]
+        Session["🎪 Class Session<br/>- id, batch_id<br/>- teacher_id"]
+        Enrollment["✅ Enrollment<br/>- id, student_id<br/>- batch_id"]
+        Attendance["📋 Attendance<br/>- id, session_id<br/>- student_id, status"]
+    end
+
+    subgraph Finance["💰 Financial Management"]
+        Package["📦 Package<br/>- id, name<br/>- price, sessions"]
+        StudentPkg["🎁 Student Package<br/>- id, student_id<br/>- package_id"]
+        Invoice["🧾 Invoice<br/>- id, student_id<br/>- amount, status"]
+        InvItem["📌 Invoice Item<br/>- id, invoice_id<br/>- label, amount"]
+        Installment["💳 Installment<br/>- id, invoice_id<br/>- amount, due_date"]
+        Payment["✔️ Payment<br/>- id, invoice_id<br/>- amount, status"]
+        Subscription["🔄 Subscription<br/>- id, student_id<br/>- package_id"]
+    end
+
+    subgraph Learning["📚 Learning Materials"]
+        Material["📄 Material<br/>- id, student_id<br/>- title, url"]
+    end
+
+    subgraph Security["🔐 Security & Audit"]
+        AuditLog["📋 Audit Log<br/>- id, action<br/>- actor, subject"]
+        AuthToken["🔑 Auth Token<br/>- id, subject_id<br/>- token_type"]
+        LoginAttempt["🚪 Login Attempt<br/>- id, email<br/>- success, ip"]
+    end
+
+    subgraph Config["⚙️ Configuration"]
+        AppSetting["⚙️ App Setting<br/>- id, key, value<br/>- center_id"]
+        Room["🏠 Room<br/>- id, name<br/>- capacity"]
+        Holiday["🎉 Holiday<br/>- id, date, name"]
+    end
+
+    Center -->|1:N| Staff
+    Center -->|1:N| Student
+    Staff -->|1:N| Batch
+    Staff -->|1:N| Session
+    Staff -->|1:N| Template
+
+    Student -->|N:M| Batch
+    Student -->|1:N| StudentProgress
+    Student -->|1:N| StudentPkg
+    Student -->|1:N| Invoice
+    Student -->|1:N| Subscription
+    Student -->|1:N| Material
+    Student -->|1:N| Enrollment
+
+    StudentApp -->|1:1| Student
+    StudentProgress -->|1:1| Content
+
+    Syllabus -->|1:N| Module
+    Module -->|1:N| Content
+
+    Batch -->|1:N| Session
+    Session -->|1:N| Attendance
+    Enrollment -->|1:1| Batch
+    Enrollment -->|1:1| Student
+    Attendance -->|1:1| Session
+
+    Template -->|1:N| Occurrence
+
+    Package -->|1:N| StudentPkg
+    Package -->|1:N| Subscription
+    StudentPkg -->|1:1| Package
+    Subscription -->|1:1| Package
+
+    Invoice -->|1:N| InvItem
+    Invoice -->|1:N| Installment
+    Invoice -->|1:N| Payment
+
+    AppSetting -->|1:N| Center
+
+            </div>
+        </div>
+
+        <div class="legend">
+            <h3>📊 Diagram Legend</h3>
+            <div class="legend-item">
+                <strong>Color Groups:</strong><br/>
+                🏢 Organization Core | 👤 Student Management | 📖 Curriculum<br/>
+                📅 Scheduling | 💰 Finance | 📚 Learning | 🔐 Security | ⚙️ Configuration
+            </div>
+            <div class="legend-item">
+                <strong>Relationships:</strong><br/>
+                →|1:N = One-to-Many | →|1:1 = One-to-One | →|N:M = Many-to-Many
+            </div>
+        </div>
+
+        <div class="entity-count">
+            <strong>📊 Database Statistics:</strong><br/>
+            <span>25 Entities | 45 Relationships | Multi-center Architecture</span>
+        </div>
+    </div>
+</body>
+</html>

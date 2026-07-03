@@ -1,15 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { api } from '../../lib/api';
+import { useAppData } from '../../context/AppDataContext';
 import {
     Package, Plus, Search, X, Loader2, Edit2, Copy, Archive,
     Eye, ToggleLeft, ToggleRight, LayoutGrid, List, Filter,
     Users, DollarSign, Calendar, BookOpen, Star, CheckCircle2,
     ChevronLeft, AlertCircle, Layers, Clock, TrendingUp, Tag
 } from 'lucide-react';
-
-const GRADES = ['Debut', 'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6', 'Grade 7', 'Grade 8'];
-const COURSES = ['Piano', 'Guitar', 'Violin', 'Vocals', 'Drums', 'Keyboard', 'Flute', 'Tabla'];
 const VALIDITY_OPTIONS = [
     { label: '1 Month', days: 30 },
     { label: '2 Months', days: 60 },
@@ -19,25 +17,16 @@ const VALIDITY_OPTIONS = [
     { label: 'Custom', days: 0 },
 ];
 
-function generateMockPackages() {
-    return [
-        { id: 1, name: 'Debut Starter', applicable_grades: ['Debut'], applicable_courses: ['Piano', 'Guitar'], validity_days: 30, total_sessions: 8, makeup_sessions: 1, prorate_enabled: false, price: 4500, tax_percentage: 18, is_published: true, is_archived: false, active_students: 12, revenue_generated: 54000, description: 'Perfect for beginners exploring music' },
-        { id: 2, name: 'Monthly Pro', applicable_grades: ['Grade 1', 'Grade 2', 'Grade 3'], applicable_courses: ['Piano', 'Guitar', 'Violin'], validity_days: 30, total_sessions: 12, makeup_sessions: 2, prorate_enabled: true, price: 6500, tax_percentage: 18, is_published: true, is_archived: false, active_students: 28, revenue_generated: 182000, description: 'Most popular plan for active learners' },
-        { id: 3, name: 'Quarterly Elite', applicable_grades: ['Grade 2', 'Grade 3', 'Grade 4', 'Grade 5'], applicable_courses: ['Piano', 'Violin', 'Vocals'], validity_days: 90, total_sessions: 36, makeup_sessions: 4, prorate_enabled: true, price: 17500, tax_percentage: 18, is_published: true, is_archived: false, active_students: 15, revenue_generated: 262500, description: 'Best value for serious students' },
-        { id: 4, name: 'Half-Year Premium', applicable_grades: ['Grade 3', 'Grade 4', 'Grade 5', 'Grade 6'], applicable_courses: ['Piano', 'Violin', 'Guitar', 'Vocals'], validity_days: 180, total_sessions: 72, makeup_sessions: 6, prorate_enabled: true, price: 32000, tax_percentage: 18, is_published: true, is_archived: false, active_students: 8, revenue_generated: 256000, description: 'Comprehensive plan for dedicated learners' },
-        { id: 5, name: 'Annual Gold', applicable_grades: ['Grade 4', 'Grade 5', 'Grade 6', 'Grade 7', 'Grade 8'], applicable_courses: ['Piano', 'Violin', 'Guitar', 'Vocals', 'Drums'], validity_days: 365, total_sessions: 144, makeup_sessions: 12, prorate_enabled: true, price: 58000, tax_percentage: 18, is_published: true, is_archived: false, active_students: 5, revenue_generated: 290000, description: 'Full year commitment with maximum benefits' },
-        { id: 6, name: 'Exam Prep Pack', applicable_grades: ['Grade 5', 'Grade 6', 'Grade 7', 'Grade 8'], applicable_courses: ['Piano', 'Violin', 'Guitar'], validity_days: 60, total_sessions: 20, makeup_sessions: 3, prorate_enabled: false, price: 12000, tax_percentage: 18, is_published: false, is_archived: false, active_students: 0, revenue_generated: 0, description: 'Intensive exam preparation sessions' },
-        { id: 7, name: 'Beginner Trial', applicable_grades: ['Debut'], applicable_courses: ['Piano', 'Guitar', 'Violin', 'Vocals', 'Drums', 'Keyboard', 'Flute', 'Tabla'], validity_days: 14, total_sessions: 4, makeup_sessions: 0, prorate_enabled: false, price: 1500, tax_percentage: 0, is_published: true, is_archived: false, active_students: 6, revenue_generated: 9000, description: 'Trial pack for new students' },
-        { id: 8, name: 'Advanced Master', applicable_grades: ['Grade 7', 'Grade 8'], applicable_courses: ['Piano', 'Violin'], validity_days: 90, total_sessions: 40, makeup_sessions: 6, prorate_enabled: true, price: 28000, tax_percentage: 18, is_published: false, is_archived: true, active_students: 0, revenue_generated: 84000, description: 'Masterclass level for advanced students' },
-    ];
-}
-
 const EMPTY_FORM = {
     name: '', applicable_grades: [], applicable_courses: [], validity_days: 30,
-    total_sessions: 8, makeup_sessions: 0, prorate_enabled: false,
+    total_sessions: 8, session_duration_minutes: 60, makeup_sessions: 0,
+    cancellation_window_hours: 24, prorate_enabled: false,
     price: '', tax_percentage: 18, is_published: false, description: '',
     customValidity: '',
 };
+
+const perSessionFee = (p) => (p.total_sessions ? Math.round((Number(p.price) || 0) / p.total_sessions) : 0);
+const inr = (v) => `₹${(Number(v) || 0).toLocaleString('en-IN')}`;
 
 function GradeChip({ label, selected, onClick }) {
     return (
@@ -143,10 +132,11 @@ function PackageCard({ pkg, onEdit, onDuplicate, onArchive, onTogglePublish }) {
 
 export default function PackageManager() {
     const navigate = useNavigate();
+    const { gradeNames: GRADES, subjectNames: COURSES } = useAppData();
     const [packages, setPackages] = useState([]);
     const [filtered, setFiltered] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [viewMode, setViewMode] = useState('grid');
+    const [viewMode, setViewMode] = useState('list');
     const [search, setSearch] = useState('');
     const [filterStatus, setFilterStatus] = useState('all');
     const [showForm, setShowForm] = useState(false);
@@ -196,7 +186,9 @@ export default function PackageManager() {
             name: pkg.name, applicable_grades: pkg.applicable_grades || [],
             applicable_courses: pkg.applicable_courses || [],
             validity_days: pkg.validity_days, total_sessions: pkg.total_sessions,
+            session_duration_minutes: pkg.session_duration_minutes ?? 60,
             makeup_sessions: pkg.makeup_sessions, prorate_enabled: pkg.prorate_enabled,
+            cancellation_window_hours: pkg.cancellation_window_hours ?? 24,
             price: pkg.price, tax_percentage: pkg.tax_percentage,
             is_published: pkg.is_published, description: pkg.description || '',
             customValidity: '',
@@ -205,17 +197,39 @@ export default function PackageManager() {
         setShowForm(true);
     };
 
-    const handleDuplicate = (pkg) => {
-        const dup = { ...pkg, id: Date.now(), name: `${pkg.name} (Copy)`, is_published: false, active_students: 0, revenue_generated: 0 };
-        setPackages(prev => [dup, ...prev]);
+    const handleDuplicate = async (pkg) => {
+        try {
+            const { name, applicable_grades, applicable_courses, validity_days, total_sessions,
+                session_duration_minutes, makeup_sessions, cancellation_window_hours,
+                prorate_enabled, price, tax_percentage, description } = pkg;
+            await api.post('/admin/packages', {
+                name: `${name} (Copy)`, applicable_grades, applicable_courses, validity_days,
+                total_sessions, session_duration_minutes, makeup_sessions,
+                makeup_validity_days: validity_days, cancellation_window_hours,
+                prorate_enabled, price, tax_percentage, description, is_published: false,
+            });
+            await loadPackages();
+        } catch (err) {
+            alert(err?.response?.data?.detail || 'Failed to duplicate package');
+        }
     };
 
-    const handleArchive = (pkg) => {
-        setPackages(prev => prev.map(p => p.id === pkg.id ? { ...p, is_archived: !p.is_archived } : p));
+    const handleArchive = async (pkg) => {
+        try {
+            await api.put(`/admin/packages/${pkg.id}`, { is_archived: !pkg.is_archived });
+            await loadPackages();
+        } catch (err) {
+            alert(err?.response?.data?.detail || 'Failed to update package');
+        }
     };
 
-    const handleTogglePublish = (pkg) => {
-        setPackages(prev => prev.map(p => p.id === pkg.id ? { ...p, is_published: !p.is_published } : p));
+    const handleTogglePublish = async (pkg) => {
+        try {
+            await api.put(`/admin/packages/${pkg.id}`, { is_published: !pkg.is_published });
+            await loadPackages();
+        } catch (err) {
+            alert(err?.response?.data?.detail || 'Failed to update package');
+        }
     };
 
     const toggleGrade = (g) => {
@@ -240,7 +254,12 @@ export default function PackageManager() {
         e.preventDefault();
         setSubmitting(true);
         setFormError('');
-        const payload = { ...formData, validity_days: customValidity ? parseInt(formData.customValidity) : formData.validity_days };
+        const validityDays = customValidity ? parseInt(formData.customValidity) : formData.validity_days;
+        const payload = {
+            ...formData,
+            validity_days: validityDays,
+            makeup_validity_days: validityDays,
+        };
         try {
             if (editingPkg) {
                 await api.put(`/admin/packages/${editingPkg.id}`, payload);
@@ -352,29 +371,32 @@ export default function PackageManager() {
                         <table className="w-full">
                             <thead>
                                 <tr className="border-b border-slate-100 bg-slate-50">
-                                    {['Package', 'Grades', 'Sessions', 'Price', 'Students', 'Revenue', 'Status', 'Actions'].map(h => (
-                                        <th key={h} className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">{h}</th>
+                                    {['Package', 'Course', 'Duration', 'Total Fee', 'Sessions', 'Per Session', 'Makeup', 'Validity', 'Status', 'Actions'].map(h => (
+                                        <th key={h} className="px-5 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">{h}</th>
                                     ))}
                                 </tr>
                             </thead>
                             <tbody>
                                 {filtered.map((pkg, i) => (
                                     <tr key={pkg.id} className={`border-b border-slate-50 hover:bg-slate-50/50 transition-colors ${i % 2 === 0 ? 'bg-white' : 'bg-slate-50/20'}`}>
-                                        <td className="px-6 py-4">
+                                        <td className="px-5 py-4">
                                             <p className="text-sm font-black text-slate-900">{pkg.name}</p>
-                                            <p className="text-xs text-slate-400">{pkg.validity_days}d validity</p>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <div className="flex flex-wrap gap-1">
-                                                {(pkg.applicable_grades || []).slice(0, 2).map(g => <span key={g} className="px-2 py-0.5 bg-violet-50 text-violet-700 rounded-lg text-[10px] font-black">{g}</span>)}
-                                                {(pkg.applicable_grades || []).length > 2 && <span className="px-2 py-0.5 bg-slate-100 text-slate-500 rounded-lg text-[10px] font-black">+{pkg.applicable_grades.length - 2}</span>}
+                                            <div className="flex flex-wrap gap-1 mt-0.5">
+                                                {(pkg.applicable_grades || []).slice(0, 2).map(g => <span key={g} className="text-[9px] font-black text-violet-500">{g}</span>)}
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4"><span className="text-sm font-black text-slate-900">{pkg.total_sessions}</span></td>
-                                        <td className="px-6 py-4"><span className="text-sm font-black text-[#463a7a]">₹{pkg.price.toLocaleString('en-IN')}</span></td>
-                                        <td className="px-6 py-4"><span className="text-sm font-bold text-slate-700">{pkg.active_students}</span></td>
-                                        <td className="px-6 py-4"><span className="text-sm font-black text-emerald-600">₹{(pkg.revenue_generated || 0).toLocaleString('en-IN')}</span></td>
-                                        <td className="px-6 py-4">
+                                        <td className="px-5 py-4"><span className="text-xs font-bold text-slate-600">{(pkg.applicable_courses || []).join(', ') || '—'}</span></td>
+                                        <td className="px-5 py-4"><span className="text-sm font-bold text-slate-700">{pkg.session_duration_minutes || 60} min</span></td>
+                                        <td className="px-5 py-4"><span className="text-sm font-black text-[#463a7a]">{inr(pkg.price)}</span></td>
+                                        <td className="px-5 py-4"><span className="text-sm font-black text-slate-900">{pkg.total_sessions}</span></td>
+                                        <td className="px-5 py-4"><span className="text-sm font-black text-emerald-600">{inr(pkg.per_session_fee ?? perSessionFee(pkg))}</span><span className="text-[10px] text-slate-400 font-bold">/session</span></td>
+                                        <td className="px-5 py-4">
+                                            {pkg.makeup_sessions > 0
+                                                ? <span className="text-xs font-black text-blue-600">{pkg.makeup_sessions}{pkg.makeup_validity_days ? <span className="text-[10px] text-slate-400 font-bold"> · {pkg.makeup_validity_days}d</span> : ''}</span>
+                                                : <span className="text-xs text-slate-300 font-bold">None</span>}
+                                        </td>
+                                        <td className="px-5 py-4"><span className="text-xs font-bold text-slate-600">{pkg.validity_days}d</span></td>
+                                        <td className="px-5 py-4">
                                             <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase border ${pkg.is_archived ? 'bg-slate-100 text-slate-500 border-slate-200' : pkg.is_published ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-amber-50 text-amber-700 border-amber-100'}`}>
                                                 {pkg.is_archived ? 'Archived' : pkg.is_published ? 'Published' : 'Draft'}
                                             </span>
@@ -482,6 +504,20 @@ export default function PackageManager() {
                                 </div>
                             </div>
 
+                            {/* Session rules */}
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Duration (min)</label>
+                                    <input type="number" min="1" value={formData.session_duration_minutes} onChange={e => setFormData(f => ({ ...f, session_duration_minutes: parseInt(e.target.value) || 0 }))}
+                                        className="w-full bg-slate-50 border border-slate-100 rounded-3xl p-4 text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-[#463a7a]/10" />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Cancel Window (hrs)</label>
+                                    <input type="number" min="0" value={formData.cancellation_window_hours} onChange={e => setFormData(f => ({ ...f, cancellation_window_hours: parseInt(e.target.value) || 0 }))}
+                                        className="w-full bg-slate-50 border border-slate-100 rounded-3xl p-4 text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-[#463a7a]/10" />
+                                </div>
+                            </div>
+
                             {/* Pricing */}
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
@@ -495,6 +531,12 @@ export default function PackageManager() {
                                     <input type="number" min="0" max="100" step="0.01" value={formData.tax_percentage} onChange={e => setFormData(f => ({ ...f, tax_percentage: parseFloat(e.target.value) }))}
                                         className="w-full bg-slate-50 border border-slate-100 rounded-3xl p-4 text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-[#463a7a]/10" />
                                 </div>
+                            </div>
+
+                            {/* Auto per-session fee */}
+                            <div className="bg-emerald-50 rounded-3xl px-5 py-4 flex items-center justify-between">
+                                <span className="text-xs font-black text-emerald-600 uppercase tracking-widest">Per Session Fee (auto)</span>
+                                <span className="text-lg font-black text-emerald-700">{inr(perSessionFee(formData))}<span className="text-xs font-bold text-emerald-500">/session</span></span>
                             </div>
 
                             {/* Live Pricing Preview */}

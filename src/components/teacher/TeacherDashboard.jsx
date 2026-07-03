@@ -24,6 +24,7 @@ export default function TeacherDashboard() {
     const [teacher, setTeacher] = useState(null);
     const [sessions, setSessions] = useState([]);
     const [students, setStudents] = useState([]);
+    const [materialsCount, setMaterialsCount] = useState(0);
     const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
 
@@ -36,21 +37,23 @@ export default function TeacherDashboard() {
         }
     }, [navigate]);
 
-    const fetchDashboardData = useCallback(async () => {
+    const fetchDashboardData = useCallback(async (isRefresh = false) => {
         if (!teacher) return;
-        setLoading(true);
+        if (!isRefresh) setLoading(true);
         try {
             const today = format(new Date(), 'yyyy-MM-dd');
-            const [sessionsRes, studentsRes] = await Promise.all([
+            const [sessionsRes, studentsRes, materialsRes] = await Promise.all([
                 api.get(`/teacher/${teacher.id}/sessions`, { params: { start: today, end: today } }),
-                api.get(`/teacher/${teacher.id}/students`)
+                api.get(`/teacher/${teacher.id}/students`),
+                api.get(`/teacher/${teacher.id}/materials`).catch(() => ({ data: [] })),
             ]);
             setSessions(sessionsRes.data);
             setStudents(studentsRes.data);
+            setMaterialsCount(materialsRes.data.length);
         } catch (e) {
             console.error(e);
         } finally {
-            setLoading(false);
+            if (!isRefresh) setLoading(false);
         }
     }, [teacher]);
 
@@ -60,10 +63,10 @@ export default function TeacherDashboard() {
     if (!teacher) return null;
 
     const stats = [
-        { name: "Today's Lessons", value: sessions.length, icon: Clock, color: 'text-orange-400', bg: 'bg-orange-50' },
-        { name: "My Students", value: students.length, icon: Users, color: 'text-indigo-400', bg: 'bg-indigo-50' },
-        { name: "Instruments", value: Array.from(new Set(students.map(s => s.desired_course))).length || 1, icon: Music, color: 'text-emerald-400', bg: 'bg-emerald-50' },
-        { name: "Resources", value: '14', icon: FileText, color: 'text-purple-400', bg: 'bg-purple-50' },
+        { name: "Today's Lessons", value: sessions.length, icon: Clock, color: 'text-orange-400', bg: 'bg-orange-50', href: '/teacher-portal/calendar' },
+        { name: "My Students", value: students.length, icon: Users, color: 'text-indigo-400', bg: 'bg-indigo-50', href: '/teacher-portal/students' },
+        { name: "Instruments", value: Array.from(new Set(students.map(s => s.desired_course).filter(Boolean))).length || 0, icon: Music, color: 'text-emerald-400', bg: 'bg-emerald-50', href: '/teacher-portal/students' },
+        { name: "Resources", value: materialsCount, icon: FileText, color: 'text-purple-400', bg: 'bg-purple-50', href: '/teacher-portal/materials' },
     ];
 
     return (
@@ -106,15 +109,19 @@ export default function TeacherDashboard() {
             {/* Stats */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-8">
                 {stats.map((stat, i) => (
-                    <div key={i} className="bg-white rounded-[40px] p-6 lg:p-8 shadow-xl shadow-slate-200 border border-slate-50 flex flex-col gap-4 group hover:border-[#463a7a] transition-all">
+                    <button
+                        key={i}
+                        onClick={() => navigate(stat.href)}
+                        className="bg-white rounded-[40px] p-6 lg:p-8 shadow-xl shadow-slate-200 border border-slate-50 flex flex-col gap-4 group hover:border-[#463a7a] hover:shadow-indigo-100 transition-all text-left cursor-pointer"
+                    >
                         <div className={`w-14 h-14 ${stat.bg} ${stat.color} rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform`}>
                             <stat.icon size={28} />
                         </div>
                         <div>
                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">{stat.name}</p>
-                            <p className="text-3xl font-black text-slate-900 tracking-tighter">{stat.value}</p>
+                            <p className="text-3xl font-black text-slate-900 tracking-tighter">{loading ? '—' : stat.value}</p>
                         </div>
-                    </div>
+                    </button>
                 ))}
             </div>
 

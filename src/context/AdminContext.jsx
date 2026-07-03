@@ -15,6 +15,8 @@ export function AdminProvider({ children }) {
 
     const logout = () => {
         localStorage.removeItem('admin');
+        localStorage.removeItem('admin_token');
+        localStorage.removeItem('admin_refresh_token');
         setAdmin(null);
     };
 

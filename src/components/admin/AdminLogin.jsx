@@ -18,6 +18,13 @@ export default function AdminLogin() {
         setLoading(true); setError('');
         try {
             const res = await api.post('/admin/login', { email, password });
+            // Store JWT token (Phase 1 security)
+            if (res.data.access_token) {
+                localStorage.setItem('admin_token', res.data.access_token);
+            }
+            if (res.data.refresh_token) {
+                localStorage.setItem('admin_refresh_token', res.data.refresh_token);
+            }
             login(res.data.admin);
             navigate('/');
         } catch (err) {
@@ -83,6 +90,11 @@ export default function AdminLogin() {
                             className="w-full py-3.5 bg-[#463a7a] hover:bg-[#342a5b] text-white rounded-2xl font-bold text-sm transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-[#463a7a]/30">
                             {loading ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={16} />}
                             {loading ? 'Signing in…' : 'Sign In'}
+                        </button>
+
+                        <button type="button" onClick={() => navigate('/forgot-password')}
+                            className="w-full text-center text-xs font-semibold text-[#463a7a] hover:underline">
+                            Forgot password?
                         </button>
 
                         <div className="flex items-center gap-2 justify-center text-xs text-slate-400 pt-1">

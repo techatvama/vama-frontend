@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react';
 import { api } from '../../lib/api';
+import { useAdmin } from '../../context/AdminContext';
+import SuperAdminAnalytics from './SuperAdminAnalytics';
+import AuditLogViewer from './AuditLogViewer';
 import {
     Building2, Mail, CreditCard, Palette, Database, Shield,
     Save, Eye, EyeOff, Send, Check, AlertCircle, Loader2,
     Plus, X, MapPin, Clock, Bell, ChevronRight, RefreshCw,
-    Globe, Phone, FileText, Hash, Percent, Users
+    Globe, Phone, FileText, Hash, Percent, Users, TrendingUp, Activity
 } from 'lucide-react';
 
 const SECTIONS = [
@@ -17,6 +20,8 @@ const SECTIONS = [
     { id: 'appearance',  label: 'Appearance',         icon: Palette,     desc: 'Theme colour' },
     { id: 'system',      label: 'System & API',       icon: Database,    desc: 'API URL & backend info' },
     { id: 'credentials', label: 'Login Credentials',  icon: Shield,      desc: 'Student & staff passwords' },
+    { id: 'audit-logs',  label: 'Activity Log',       icon: Activity,    desc: 'Audit trail & actions' },
+    { id: 'analytics',   label: 'Global Analytics',   icon: TrendingUp,   desc: 'Cross-center KPIs & stats', superAdminOnly: true },
 ];
 
 function Field({ label, hint, required, children }) {
@@ -51,6 +56,7 @@ function SaveBar({ saving, saved, onSave }) {
 }
 
 export default function SettingsPage() {
+    const { isSuperAdmin } = useAdmin();
     const [active, setActive] = useState('academy');
     const [settings, setSettings] = useState({});
     const [loading, setLoading] = useState(true);
@@ -72,6 +78,15 @@ export default function SettingsPage() {
     const [staffList, setStaffList] = useState([]);
     const [newCenter, setNewCenter] = useState({ name: '', address: '' });
     const [savingCenter, setSavingCenter] = useState(false);
+    // Phase 3B: Center onboarding wizard
+    const [showOnboardWizard, setShowOnboardWizard] = useState(false);
+    const [onboardStep, setOnboardStep] = useState(1);  // 1 = center details, 2 = admin details, 3 = confirm
+    const [onboardData, setOnboardData] = useState({
+        center_name: '', center_address: '', center_phone: '', center_email: '',
+        admin_name: '', admin_email: '', admin_phone: '',
+    });
+    const [onboarding, setOnboarding] = useState(false);
+    const [onboardResult, setOnboardResult] = useState(null);
 
     useEffect(() => {
         api.get('/admin/settings')
@@ -101,6 +116,38 @@ export default function SettingsPage() {
             await loadCentersData();
         } catch { setError('Failed to add center'); }
         finally { setSavingCenter(false); }
+    };
+
+    // Phase 3B: Center onboarding wizard
+    const handleOnboardStep = (step) => {
+        if (step === 1) {
+            if (!onboardData.center_name.trim()) { setError('Center name is required'); return; }
+            setOnboardStep(2);
+        } else if (step === 2) {
+            if (!onboardData.admin_name.trim() || !onboardData.admin_email.trim() || !onboardData.admin_phone.trim()) {
+                setError('Admin name, email, and phone are required');
+                return;
+            }
+            setOnboardStep(3);
+        }
+        setError('');
+    };
+
+    const submitOnboard = async () => {
+        setOnboarding(true);
+        setError('');
+        try {
+            const res = await api.post('/centers/onboard', onboardData);
+            setOnboardResult(res.data);
+            setOnboardData({
+                center_name: '', center_address: '', center_phone: '', center_email: '',
+                admin_name: '', admin_email: '', admin_phone: '',
+            });
+            setOnboardStep(1);
+            await loadCentersData();
+            setTimeout(() => setShowOnboardWizard(false), 3000);
+        } catch (err) { setError(err.response?.data?.detail || 'Failed to onboard center'); }
+        finally { setOnboarding(false); }
     };
 
     const updateStaffAccess = async (staffId, access_role, center_id) => {
@@ -185,6 +232,7 @@ export default function SettingsPage() {
                     {/* Sidebar nav */}
                     <div className="w-56 flex-shrink-0 space-y-1">
                         {SECTIONS.map(s => {
+                            if (s.superAdminOnly && !isSuperAdmin) return null;
                             const Icon = s.icon;
                             return (
                                 <button key={s.id} onClick={() => setActive(s.id)}
@@ -288,16 +336,11 @@ export default function SettingsPage() {
                                             </div>
                                         ))}
                                     </div>
-                                    {/* Add center */}
-                                    <div className="flex gap-2 mt-3">
-                                        <input value={newCenter.name} onChange={e => setNewCenter(p => ({ ...p, name: e.target.value }))}
-                                            placeholder="Center name (e.g. Vama - Whitefield)"
-                                            className="flex-1 bg-white border border-slate-200 rounded-2xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[#463a7a]/10 focus:border-[#463a7a]/40" />
-                                        <button onClick={addCenter} disabled={savingCenter || !newCenter.name.trim()}
-                                            className="px-4 py-2.5 bg-[#463a7a] text-white rounded-2xl text-sm font-bold hover:bg-[#342a5b] disabled:opacity-50 transition-all flex items-center gap-2">
-                                            {savingCenter ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />} Add
-                                        </button>
-                                    </div>
+                                    {/* Phase 3B: Add center with wizard */}
+                                    <button onClick={() => setShowOnboardWizard(true)}
+                                        className="mt-3 px-4 py-2.5 bg-[#463a7a] text-white rounded-2xl text-sm font-bold hover:bg-[#342a5b] transition-all flex items-center gap-2 w-full justify-center">
+                                        <Plus size={14} /> Create New Center & Admin
+                                    </button>
                                 </div>
 
                                 {/* Staff access roles */}
@@ -725,6 +768,168 @@ export default function SettingsPage() {
                     </div>
                 </div>
             </div>
+
+            {/* Phase 3B: Center Onboarding Wizard Modal */}
+            {showOnboardWizard && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+                    <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                        <div className="sticky top-0 bg-gradient-to-br from-[#463a7a] to-[#2d2550] px-8 py-6 flex items-center justify-between border-b border-white/10">
+                            <div>
+                                <h3 className="text-xl font-bold text-white">Create New Center</h3>
+                                <p className="text-white/60 text-sm mt-1">Step {onboardStep} of 3</p>
+                            </div>
+                            <button onClick={() => { setShowOnboardWizard(false); setOnboardStep(1); setOnboardResult(null); }}
+                                className="text-white/60 hover:text-white"><X size={20} /></button>
+                        </div>
+
+                        <div className="p-8 space-y-6">
+                            {onboardResult ? (
+                                <div className="bg-emerald-50 border border-emerald-200 rounded-2xl px-6 py-4 text-center">
+                                    <div className="flex items-center justify-center w-12 h-12 bg-emerald-500 rounded-full mx-auto mb-3">
+                                        <Check size={20} className="text-white" />
+                                    </div>
+                                    <h4 className="font-bold text-emerald-900 text-lg">Center Created Successfully!</h4>
+                                    <p className="text-sm text-emerald-700 mt-2">
+                                        <strong>{onboardResult.center.name}</strong> is now active.
+                                    </p>
+                                    <p className="text-sm text-emerald-700 mt-1">
+                                        Activation email sent to <strong>{onboardResult.admin_staff.email}</strong>
+                                    </p>
+                                </div>
+                            ) : (
+                                <>
+                                    {onboardStep === 1 && (
+                                        <div className="space-y-4">
+                                            <h4 className="font-bold text-slate-900">Center Details</h4>
+                                            <div>
+                                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">Center Name *</label>
+                                                <input type="text" value={onboardData.center_name}
+                                                    onChange={e => setOnboardData(p => ({ ...p, center_name: e.target.value }))}
+                                                    placeholder="e.g. Vama Academy - Whitefield"
+                                                    className={inputCls} />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">Address</label>
+                                                <input type="text" value={onboardData.center_address}
+                                                    onChange={e => setOnboardData(p => ({ ...p, center_address: e.target.value }))}
+                                                    placeholder="123 Main St, City, State"
+                                                    className={inputCls} />
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div>
+                                                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">Phone</label>
+                                                    <input type="tel" value={onboardData.center_phone}
+                                                        onChange={e => setOnboardData(p => ({ ...p, center_phone: e.target.value }))}
+                                                        placeholder="+91 9876543210"
+                                                        className={inputCls} />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">Email</label>
+                                                    <input type="email" value={onboardData.center_email}
+                                                        onChange={e => setOnboardData(p => ({ ...p, center_email: e.target.value }))}
+                                                        placeholder="center@vama.academy"
+                                                        className={inputCls} />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {onboardStep === 2 && (
+                                        <div className="space-y-4">
+                                            <h4 className="font-bold text-slate-900">Center Admin Details</h4>
+                                            <div>
+                                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">Admin Name *</label>
+                                                <input type="text" value={onboardData.admin_name}
+                                                    onChange={e => setOnboardData(p => ({ ...p, admin_name: e.target.value }))}
+                                                    placeholder="John Doe"
+                                                    className={inputCls} />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">Admin Email *</label>
+                                                <input type="email" value={onboardData.admin_email}
+                                                    onChange={e => setOnboardData(p => ({ ...p, admin_email: e.target.value }))}
+                                                    placeholder="admin@vama.academy"
+                                                    className={inputCls} />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">Admin Phone *</label>
+                                                <input type="tel" value={onboardData.admin_phone}
+                                                    onChange={e => setOnboardData(p => ({ ...p, admin_phone: e.target.value }))}
+                                                    placeholder="+91 9876543210"
+                                                    className={inputCls} />
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {onboardStep === 3 && (
+                                        <div className="space-y-4">
+                                            <h4 className="font-bold text-slate-900">Confirm Details</h4>
+                                            <div className="bg-slate-50 rounded-2xl border border-slate-200 p-4 space-y-3">
+                                                <div><p className="text-xs text-slate-500 uppercase font-bold">Center</p><p className="text-sm font-semibold text-slate-900">{onboardData.center_name}</p></div>
+                                                <div><p className="text-xs text-slate-500 uppercase font-bold">Center Admin</p><p className="text-sm font-semibold text-slate-900">{onboardData.admin_name}</p></div>
+                                                <div><p className="text-xs text-slate-500 uppercase font-bold">Admin Email</p><p className="text-sm font-semibold text-slate-900">{onboardData.admin_email}</p></div>
+                                            </div>
+                                            <p className="text-xs text-slate-500">An activation email will be sent to the admin. They must activate their account and set a password before logging in.</p>
+                                        </div>
+                                    )}
+
+                                    {error && (
+                                        <div className="bg-red-50 border border-red-200 rounded-2xl px-4 py-3 text-sm text-red-700 font-medium flex items-start gap-2">
+                                            <AlertCircle size={14} className="flex-shrink-0 mt-0.5" />
+                                            {error}
+                                        </div>
+                                    )}
+
+                                    <div className="flex gap-3 pt-4 border-t border-slate-100">
+                                        {onboardStep > 1 && (
+                                            <button onClick={() => setOnboardStep(onboardStep - 1)}
+                                                className="px-4 py-2.5 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 hover:bg-slate-50 transition-all">
+                                                Back
+                                            </button>
+                                        )}
+                                        <div className="flex-1" />
+                                        {onboardStep < 3 && (
+                                            <button onClick={() => handleOnboardStep(onboardStep)}
+                                                className="px-4 py-2.5 bg-[#463a7a] hover:bg-[#342a5b] text-white rounded-2xl text-sm font-bold transition-all flex items-center gap-2">
+                                                Next <ChevronRight size={14} />
+                                            </button>
+                                        )}
+                                        {onboardStep === 3 && (
+                                            <button onClick={submitOnboard} disabled={onboarding}
+                                                className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-sm font-bold transition-all flex items-center gap-2 disabled:opacity-50">
+                                                {onboarding ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                                                Create Center
+                                            </button>
+                                        )}
+                                    </div>
+                                </>
+                            )}
+
+                        {/* ── Phase 4C: Activity Log Viewer ── */}
+                        {active === 'audit-logs' && (
+                            <>
+                                <div>
+                                    <h2 className="text-lg font-bold text-slate-900">Activity Log</h2>
+                                    <p className="text-sm text-slate-400 mt-0.5">View all actions performed by staff members (creates, updates, deletes).</p>
+                                </div>
+                                <AuditLogViewer />
+                            </>
+                        )}
+
+                        {/* ── Phase 5B: Global Analytics (SuperAdmin Only) ── */}
+                        {active === 'analytics' && isSuperAdmin && (
+                            <>
+                                <div>
+                                    <h2 className="text-lg font-bold text-slate-900">Global Analytics</h2>
+                                    <p className="text-sm text-slate-400 mt-0.5">Cross-center KPIs and performance metrics across all branches.</p>
+                                </div>
+                                <SuperAdminAnalytics />
+                            </>
+                        )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

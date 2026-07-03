@@ -8,11 +8,8 @@ import {
     ToggleRight, ChevronRight, Bell, ArrowUpRight, Activity,
     Package, RefreshCw, XCircle, BarChart3, Zap
 } from 'lucide-react';
-import { format, addDays, isAfter, isBefore, differenceInDays } from 'date-fns';
+import { format, differenceInDays } from 'date-fns';
 
-const STUDENT_NAMES = ['Sridat Agrawal', 'Rudransh Tripathy', 'Advaita Gokul', 'Ryan Gadiraju', 'Akira Bajpai', 'Shourya Patil', 'Shreya Patil', 'Ivan Abin', 'Anaika Yadav', 'Mega Kabilan', 'Priya Sharma', 'Arjun Nair', 'Kavya Reddy', 'Vikram Iyer', 'Neha Gupta'];
-const GRADES = ['Debut', 'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5'];
-const COURSES = ['Piano', 'Guitar', 'Violin', 'Vocals', 'Drums'];
 const PLANS = [
     { name: 'Starter Monthly', cycle: 'monthly', amount: 4500, sessions: 8 },
     { name: 'Monthly Pro', cycle: 'monthly', amount: 6500, sessions: 12 },
@@ -20,32 +17,6 @@ const PLANS = [
     { name: 'Half-Year Premium', cycle: 'half-yearly', amount: 32000, sessions: 72 },
     { name: 'Annual Gold', cycle: 'yearly', amount: 58000, sessions: 144 },
 ];
-
-function generateMockSubscriptions() {
-    const now = new Date();
-    return Array.from({ length: 52 }, (_, i) => {
-        const plan = PLANS[i % PLANS.length];
-        const startDate = new Date(now.getFullYear(), now.getMonth() - Math.floor(i / 6), 1);
-        const renewalDate = addDays(now, Math.floor(Math.random() * 90 - 15));
-        const status = i < 40 ? 'active' : i < 46 ? 'paused' : i < 50 ? 'expired' : 'cancelled';
-        return {
-            id: i + 1,
-            student_id: 1000 + i,
-            student_name: STUDENT_NAMES[i % STUDENT_NAMES.length],
-            grade: GRADES[i % GRADES.length],
-            course: COURSES[i % COURSES.length],
-            plan_name: plan.name,
-            billing_cycle: plan.cycle,
-            amount: plan.amount,
-            sessions_total: plan.sessions,
-            sessions_used: Math.floor(Math.random() * (plan.sessions - 2) + 1),
-            start_date: startDate.toISOString(),
-            renewal_date: renewalDate.toISOString(),
-            status,
-            auto_renew: i % 4 !== 0,
-        };
-    });
-}
 
 function RingChart({ pct, size = 56, stroke = 6, color = '#463a7a' }) {
     const r = (size - stroke) / 2;

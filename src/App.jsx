@@ -1,6 +1,7 @@
 import React from 'react';
 import { NotificationProvider } from './context/NotificationContext';
-import { AdminProvider } from './context/AdminContext';
+import { AdminProvider, useAdmin } from './context/AdminContext';
+import { AppDataProvider } from './context/AppDataContext';
 import AdminLogin from './components/admin/AdminLogin';
 import NotificationsPage from './components/admin/NotificationsPage';
 import SettingsPage from './components/admin/SettingsPage';
@@ -33,11 +34,17 @@ import StudentPayments from './components/student/StudentPayments';
 import StudentReschedule from './components/student/StudentReschedule';
 import StudentAttendance from './components/student/StudentAttendance';
 
+import EnrollmentManager from './components/admin/EnrollmentManager';
+import InvoiceCreator from './components/admin/InvoiceCreator';
+import BillingSettings from './components/admin/BillingSettings';
+import DashboardAlerts from './components/admin/DashboardAlerts';
+import PublicInvoicePay from './components/PublicInvoicePay';
+import PublicStudentForm from './components/PublicStudentForm';
+
 // Admin Curriculum Management Imports
 import CurriculumDashboard from './components/admin/CurriculumDashboard';
 import SubjectManager from './components/admin/SubjectManager';
 import GradeManager from './components/admin/GradeManager';
-import TeacherAssignmentManager from './components/admin/TeacherAssignmentManager';
 import ExamSessionManager from './components/admin/ExamSessionManager';
 import SyllabusBuilder from './components/admin/SyllabusBuilder';
 import PaymentManager from './components/admin/PaymentManager';
@@ -45,16 +52,30 @@ import PaymentAnalytics from './components/admin/PaymentAnalytics';
 import PaymentDashboard from './components/admin/PaymentDashboard';
 import PackageManager from './components/admin/PackageManager';
 import InvoiceManager from './components/admin/InvoiceManager';
-import SubscriptionManager from './components/admin/SubscriptionManager';
+import SubscriptionManager from './components/admin/SubscriptionManagerV2';
 import PaymentHistory from './components/admin/PaymentHistory';
+import FormManager from './components/admin/FormManager';
+
+// Auth flows (activation / password reset)
+import ActivateAccount from './components/auth/ActivateAccount';
+import ForgotPassword from './components/auth/ForgotPassword';
+import ResetPassword from './components/auth/ResetPassword';
 
 // Admin Dashboard
 import AdminDashboard from './components/admin/AdminDashboard';
+import SuperAdminDashboard from './components/admin/SuperAdminDashboard';
 import StudentProfilePage from './components/admin/StudentProfilePage';
 import StaffProfilePage from './components/admin/StaffProfilePage';
 
+// Dashboard wrapper that conditionally renders SuperAdmin or Center Admin dashboard
+function DashboardWrapper() {
+  const { isSuperAdmin } = useAdmin();
+  return isSuperAdmin ? <SuperAdminDashboard /> : <AdminDashboard />;
+}
+
 export default function App() {
   return (
+    <AppDataProvider>
     <AdminProvider>
     <NotificationProvider>
     <BrowserRouter>
@@ -62,16 +83,28 @@ export default function App() {
         {/* Admin Login (public) */}
         <Route path="/admin-login" element={<AdminLogin />} />
 
+        {/* Public invoice payment (Razorpay) */}
+        <Route path="/pay/:id" element={<PublicInvoicePay />} />
+
+        {/* Public enrollment / intake form */}
+        <Route path="/apply" element={<PublicStudentForm />} />
+
+        {/* Auth flows (public) */}
+        <Route path="/activate" element={<ActivateAccount />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
+
         {/* Admin/Internal Routes */}
         <Route path="/" element={<Sidebar />}>
-          <Route index element={<AdminDashboard />} />
+          <Route index element={<DashboardWrapper />} />
           <Route path="/teacher" element={<AllStaff />} />
           <Route path="/teacher/add" element={<AllStaff />} />
           <Route path="/teacher/:staffId" element={<StaffProfilePage />} />
           <Route path="/students" element={<Dashboard />} />
           <Route path="/students/add" element={<Dashboard />} />
           <Route path="/students/progress" element={<StudentProgressEditor />} />
-          <Route path="/students/enrollments" element={<div className="p-8"><h1 className="text-2xl font-bold text-white">Enrollments module coming soon</h1></div>} />
+          <Route path="/students/enrollments" element={<EnrollmentManager />} />
+          <Route path="/students/forms" element={<FormManager />} />
           <Route path="/students/:studentId" element={<StudentProfilePage />} />
           <Route path="/schedule" element={<Scheduler />} />
 
@@ -79,7 +112,6 @@ export default function App() {
           <Route path="/admin/curriculum" element={<CurriculumDashboard />} />
           <Route path="/admin/subjects" element={<SubjectManager />} />
           <Route path="/admin/grades" element={<GradeManager />} />
-          <Route path="/admin/teacher-assignments" element={<TeacherAssignmentManager />} />
           <Route path="/admin/exams" element={<ExamSessionManager />} />
           <Route path="/admin/syllabus" element={<SyllabusBuilder />} />
           <Route path="/admin/payments" element={<PaymentDashboard />} />
@@ -87,6 +119,9 @@ export default function App() {
           <Route path="/admin/analytics" element={<PaymentAnalytics />} />
           <Route path="/admin/packages" element={<PackageManager />} />
           <Route path="/admin/invoices" element={<InvoiceManager />} />
+          <Route path="/admin/invoices/new" element={<InvoiceCreator />} />
+          <Route path="/admin/billing-settings" element={<BillingSettings />} />
+          <Route path="/admin/alerts" element={<DashboardAlerts />} />
           <Route path="/admin/subscriptions" element={<SubscriptionManager />} />
           <Route path="/admin/payments/history" element={<PaymentHistory />} />
           <Route path="/reports" element={<ReportsPage />} />
@@ -121,5 +156,6 @@ export default function App() {
     </BrowserRouter>
     </NotificationProvider>
     </AdminProvider>
+    </AppDataProvider>
   )
 }

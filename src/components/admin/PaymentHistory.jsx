@@ -9,45 +9,6 @@ import {
 import { format, subDays, subMonths } from 'date-fns';
 import { api } from '../../lib/api';
 
-const STUDENT_NAMES = [
-    'Sridat Agrawal', 'Rudransh Tripathy', 'Advaita Gokul', 'Ryan Gadiraju',
-    'Akira Bajpai', 'Shourya Patil', 'Shreya Patil', 'Ivan Abin',
-    'Anaika Yadav', 'Mega Kabilan', 'Priya Sharma', 'Arjun Nair',
-    'Kavya Reddy', 'Vikram Iyer', 'Neha Gupta',
-];
-const GRADES = ['Debut', 'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5'];
-const COURSES = ['Piano', 'Guitar', 'Violin', 'Vocals', 'Drums'];
-const PAYMENT_TYPES = ['Monthly Tuition', 'Exam Fee', 'Material Fee', 'Package', 'Subscription'];
-const METHODS = ['UPI', 'Card', 'Net Banking', 'Cash', 'Cheque'];
-
-function buildMockHistory() {
-    const now = new Date();
-    return Array.from({ length: 220 }, (_, i) => {
-        const statuses = ['paid', 'paid', 'paid', 'paid', 'partial', 'overdue', 'pending', 'cancelled'];
-        const status = statuses[i % statuses.length];
-        const amount = Math.floor(Math.random() * 9000 + 2500);
-        const paidAmt = status === 'paid' ? amount : status === 'partial' ? Math.floor(amount * 0.5) : 0;
-        const daysAgo = Math.floor(Math.random() * 365);
-        const paidDate = status === 'paid' || status === 'partial'
-            ? subDays(now, daysAgo) : null;
-        return {
-            id: 5000 - i,
-            invoice_number: `INV-${String(5000 - i).padStart(5, '0')}`,
-            student_name: STUDENT_NAMES[i % STUDENT_NAMES.length],
-            grade: GRADES[i % GRADES.length],
-            course: COURSES[i % COURSES.length],
-            amount,
-            paid_amount: paidAmt,
-            status,
-            payment_type: PAYMENT_TYPES[i % PAYMENT_TYPES.length],
-            method: status === 'paid' || status === 'partial' ? METHODS[i % METHODS.length] : null,
-            issue_date: subDays(now, daysAgo + 7).toISOString(),
-            paid_date: paidDate ? paidDate.toISOString() : null,
-            razorpay_id: (status === 'paid' || status === 'partial') ? `pay_${Math.random().toString(36).slice(2, 14)}` : null,
-        };
-    });
-}
-
 const STATUS_CONFIG = {
     paid:      { icon: CheckCircle2,  cls: 'bg-emerald-50 text-emerald-700 border-emerald-100', dot: 'bg-emerald-500' },
     partial:   { icon: Clock,          cls: 'bg-amber-50 text-amber-700 border-amber-100',     dot: 'bg-amber-500'   },

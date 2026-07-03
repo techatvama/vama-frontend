@@ -63,13 +63,6 @@ export default function CurriculumDashboard() {
             path: '/admin/exams'
         },
         {
-            title: 'Teacher Assignments',
-            description: 'Assign teachers to subjects',
-            icon: Users,
-            color: 'from-blue-500 to-cyan-600',
-            path: '/admin/teacher-assignments'
-        },
-        {
             title: 'Syllabus Builder',
             description: 'Build curriculum structure',
             icon: Target,
@@ -154,9 +147,9 @@ export default function CurriculumDashboard() {
                         <Target className="text-yellow-400" size={28} />
                     </div>
                     <p className="text-3xl font-black leading-none mb-2">
-                        {stats?.teacher_assignments || 0}
+                        {stats?.total_students || 0}
                     </p>
-                    <p className="text-xs font-black text-indigo-200/60 uppercase tracking-widest">Assignments</p>
+                    <p className="text-xs font-black text-indigo-200/60 uppercase tracking-widest">Enrolled Students</p>
                 </div>
             </div>
 

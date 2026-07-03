@@ -5,7 +5,10 @@ import { useEffect, useRef } from 'react';
  * regains focus (visibilitychange). Safe: always uses the latest callback
  * without re-creating the interval.
  *
- * @param {Function} callback  - async-safe fetch/refresh function
+ * The callback is invoked as `callback(true)` on every tick, so it can tell a
+ * background refresh apart from the initial load and skip the loading spinner.
+ *
+ * @param {Function} callback  - async-safe fetch/refresh fn, receives isRefresh
  * @param {number}   intervalMs - poll interval in ms (default 30 s)
  */
 export function useAutoRefresh(callback, intervalMs = 30000) {
@@ -15,7 +18,7 @@ export function useAutoRefresh(callback, intervalMs = 30000) {
     useEffect(() => { ref.current = callback; }, [callback]);
 
     useEffect(() => {
-        const tick = () => ref.current();
+        const tick = () => ref.current(true);
 
         const id = setInterval(tick, intervalMs);
 

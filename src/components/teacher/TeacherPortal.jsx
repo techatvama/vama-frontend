@@ -13,10 +13,10 @@ export default function TeacherPortal() {
     }, [navigate]);
 
     return (
-        <div className="flex bg-slate-50 min-h-screen font-sans overflow-x-hidden">
+        <div className="flex h-screen overflow-hidden bg-slate-50 font-sans">
             <TeacherSidebar />
-            <main className="flex-1 min-w-0 transition-all duration-300">
-                <div className="pt-16 lg:pt-0 min-h-screen">
+            <main className="flex-1 min-w-0 overflow-y-auto">
+                <div className="pt-16 lg:pt-0 pb-20 lg:pb-0">
                     <Outlet />
                 </div>
             </main>

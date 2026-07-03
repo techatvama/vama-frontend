@@ -6,109 +6,8 @@ import {
     Bell, Zap, Activity, ArrowUpRight, ArrowDownRight,
     ChevronRight, Plus, AlertTriangle, IndianRupee
 } from 'lucide-react';
-import { format, addDays, isAfter, isBefore } from 'date-fns';
 
-// ── Mock data ────────────────────────────────────────────────────────────────
-const STUDENT_NAMES = [
-    'Sridat Agrawal', 'Rudransh Tripathy', 'Advaita Gokul', 'Ryan Gadiraju',
-    'Akira Bajpai', 'Shourya Patil', 'Shreya Patil', 'Ivan Abin',
-    'Anaika Yadav', 'Mega Kabilan', 'Priya Sharma', 'Arjun Nair',
-    'Kavya Reddy', 'Vikram Iyer', 'Neha Gupta',
-];
-const GRADES = ['Debut', 'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5'];
-const COURSES = ['Piano', 'Guitar', 'Violin', 'Vocals', 'Drums'];
 
-function buildMockDashboard() {
-    const now = new Date();
-    const invoices = Array.from({ length: 180 }, (_, i) => {
-        const statuses = ['paid', 'paid', 'paid', 'pending', 'overdue', 'partial'];
-        const status = statuses[i % statuses.length];
-        const amount = Math.floor(Math.random() * 8000 + 3000);
-        return {
-            id: 4000 - i,
-            invoice_number: `INV-${String(4000 - i).padStart(5, '0')}`,
-            student_name: STUDENT_NAMES[i % STUDENT_NAMES.length],
-            grade: GRADES[i % GRADES.length],
-            course: COURSES[i % COURSES.length],
-            amount,
-            total_amount: amount,
-            paid_amount: status === 'paid' ? amount : status === 'partial' ? Math.floor(amount * 0.5) : 0,
-            status,
-            payment_type: ['Monthly Tuition', 'Exam Fee', 'Material Fee', 'Package'][i % 4],
-            issue_date: new Date(now.getFullYear(), now.getMonth() - Math.floor(i / 15), now.getDate() - (i % 28)).toISOString(),
-            due_date: new Date(now.getFullYear(), now.getMonth() - Math.floor(i / 15) + 1, 5).toISOString(),
-            sessions_count: Math.floor(Math.random() * 12 + 4),
-            attendance_sessions: Math.floor(Math.random() * 10 + 2),
-        };
-    });
-
-    const subscriptions = Array.from({ length: 42 }, (_, i) => ({
-        id: i + 1,
-        student_name: STUDENT_NAMES[i % STUDENT_NAMES.length],
-        grade: GRADES[i % GRADES.length],
-        plan_name: ['Monthly Pro', 'Quarterly Elite', 'Half-Year Premium', 'Annual Gold'][i % 4],
-        billing_cycle: ['monthly', 'quarterly', 'half-yearly', 'yearly'][i % 4],
-        amount: [4500, 12500, 22000, 40000][i % 4],
-        renewal_date: addDays(now, Math.floor(Math.random() * 60 - 10)).toISOString(),
-        status: i < 35 ? 'active' : i < 39 ? 'paused' : 'expired',
-        sessions_total: 16,
-        sessions_used: Math.floor(Math.random() * 12 + 2),
-        auto_renew: i % 3 !== 0,
-    }));
-
-    const packages = [
-        { name: 'Monthly Pro', revenue: 184500, students: 41, sessions: 8 },
-        { name: 'Quarterly Elite', revenue: 250000, students: 20, sessions: 24 },
-        { name: 'Half-Year Premium', revenue: 198000, students: 9, sessions: 48 },
-        { name: 'Annual Gold', revenue: 320000, students: 8, sessions: 96 },
-    ];
-
-    const monthlyRevenue = Array.from({ length: 6 }, (_, i) => {
-        const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
-        return {
-            month: format(d, 'MMM'),
-            revenue: Math.floor(Math.random() * 200000 + 180000),
-            collected: Math.floor(Math.random() * 180000 + 150000),
-        };
-    });
-
-    const gradesDue = GRADES.map(g => ({
-        grade: g,
-        due: Math.floor(Math.random() * 45000 + 10000),
-        students: Math.floor(Math.random() * 8 + 2),
-    }));
-
-    const totalInvoiced = invoices.reduce((s, inv) => s + inv.amount, 0);
-    const totalReceived = invoices.filter(i => i.status === 'paid').reduce((s, i) => s + i.amount, 0)
-        + invoices.filter(i => i.status === 'partial').reduce((s, i) => s + i.paid_amount, 0);
-    const totalDue = invoices.filter(i => ['pending', 'partial'].includes(i.status)).reduce((s, i) => s + (i.amount - i.paid_amount), 0);
-    const overdue = invoices.filter(i => i.status === 'overdue').reduce((s, i) => s + i.amount, 0);
-    const overdueCount = invoices.filter(i => i.status === 'overdue').length;
-    const activeSubscriptions = subscriptions.filter(s => s.status === 'active').length;
-    const upcomingRenewals = subscriptions.filter(s => {
-        const rd = new Date(s.renewal_date);
-        return s.status === 'active' && isAfter(rd, now) && isBefore(rd, addDays(now, 30));
-    });
-    const sessionsTotal = subscriptions.reduce((s, sub) => s + sub.sessions_total, 0);
-    const sessionsUsed = subscriptions.reduce((s, sub) => s + sub.sessions_used, 0);
-
-    return {
-        kpi: {
-            totalInvoiced, totalReceived, totalDue, overdue, overdueCount,
-            activeSubscriptions, upcomingRenewals: upcomingRenewals.length,
-            sessionsTotal, sessionsUsed,
-            collectionRate: Math.round((totalReceived / totalInvoiced) * 100),
-        },
-        invoices: invoices.slice(0, 8),
-        allInvoices: invoices,
-        subscriptions,
-        upcomingRenewals,
-        packages,
-        monthlyRevenue,
-        gradesDue,
-        defaulters: invoices.filter(i => i.status === 'overdue').slice(0, 6),
-    };
-}
 
 // ── Ring Chart ───────────────────────────────────────────────────────────────
 function RingChart({ pct, size = 64, stroke = 6, color = '#463a7a', bg = '#f1f5f9' }) {
@@ -204,17 +103,10 @@ export default function PaymentDashboard() {
         setLoading(true);
         try {
             const res = await api.get(`/admin/payment-dashboard?period=${timeFilter}`);
-            // Validate the response has all required shape; fall back to mock if incomplete
-            const d = res.data;
-            if (d && Array.isArray(d.monthlyRevenue) && Array.isArray(d.gradesDue)) {
-                setData(d);
-            } else {
-                console.warn('Dashboard response missing fields — using mock data', d);
-                setData(buildMockDashboard());
-            }
+            setData(res.data);
         } catch (err) {
             console.error('Dashboard load failed:', err);
-            setData(buildMockDashboard());
+            setData(null);
         } finally {
             setLoading(false);
         }
