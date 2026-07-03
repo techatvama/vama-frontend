@@ -115,7 +115,7 @@ export default function StudentMaterials() {
             {/* Materials List */}
             <div className="space-y-6">
                 {filtered.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">  
                         {filtered.map(m => (
                             <div key={m.id} className="bg-white rounded-[40px] p-8 shadow-xl shadow-slate-200/50 border border-slate-100 flex flex-col group hover:border-[#463a7a] transition-all duration-500">
                                 <div className="flex justify-between items-start mb-10">
