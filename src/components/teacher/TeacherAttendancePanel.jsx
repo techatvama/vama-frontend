@@ -30,13 +30,7 @@ export default function TeacherAttendancePanel({ session, teacherId }) {
             setSessionNotes(res.data.session_notes || '');
         } catch (err) {
             console.error(err);
-            // Mock data
-            const mockStudents = [
-                { id: 1, first_name: 'Alice', last_name: 'Johnson', avatar: null },
-                { id: 2, first_name: 'Bob', last_name: 'Smith', avatar: null },
-                { id: 3, first_name: 'Charlie', last_name: 'Brown', avatar: null }
-            ];
-            setStudents(mockStudents);
+            setStudents([]);
         } finally {
             setLoading(false);
         }

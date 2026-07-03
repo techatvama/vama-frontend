@@ -32,14 +32,23 @@ const fmtTime = (t) => {
  * Week view (non-compact): medium — show up to 4 students as mini chips
  * Week view (compact):    narrow — initials avatars row
  */
+// Darken a hex color to produce a readable text color
+function darkenHex(hex, factor = 0.55) {
+    const n = parseInt(hex.replace('#', ''), 16);
+    const r = Math.round(((n >> 16) & 0xff) * factor);
+    const g = Math.round(((n >> 8) & 0xff) * factor);
+    const b = Math.round((n & 0xff) * factor);
+    return `#${r.toString(16).padStart(2,'0')}${g.toString(16).padStart(2,'0')}${b.toString(16).padStart(2,'0')}`;
+}
+
 export default function ClassSessionCard({ session, onClick, compact = false, viewMode = 'week' }) {
     const subject  = parseSubject(session.batch?.subject) || 'Class';
     const theme    = THEMES[subject] || THEMES.Default;
     const colorTag = session.batch?.color_tag;
 
     const borderColor = colorTag || theme.border;
-    const bgColor     = colorTag ? colorTag + '12' : theme.bg;
-    const textColor   = theme.text;
+    const bgColor     = colorTag ? colorTag + '18' : theme.bg;
+    const textColor   = colorTag ? darkenHex(colorTag) : theme.text;
 
     const enrollmentCount  = session.enrollment_count || 0;
     const capacity         = session.batch?.capacity || session.capacity || 10;

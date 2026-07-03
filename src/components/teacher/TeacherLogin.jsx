@@ -17,6 +17,10 @@ export default function TeacherLogin() {
         try {
             const response = await api.post('/teacher/login', { email, password });
             localStorage.setItem('teacher', JSON.stringify(response.data.teacher));
+            // Store JWT token (Phase 1 security)
+            if (response.data.access_token) {
+                localStorage.setItem('teacher_token', response.data.access_token);
+            }
             navigate('/teacher-portal');
         } catch (err) {
             setError(err.response?.data?.detail || 'Login failed. Please check your credentials.');
@@ -94,7 +98,7 @@ export default function TeacherLogin() {
 
                     <div className="mt-8 pt-8 border-t border-slate-100 text-center">
                         <p className="text-sm text-slate-500">
-                            Forgot your password? <a href="#" className="text-indigo-600 font-semibold hover:text-indigo-700 underline underline-offset-4">Contact Admin</a>
+                            Forgot your password? <button type="button" onClick={() => navigate('/forgot-password')} className="text-indigo-600 font-semibold hover:text-indigo-700 underline underline-offset-4">Reset it</button>
                         </p>
                     </div>
                 </div>

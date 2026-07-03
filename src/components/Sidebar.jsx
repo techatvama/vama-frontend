@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
+import { useNotifications } from "../context/NotificationContext";
+import { useAdmin } from "../context/AdminContext";
 import {
   FaCalendarAlt,
   FaUserFriends,
@@ -21,16 +23,35 @@ import {
   FaBars,
   FaTimes,
   FaBolt,
-  FaAward
+  FaAward,
+  FaTachometerAlt,
+  FaBox,
+  FaSync,
+  FaSignOutAlt,
+  FaBuilding,
+  FaInbox
 } from "react-icons/fa";
-import { Link, Outlet, useLocation } from "react-router";
+import { Link, Outlet, useLocation, useNavigate } from "react-router";
 
 export default function Sidebar() {
+  const { unreadCount } = useNotifications();
+  const { admin, logout, isSuperAdmin, centerName } = useAdmin();
   const [isExpanded, setIsExpanded] = useState(true);
   const [expandedMenu, setExpandedMenu] = useState(null);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+
+  // Auth guard — redirect to admin login if not authenticated
+  useEffect(() => {
+    if (!admin) navigate('/admin-login');
+  }, [admin, navigate]);
+
+  const handleLogout = () => {
+    logout();
+    navigate('/admin-login');
+  };
 
   // Check for mobile screen
   useEffect(() => {
@@ -70,6 +91,7 @@ export default function Sidebar() {
         { icon: FaUserPlus, label: "Add Student", link: "/students/add" },
         { icon: FaUserCog, label: "Student Progress", link: "/students/progress" },
         { icon: FaBook, label: "Enrollments", link: "/students/enrollments" },
+        { icon: FaInbox, label: "Form Submissions", link: "/students/forms" },
       ]
     },
     {
@@ -77,8 +99,11 @@ export default function Sidebar() {
       label: "Payments",
       link: "/admin/payments",
       submenus: [
-        { icon: FaReceipt, label: "Invoices", link: "/admin/payments" },
-        { icon: FaHistory, label: "History", link: "/admin/payments" },
+        { icon: FaTachometerAlt, label: "Overview", link: "/admin/payments" },
+        { icon: FaReceipt, label: "Invoices", link: "/admin/invoices" },
+        { icon: FaBox, label: "Packages", link: "/admin/packages" },
+        { icon: FaSync, label: "Subscriptions", link: "/admin/subscriptions" },
+        { icon: FaHistory, label: "History", link: "/admin/payments/history" },
       ]
     },
     {
@@ -89,24 +114,18 @@ export default function Sidebar() {
         { icon: FaListUl, label: "Dashboard", link: "/admin/curriculum" },
         { icon: FaBook, label: "Subjects", link: "/admin/subjects" },
         { icon: FaAward, label: "Grades", link: "/admin/grades" },
-        { icon: FaUserCog, label: "Teacher Appt.", link: "/admin/teacher-assignments" },
-        { icon: FaFileAlt, label: "Exams", link: "/admin/exams" },
+{ icon: FaFileAlt, label: "Exams", link: "/admin/exams" },
         { icon: FaBolt, label: "Syllabus Builder", link: "/admin/syllabus" },
       ]
     },
     { icon: FaBell, label: "Notifications", link: "/notifications" },
     { icon: FaFileAlt, label: "Reports", link: "/reports" },
-    {
-      icon: FaCog,
-      label: "Settings",
-      link: "/settings",
-      submenus: [
-        { icon: FaUserCog, label: "Account", link: "/settings/account" },
-        { icon: FaShieldAlt, label: "Security", link: "/settings/security" },
-        { icon: FaPalette, label: "Appearance", link: "/settings/appearance" },
-      ]
-    },
-  ];
+    { icon: FaCog, label: "Settings", link: "/settings" },
+  ].filter(item => {
+    // Only super admins see global Settings
+    if (item.label === "Settings" && !isSuperAdmin) return false;
+    return true;
+  });
 
   const toggleSubmenu = (label) => {
     setExpandedMenu(expandedMenu === label ? null : label);
@@ -173,8 +192,22 @@ export default function Sidebar() {
                   to={item.link}
                   className={`flex items-center ${isExpanded ? "gap-3" : "justify-center"} p-2.5 rounded-lg transition-colors ${isActive(item.link) ? "bg-white/20" : "hover:bg-white/10"}`}
                 >
-                  <Icon size={18} />
-                  {isExpanded && <span className="text-sm">{item.label}</span>}
+                  <div className="relative flex-shrink-0">
+                    <Icon size={18} />
+                    {item.link === "/notifications" && unreadCount > 0 && (
+                      <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center leading-none">
+                        {unreadCount > 99 ? "99+" : unreadCount}
+                      </span>
+                    )}
+                  </div>
+                  {isExpanded && (
+                    <span className="text-sm flex-1">{item.label}</span>
+                  )}
+                  {isExpanded && item.link === "/notifications" && unreadCount > 0 && (
+                    <span className="ml-auto px-1.5 py-0.5 bg-red-500 text-white text-[9px] font-bold rounded-full leading-none">
+                      {unreadCount > 99 ? "99+" : unreadCount}
+                    </span>
+                  )}
                 </Link>
               )}
 
@@ -202,19 +235,41 @@ export default function Sidebar() {
       </nav>
 
       {/* Footer */}
-      {isExpanded && (
-        <div className="p-3 border-t border-white/10">
+      <div className="p-3 border-t border-white/10 space-y-2">
+        {/* Center badge */}
+        {isExpanded && (
+          <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-white/10">
+            <FaBuilding size={11} className="text-white/70 flex-shrink-0" />
+            <span className="text-[11px] font-semibold text-white/90 truncate">
+              {isSuperAdmin ? "All Centers" : (centerName || "No center assigned")}
+            </span>
+          </div>
+        )}
+
+        {/* Admin profile */}
+        {isExpanded && (
           <div className="flex items-center gap-2 p-2 rounded-lg bg-white/5">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center text-xs font-bold">
-              VA
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center text-xs font-bold flex-shrink-0">
+              {(admin?.name || "VA").slice(0, 2).toUpperCase()}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium truncate">Vama Admin</p>
-              <p className="text-[10px] text-white/60 truncate">admin@vama.com</p>
+              <p className="text-xs font-medium truncate">{admin?.name || "Vama Admin"}</p>
+              <p className="text-[10px] text-white/60 truncate">
+                {isSuperAdmin ? "Super Admin" : "Center Admin"}
+              </p>
             </div>
           </div>
-        </div>
-      )}
+        )}
+
+        {/* Logout */}
+        <button
+          onClick={handleLogout}
+          className={`w-full flex items-center ${isExpanded ? "gap-3 px-2" : "justify-center"} py-2 rounded-lg text-white/70 hover:text-white hover:bg-red-500/20 transition-colors`}
+        >
+          <FaSignOutAlt size={16} className="flex-shrink-0" />
+          {isExpanded && <span className="text-sm font-medium">Sign Out</span>}
+        </button>
+      </div>
     </>
   );
 

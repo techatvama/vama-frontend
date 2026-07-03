@@ -3,14 +3,15 @@ import { api } from '../../lib/api';
 import {
     User, Mail, Phone, MapPin, Calendar, CreditCard, BookOpen,
     TrendingUp, Award, Clock, CheckCircle, XCircle, AlertCircle,
-    Download, Edit2, X, DollarSign, Users, FileText
+    Download, Edit2, X, DollarSign, Users, FileText, RefreshCw
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 
 export default function StudentDetailModal({ studentId, onClose }) {
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
     const [student, setStudent] = useState(null);
-    const [activeTab, setActiveTab] = useState('overview'); // overview, classes, payments, performance
+    const [activeTab, setActiveTab] = useState('overview');
 
     useEffect(() => {
         fetchStudentDetails();
@@ -18,21 +19,21 @@ export default function StudentDetailModal({ studentId, onClose }) {
 
     const fetchStudentDetails = async () => {
         setLoading(true);
+        setError(null);
         try {
             const res = await api.get(`/admin/student/${studentId}/complete-profile`);
             setStudent(res.data);
         } catch (err) {
             console.error(err);
-            // Mock comprehensive data
-            setStudent(generateMockStudentData());
+            setError('Could not load student profile. Please check the backend connection.');
         } finally {
             setLoading(false);
         }
     };
 
-    const generateMockStudentData = () => {
+    // ── placeholder to satisfy remaining references in old mock ──────────────
+    const generateMockStudentData_UNUSED = () => {
         return {
-            // Basic Info
             id: studentId,
             first_name: 'Sarah',
             last_name: 'Johnson',
@@ -44,8 +45,6 @@ export default function StudentDetailModal({ studentId, onClose }) {
             date_of_birth: '2010-05-15',
             enrollment_date: '2024-01-15',
             status: 'active',
-
-            // Financial Summary
             financial: {
                 total_fees: 48000,
                 fees_paid: 36000,
@@ -58,8 +57,6 @@ export default function StudentDetailModal({ studentId, onClose }) {
                     { id: 4, date: '2026-02-15', amount: 12000, type: 'Monthly Tuition', status: 'pending' }
                 ]
             },
-
-            // Class Enrollments
             enrollments: [
                 {
                     id: 1,
@@ -141,7 +138,29 @@ export default function StudentDetailModal({ studentId, onClose }) {
     if (loading) {
         return (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-md">
-                <div className="animate-spin rounded-full h-16 w-16 border-4 border-white border-t-transparent"></div>
+                <div className="animate-spin rounded-full h-12 w-12 border-4 border-white border-t-transparent"></div>
+            </div>
+        );
+    }
+
+    if (error || !student) {
+        return (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
+                <div className="bg-white rounded-3xl max-w-sm w-full p-8 text-center shadow-2xl">
+                    <div className="w-14 h-14 bg-red-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                        <AlertCircle size={24} className="text-red-500" />
+                    </div>
+                    <h3 className="text-lg font-bold text-slate-900 mb-2">Profile Unavailable</h3>
+                    <p className="text-sm text-slate-500 mb-6">{error || 'Student data could not be loaded.'}</p>
+                    <div className="flex gap-3">
+                        <button onClick={fetchStudentDetails} className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-[#463a7a] text-white rounded-xl text-sm font-semibold hover:bg-[#3a3068] transition-colors">
+                            <RefreshCw size={14} /> Retry
+                        </button>
+                        <button onClick={onClose} className="flex-1 py-2.5 bg-slate-100 text-slate-600 rounded-xl text-sm font-semibold hover:bg-slate-200 transition-colors">
+                            Close
+                        </button>
+                    </div>
+                </div>
             </div>
         );
     }

@@ -12,7 +12,41 @@
       "Bash(curl -s \"http://localhost:8000/students/6\")",
       "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\('first_name:', d.get\\('first_name'\\)\\); print\\('last_name:', d.get\\('last_name'\\)\\)\")",
       "Bash(curl -s \"http://localhost:8000/students/7/progress\")",
-      "Bash(python3 -c ' *)"
+      "Bash(python3 -c ' *)",
+      "Bash(curl -s -X PUT http://localhost:8000/students/6 -H 'Content-Type: application/json' -d '{\"first_name\": \"Jeevan\", \"last_name\": \"M\"}')",
+      "Bash(curl -s -X PUT http://localhost:8000/students/6 -H 'Content-Type: application/json' -d '{\"first_name\":\"Jeevan\",\"last_name\":\"M\"}')",
+      "Bash(curl -s -X PUT \"http://localhost:8000/students/6\" -H \"Content-Type: application/json\" -d '{\"first_name\":\"Jeevan\",\"last_name\":\"M\"}')",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(curl -s http://127.0.0.1:8000/)",
+      "Bash(curl -s http://127.0.0.1:8000/students)",
+      "Bash(grep -v \"^$\")",
+      "Bash(pip install *)",
+      "Bash(/Users/yadavvignesh/.local/share/mise/installs/python/3.14.0/bin/pip install *)",
+      "Bash(curl -s http://127.0.0.1:8000/admin/grades)",
+      "Bash(curl -sv http://127.0.0.1:8000/admin/grades)",
+      "Bash(curl -s http://127.0.0.1:8000/admin/subjects)",
+      "Bash(curl -s http://127.0.0.1:8000/admin/exam-sessions)",
+      "Bash(curl -s -X POST http://127.0.0.1:8000/admin/exam-sessions)",
+      "Bash(curl -s http://127.0.0.1:8000/staff)",
+      "Bash(/Users/yadavvignesh/.local/share/mise/installs/python/3.14.0/bin/python3.14 -c ' *)",
+      "Bash(curl -s -X POST http://127.0.0.1:8000/teacher/login -H \"Content-Type: application/json\" -d '{\"email\":\"yadavvignesh.k@gmail.com\",\"password\":\"test\"}')",
+      "Bash(curl -s -X POST http://127.0.0.1:8000/student/login -H \"Content-Type: application/json\" -d '{\"email\":\"test@gmail.com\",\"password\":\"test\"}')",
+      "Bash(curl -s http://127.0.0.1:8000/students/1/progress)",
+      "Bash(curl -s \"http://127.0.0.1:8000/teacher/1/students\")",
+      "Bash(curl -s \"http://127.0.0.1:8000/teacher/1/sessions?start=2026-05-10&end=2026-05-10\")",
+      "Bash(python3 -c \"import json,sys; data=json.load\\(sys.stdin\\); print\\(f'{len\\(data\\)} students found'\\); [print\\(f'  #{s[\\\\\"id\\\\\"]} {s[\\\\\"first_name\\\\\"]} {s[\\\\\"last_name\\\\\"]} \\({s[\\\\\"email\\\\\"]}\\)'\\) for s in data]\")",
+      "Bash(python3 -c \"import json,sys; data=json.load\\(sys.stdin\\); print\\(f'{len\\(data\\)} teachers found'\\); [print\\(f'  #{s[\\\\\"id\\\\\"]} {s[\\\\\"name\\\\\"]} \\({s[\\\\\"email\\\\\"]}\\)'\\) for s in data]\")",
+      "Bash(python migrate_exam_sessions_optional.py)",
+      "Bash(npx tsc *)",
+      "Bash(node -e \"const icons = require\\('/Users/yadavvignesh/vama-frontend/node_modules/lucide-react'\\); const names = Object.keys\\(icons\\); console.log\\(names.filter\\(n => /grid|layout/i.test\\(n\\)\\).join\\(', '\\)\\)\")",
+      "Bash(curl -s -X POST http://127.0.0.1:8000/student/login -H 'Content-Type: application/json' -d '{\"email\":\"test@gmail.com\",\"password\":\"vama@1234\"}')",
+      "Bash(curl -s -X POST http://127.0.0.1:8000/teacher/login -H 'Content-Type: application/json' -d '{\"email\":\"raja@gmail.com\",\"password\":\"vama@1234\"}')",
+      "Bash(curl -s -X POST http://127.0.0.1:8000/student/login -H 'Content-Type: application/json' -d '{\"email\":\"test@gmail.com\",\"password\":\"wrongpass\"}')"
+    ],
+    "additionalDirectories": [
+      "/Users/yadavvignesh/vama-backend"
     ]
   }
 }

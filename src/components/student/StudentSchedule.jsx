@@ -40,11 +40,12 @@ function LiveBadge({ lastRefresh, syncing }) {
 }
 
 // ─── Class Options Modal ──────────────────────────────────────────────────────
-function ClassOptionsModal({ session, attendance, onCancel, onReschedule, onClose, cancelling }) {
+function ClassOptionsModal({ session, attendance, onCancel, onReschedule, onClose, cancelling, packageStatus }) {
     const [confirmCancel, setConfirmCancel] = useState(false);
     const color = subjectColor(parseSubjectList(session.batch?.subject)[0]);
     const isCancelled = session.status === 'cancelled';
     const isPast = new Date(session.date + 'T23:59:59') < new Date();
+    const canReschedule = packageStatus?.can_book && (packageStatus?.makeup_remaining ?? 1) > 0;
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
@@ -80,19 +81,33 @@ function ClassOptionsModal({ session, attendance, onCancel, onReschedule, onClos
                 <div className="p-4 space-y-3">
                     {!isCancelled && !isPast && (
                         <>
-                            <button
-                                onClick={onReschedule}
-                                className="w-full flex items-center justify-between px-5 py-4 bg-[#463a7a] text-white rounded-2xl font-black text-sm hover:bg-[#342a5b] transition-all active:scale-95 shadow-lg shadow-indigo-900/20"
-                            >
-                                <div className="flex items-center gap-3">
-                                    <RotateCcw size={18} />
-                                    <div className="text-left">
-                                        <div>Reschedule Class</div>
-                                        <div className="text-xs font-medium opacity-60">Pick a different time slot</div>
+                            {canReschedule ? (
+                                <button
+                                    onClick={onReschedule}
+                                    className="w-full flex items-center justify-between px-5 py-4 bg-[#463a7a] text-white rounded-2xl font-black text-sm hover:bg-[#342a5b] transition-all active:scale-95 shadow-lg shadow-indigo-900/20"
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <RotateCcw size={18} />
+                                        <div className="text-left">
+                                            <div>Reschedule Class</div>
+                                            <div className="text-xs font-medium opacity-60">
+                                                {packageStatus?.makeup_remaining} makeup{packageStatus?.makeup_remaining !== 1 ? 's' : ''} remaining
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <ArrowRight size={16} className="opacity-60" />
+                                </button>
+                            ) : (
+                                <div className="w-full flex items-center gap-3 px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl opacity-60 cursor-not-allowed">
+                                    <RotateCcw size={18} className="text-slate-400" />
+                                    <div>
+                                        <div className="text-sm font-black text-slate-500">Reschedule Unavailable</div>
+                                        <div className="text-xs font-medium text-slate-400">
+                                            {!packageStatus?.can_book ? 'Package expired or exhausted' : 'No makeup sessions left'}
+                                        </div>
                                     </div>
                                 </div>
-                                <ArrowRight size={16} className="opacity-60" />
-                            </button>
+                            )}
 
                             {!confirmCancel ? (
                                 <button
@@ -388,11 +403,82 @@ function Toast({ message, onDone }) {
     );
 }
 
+// ─── Package Status Banner ────────────────────────────────────────────────────
+function PackageStatusBanner({ pkg }) {
+    if (!pkg) return null;
+
+    const { can_book, block_reason, package_name, sessions_remaining, sessions_total,
+            sessions_used, makeup_remaining, makeup_total, end_date, days_left, status } = pkg;
+
+    const pct = sessions_total > 0 ? Math.round((sessions_used / sessions_total) * 100) : 0;
+
+    if (!can_book) {
+        const msg = block_reason === 'expired'
+            ? `Your package expired on ${end_date}.`
+            : block_reason === 'exhausted'
+            ? `All ${sessions_total} sessions used.`
+            : 'No active package.';
+        return (
+            <div className="bg-red-50 border border-red-200 rounded-[28px] p-5 flex items-start gap-4">
+                <div className="w-10 h-10 bg-red-100 rounded-2xl flex items-center justify-center flex-shrink-0">
+                    <AlertCircle size={18} className="text-red-500" />
+                </div>
+                <div>
+                    <p className="font-black text-red-700 text-sm">Booking Blocked</p>
+                    <p className="text-red-500 text-xs font-bold mt-0.5">{msg} Contact your center to renew.</p>
+                </div>
+            </div>
+        );
+    }
+
+    const isLow = sessions_remaining <= 2;
+    const isExpiringSoon = days_left !== null && days_left <= 7;
+    const warn = isLow || isExpiringSoon;
+
+    return (
+        <div className={`rounded-[28px] p-5 border ${warn ? 'bg-amber-50 border-amber-200' : 'bg-white border-slate-100'} shadow-sm`}>
+            <div className="flex items-center justify-between mb-3">
+                <div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Active Package</p>
+                    <p className="font-black text-slate-900 text-sm mt-0.5">{package_name}</p>
+                </div>
+                <div className="text-right">
+                    <p className={`text-2xl font-black leading-none ${isLow ? 'text-amber-500' : 'text-[#463a7a]'}`}>{sessions_remaining}</p>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">left of {sessions_total}</p>
+                </div>
+            </div>
+            {/* Progress bar */}
+            <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden mb-3">
+                <div
+                    className={`h-full rounded-full transition-all ${isLow ? 'bg-amber-400' : 'bg-[#463a7a]'}`}
+                    style={{ width: `${Math.max(4, 100 - pct)}%` }}
+                />
+            </div>
+            <div className="flex items-center justify-between text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                <span>{end_date ? `Expires ${end_date}${days_left !== null ? ` · ${days_left}d left` : ''}` : ''}</span>
+                {makeup_total > 0 && (
+                    <span className={makeup_remaining === 0 ? 'text-red-400' : 'text-slate-400'}>
+                        {makeup_remaining}/{makeup_total} makeups
+                    </span>
+                )}
+            </div>
+            {warn && (
+                <p className="mt-2 text-[10px] font-black text-amber-600 uppercase tracking-widest">
+                    {isLow && isExpiringSoon ? `⚠ Only ${sessions_remaining} class${sessions_remaining !== 1 ? 'es' : ''} left · expires in ${days_left} day${days_left !== 1 ? 's' : ''}` :
+                     isLow ? `⚠ Only ${sessions_remaining} class${sessions_remaining !== 1 ? 'es' : ''} remaining — renew soon` :
+                     `⚠ Package expires in ${days_left} day${days_left !== 1 ? 's' : ''}`}
+                </p>
+            )}
+        </div>
+    );
+}
+
 // ─── Main Component ────────────────────────────────────────────────────────────
 export default function StudentSchedule() {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [sessions, setSessions] = useState([]);
     const [attendance, setAttendance] = useState([]);
+    const [packageStatus, setPackageStatus] = useState(null);
     const [loading, setLoading] = useState(true);
     const [syncing, setSyncing] = useState(false);
     const [student, setStudent] = useState(null);
@@ -413,12 +499,14 @@ export default function StudentSchedule() {
         try {
             const start = format(startOfMonth(currentDate), 'yyyy-MM-dd');
             const end   = format(endOfMonth(currentDate),   'yyyy-MM-dd');
-            const [sessRes, attRes] = await Promise.all([
+            const [sessRes, attRes, pkgRes] = await Promise.all([
                 api.get(`/student/${studentId}/sessions`, { params: { start, end } }),
                 api.get(`/student/${studentId}/attendance`),
+                api.get(`/student/${studentId}/package-status`).catch(() => ({ data: null })),
             ]);
             setSessions(sessRes.data);
             setAttendance(attRes.data);
+            setPackageStatus(pkgRes.data);
             setLastRefresh(new Date());
         } catch (e) {
             console.error(e);
@@ -557,45 +645,35 @@ export default function StudentSchedule() {
                             const hasCancelled = daySessions.some(s => s.status === 'cancelled' || s.my_attendance === 'student_cancelled');
 
                             return (
-                                <div key={day.toString()} onClick={() => setSelectedDate(day)}
-                                    className={`min-h-[110px] lg:min-h-[130px] p-2.5 border-r border-b border-slate-50 transition-all cursor-pointer flex flex-col
-                                        ${!isCurrentMonth ? 'bg-slate-50/30' : 'bg-white hover:bg-[#463a7a]/3'}
-                                        ${isSelected ? 'bg-indigo-50/50 ring-2 ring-inset ring-[#463a7a]/20' : ''}`}
+                                <button key={day.toString()} onClick={() => setSelectedDate(day)}
+                                    className={`min-h-[52px] sm:min-h-[68px] lg:min-h-[80px] w-full p-1.5 sm:p-2 border-r border-b border-slate-50 transition-all cursor-pointer flex flex-col items-center
+                                        ${!isCurrentMonth ? 'bg-slate-50/30' : isSelected ? 'bg-indigo-50/60' : 'bg-white hover:bg-[#463a7a]/5'}`}
                                 >
-                                    <div className="flex items-center justify-between mb-1.5">
-                                        <span className={`text-sm font-black w-7 h-7 flex items-center justify-center rounded-xl transition-all
-                                            ${isToday ? 'bg-[#463a7a] text-white shadow-lg shadow-indigo-900/30' : isSelected ? 'bg-indigo-100 text-[#463a7a]' : isCurrentMonth ? 'text-slate-900' : 'text-slate-200'}`}>
-                                            {format(day, 'd')}
-                                        </span>
-                                        {daySessions.length > 0 && (
-                                            <span className={`w-2 h-2 rounded-full ${hasCancelled ? 'bg-red-400' : 'bg-emerald-400'} shadow-sm`} />
-                                        )}
-                                    </div>
-                                    <div className="space-y-1 flex-1 overflow-hidden">
-                                        {daySessions.slice(0, 2).map((s, i) => {
-                                            const c = subjectColor(parseSubjectList(s.batch?.subject)[0]);
-                                            const cancelled = s.status === 'cancelled';
-                                            return (
-                                                <div key={i}
-                                                    className={`text-[9px] font-black px-1.5 py-1 rounded-lg truncate flex items-center gap-1 ${cancelled ? 'opacity-40 line-through' : ''}`}
-                                                    style={{ backgroundColor: c + '18', color: c }}>
-                                                    <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: c }} />
-                                                    {s.start_time?.slice(0, 5)} {parseSubject(s.batch?.subject)}
-                                                </div>
-                                            );
-                                        })}
-                                        {daySessions.length > 2 && (
-                                            <p className="text-[8px] font-black text-slate-300 pl-1">+{daySessions.length - 2} more</p>
-                                        )}
-                                    </div>
-                                </div>
+                                    <span className={`text-xs sm:text-sm font-black w-7 h-7 flex items-center justify-center rounded-full transition-all leading-none
+                                        ${isToday ? 'bg-[#463a7a] text-white shadow-md shadow-indigo-900/30'
+                                        : isSelected ? 'bg-[#463a7a]/10 text-[#463a7a]'
+                                        : isCurrentMonth ? 'text-slate-800' : 'text-slate-300'}`}>
+                                        {format(day, 'd')}
+                                    </span>
+                                    {daySessions.length > 0 && (
+                                        <div className="flex items-center gap-0.5 mt-1">
+                                            <span className={`w-1.5 h-1.5 rounded-full shadow-sm ${hasCancelled ? 'bg-red-400 shadow-red-400/50' : 'bg-emerald-400 shadow-emerald-400/50'}`} />
+                                            {daySessions.length > 1 && (
+                                                <span className="text-[8px] font-black text-slate-400 leading-none">{daySessions.length}</span>
+                                            )}
+                                        </div>
+                                    )}
+                                </button>
                             );
                         })}
                     </div>
                 </div>
 
-                {/* ── Selected Day Panel ── */}
+                {/* ── Right panel ── */}
                 <div className="space-y-6">
+                    <PackageStatusBanner pkg={packageStatus} />
+
+                    {/* ── Selected Day Panel ── */}
                     <div className="bg-white rounded-[40px] shadow-xl shadow-slate-200/60 border border-slate-100 p-8">
                         <div className="flex items-center justify-between mb-8">
                             <div>
@@ -738,6 +816,7 @@ export default function StudentSchedule() {
                     onReschedule={() => handleRescheduleClick(optionsSession)}
                     onClose={() => setOptionsSession(null)}
                     cancelling={cancelling}
+                    packageStatus={packageStatus}
                 />
             )}
 

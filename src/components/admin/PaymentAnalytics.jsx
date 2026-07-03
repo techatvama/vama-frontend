@@ -24,48 +24,10 @@ export default function PaymentAnalytics() {
             generateChartData(res.data);
         } catch (err) {
             console.error(err);
-            // Use mock data for demo
-            const mockData = generateMockAnalytics();
-            setAnalytics(mockData);
-            generateChartData(mockData);
+            setAnalytics(null);
         } finally {
             setLoading(false);
         }
-    };
-
-    const generateMockAnalytics = () => {
-        return {
-            totalRevenue: 2847500,
-            revenueGrowth: 15.3,
-            totalInvoices: 236,
-            invoiceGrowth: 8.5,
-            paidInvoices: 198,
-            paidPercentage: 83.9,
-            pendingInvoices: 28,
-            overdueInvoices: 10,
-            averageInvoiceValue: 12065,
-            collectionRate: 94.2,
-            topPaymentTypes: [
-                { type: 'Monthly Tuition', count: 142, amount: 1703400 },
-                { type: 'Exam Fee', count: 52, amount: 624000 },
-                { type: 'Material Fee', count: 32, amount: 384000 },
-                { type: 'Registration Fee', count: 10, amount: 136100 }
-            ],
-            monthlyTrend: [
-                { month: 'Aug', revenue: 187500, invoices: 32 },
-                { month: 'Sep', revenue: 225300, invoices: 38 },
-                { month: 'Oct', revenue: 268900, invoices: 45 },
-                { month: 'Nov', revenue: 289600, invoices: 48 },
-                { month: 'Dec', revenue: 312400, invoices: 52 },
-                { month: 'Jan', revenue: 341200, invoices: 58 }
-            ],
-            statusBreakdown: {
-                paid: 198,
-                pending: 28,
-                overdue: 10,
-                cancelled: 0
-            }
-        };
     };
 
     const generateChartData = (data) => {

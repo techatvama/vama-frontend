@@ -127,15 +127,34 @@ function EditableText({ value, onChange, placeholder = "Enter text...", classNam
     )
 }
 
+const CONTENT_TYPES = ['piece', 'scale', 'exercise', 'theory', 'sight-reading', 'technique', 'other']
+
 // Section Component
-function SyllabusSection({ section, onUpdateProgress, disabled }) {
+function SyllabusSection({ section, onUpdateProgress, disabled, allowAddContent, onAddContent }) {
     const [expanded, setExpanded] = useState(true)
+    const [showAddForm, setShowAddForm] = useState(false)
+    const [newItemName, setNewItemName] = useState('')
+    const [newItemType, setNewItemType] = useState('piece')
+    const [addingItem, setAddingItem] = useState(false)
 
     const items = section.contents || []
     const completedCount = items.filter(i => i.progress?.status === 'done').length
     const totalWeight = items.reduce((sum, i) => sum + (i.weight || 1), 0)
     const completedWeight = items.filter(i => i.progress?.status === 'done').reduce((sum, i) => sum + (i.weight || 1), 0)
     const progress = totalWeight > 0 ? (completedWeight / totalWeight) * 100 : 0
+
+    const handleAddItem = async () => {
+        if (!newItemName.trim()) return
+        setAddingItem(true)
+        try {
+            await onAddContent(section.id, newItemName.trim(), newItemType)
+            setNewItemName('')
+            setNewItemType('piece')
+            setShowAddForm(false)
+        } finally {
+            setAddingItem(false)
+        }
+    }
 
     return (
         <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
@@ -178,6 +197,9 @@ function SyllabusSection({ section, onUpdateProgress, disabled }) {
                                         <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded capitalize">
                                             {item.content_type}
                                         </span>
+                                        <span className="text-[10px] bg-purple-50 text-purple-600 px-1.5 py-0.5 rounded">
+                                            {Math.round(item.weight || 0)}%
+                                        </span>
                                     </div>
                                     <EditableText
                                         value={item.progress?.notes || ""}
@@ -206,6 +228,60 @@ function SyllabusSection({ section, onUpdateProgress, disabled }) {
                             </div>
                         </div>
                     ))}
+
+                    {/* Add Item Form */}
+                    {allowAddContent && (
+                        <div className="p-3 sm:p-4 bg-purple-50/40">
+                            {showAddForm ? (
+                                <div className="flex flex-col sm:flex-row gap-2">
+                                    <input
+                                        autoFocus
+                                        value={newItemName}
+                                        onChange={(e) => setNewItemName(e.target.value)}
+                                        onKeyDown={(e) => e.key === 'Enter' && handleAddItem()}
+                                        placeholder="Item name (e.g. C major scale)"
+                                        className="flex-1 px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:border-[#463a7a]"
+                                    />
+                                    <select
+                                        value={newItemType}
+                                        onChange={(e) => setNewItemType(e.target.value)}
+                                        className="px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:border-[#463a7a] bg-white"
+                                    >
+                                        {CONTENT_TYPES.map(t => (
+                                            <option key={t} value={t}>{t}</option>
+                                        ))}
+                                    </select>
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={handleAddItem}
+                                            disabled={addingItem || !newItemName.trim()}
+                                            className="px-3 py-1.5 bg-[#463a7a] text-white text-sm rounded-lg hover:bg-[#5a4a9f] disabled:opacity-50 transition-colors"
+                                        >
+                                            {addingItem ? '...' : 'Add'}
+                                        </button>
+                                        <button
+                                            onClick={() => { setShowAddForm(false); setNewItemName('') }}
+                                            className="px-3 py-1.5 bg-slate-200 text-slate-600 text-sm rounded-lg hover:bg-slate-300 transition-colors"
+                                        >
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <button
+                                    onClick={() => setShowAddForm(true)}
+                                    className="flex items-center gap-1.5 text-xs text-[#463a7a] font-medium hover:text-[#5a4a9f] transition-colors"
+                                >
+                                    <FaPlus size={10} /> Add item
+                                </button>
+                            )}
+                            {items.length > 0 && (
+                                <p className="text-[10px] text-slate-400 mt-1.5">
+                                    Adding an item auto-adjusts weights equally across all {items.length + (showAddForm ? 1 : 0)} items in this module
+                                </p>
+                            )}
+                        </div>
+                    )}
                 </div>
             )}
         </div>
@@ -213,7 +289,7 @@ function SyllabusSection({ section, onUpdateProgress, disabled }) {
 }
 
 // Main Component
-export default function StudentProgressEditor({ studentIdFromProps }) {
+export default function StudentProgressEditor({ studentIdFromProps, allowAddContent = false }) {
     const [students, setStudents] = useState([])
     const [selectedStudentId, setSelectedStudentId] = useState(studentIdFromProps || '')
     const [data, setData] = useState(null)
@@ -280,10 +356,19 @@ export default function StudentProgressEditor({ studentIdFromProps }) {
             })
         } catch (err) {
             console.error("Failed to update progress:", err)
-            // Revert or show alert
         } finally {
             setUpdating(false)
         }
+    }
+
+    const addContent = async (moduleId, name, contentType) => {
+        const studentId = studentIdFromProps || selectedStudentId;
+        if (!studentId) return;
+        const res = await api.post(
+            `/teacher/students/${studentId}/modules/${moduleId}/contents`,
+            { name, content_type: contentType }
+        )
+        setData(res.data)
     }
 
     // Calculate overall progress from data
@@ -403,6 +488,17 @@ export default function StudentProgressEditor({ studentIdFromProps }) {
                         <h3 className="text-xl font-bold text-slate-800 mb-2">No Student Selected</h3>
                         <p className="text-slate-500">Please select a student from the menu above to view and track their progress.</p>
                     </div>
+                ) : !data.syllabus ? (
+                    <div className="bg-white rounded-2xl border border-dashed border-slate-300 p-12 text-center">
+                        <div className="w-20 h-20 bg-amber-50 rounded-full flex items-center justify-center mx-auto mb-4 text-amber-400">
+                            <FaMusic size={36} />
+                        </div>
+                        <h3 className="text-xl font-bold text-slate-800 mb-2">No syllabus for this student yet</h3>
+                        <p className="text-slate-500 max-w-md mx-auto">
+                            No syllabus is set up for <span className="font-bold text-slate-700">{data.student?.syllabus_type} {data.student?.grade}</span>
+                            {' '}({data.student?.instrument}). Create a matching syllabus in <span className="font-bold">Curriculum → Syllabus Builder</span>, or update the student's grade/curriculum.
+                        </p>
+                    </div>
                 ) : (
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                         {/* Left Column - Syllabus */}
@@ -417,6 +513,8 @@ export default function StudentProgressEditor({ studentIdFromProps }) {
                                     section={module}
                                     onUpdateProgress={updateProgress}
                                     disabled={updating}
+                                    allowAddContent={allowAddContent}
+                                    onAddContent={addContent}
                                 />
                             ))}
                         </div>

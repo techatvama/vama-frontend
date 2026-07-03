@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Vama ERP — High Level Design</title>
+<style>
+  :root {
+    --purple:   #463a7a;
+    --purple2:  #2d2550;
+    --violet:   #7c3aed;
+    --blue:     #2563eb;
+    --teal:     #0d9488;
+    --emerald:  #059669;
+    --amber:    #d97706;
+    --rose:     #e11d48;
+    --slate50:  #f8fafc;
+    --slate100: #f1f5f9;
+    --slate200: #e2e8f0;
+    --slate400: #94a3b8;
+    --slate600: #475569;
+    --slate700: #334155;
+    --slate900: #0f172a;
+    --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--slate50); font-family: var(--font); color: var(--slate900); font-size: 13px; }
+
+  /* ── page shell ── */
+  .page { max-width: 1400px; margin: 0 auto; padding: 40px 32px 80px; }
+
+  /* ── title bar ── */
+  .title-bar {
+    background: linear-gradient(135deg, var(--purple) 0%, var(--purple2) 100%);
+    border-radius: 24px;
+    padding: 32px 40px;
+    margin-bottom: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    position: relative;
+    overflow: hidden;
+  }
+  .title-bar::before {
+    content: '';
+    position: absolute;
+    top: -40px; right: -40px;
+    width: 200px; height: 200px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 50%;
+  }
+  .title-bar h1 { font-size: 28px; font-weight: 900; color: #fff; letter-spacing: -0.5px; }
+  .title-bar p  { color: rgba(255,255,255,0.5); font-size: 13px; margin-top: 4px; }
+  .tech-pills   { display: flex; gap: 8px; flex-wrap: wrap; }
+  .tech-pill {
+    background: rgba(255,255,255,0.12); color: rgba(255,255,255,0.85);
+    border: 1px solid rgba(255,255,255,0.15);
+    padding: 5px 12px; border-radius: 20px; font-size: 11px; font-weight: 700;
+    letter-spacing: 0.5px; text-transform: uppercase; white-space: nowrap;
+  }
+
+  /* ── section labels ── */
+  .layer-label {
+    font-size: 10px; font-weight: 900; letter-spacing: 2px; text-transform: uppercase;
+    color: var(--slate400); margin-bottom: 12px; display: flex; align-items: center; gap-8px;
+  }
+  .layer-label span { background: var(--slate200); padding: 3px 10px; border-radius: 10px; }
+
+  /* ── grid helpers ── */
+  .col3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .col2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+  .col4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+
+  /* ── portal card ── */
+  .portal {
+    border-radius: 20px; overflow: hidden;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+  }
+  .portal-header {
+    padding: 16px 20px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .portal-header .icon {
+    width: 36px; height: 36px; border-radius: 10px;
+    background: rgba(255,255,255,0.2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; flex-shrink: 0;
+  }
+  .portal-header h3 { color: #fff; font-weight: 900; font-size: 14px; }
+  .portal-header p  { color: rgba(255,255,255,0.6); font-size: 11px; }
+  .portal-body { background: #fff; padding: 16px; }
+  .route-list { list-style: none; }
+  .route-list li {
+    display: flex; align-items: center; gap-8px;
+    padding: 5px 0; border-bottom: 1px solid var(--slate100);
+    font-size: 11.5px;
+  }
+  .route-list li:last-child { border-bottom: none; }
+  .route-path { color: var(--slate600); font-family: monospace; font-size: 11px; }
+  .route-comp { color: var(--slate400); font-size: 10.5px; margin-left: auto; padding-left: 8px; white-space: nowrap; }
+
+  /* ── connector arrow ── */
+  .arrow-row {
+    display: flex; align-items: center; justify-content: center;
+    padding: 12px 0; gap: 8px; color: var(--slate400);
+  }
+  .arrow-line { flex: 1; height: 1px; background: var(--slate200); }
+  .arrow-center { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .arrow-center svg { color: var(--slate300); }
+  .arrow-center span { font-size: 10px; font-weight: 700; color: var(--slate400); letter-spacing: 1px; text-transform: uppercase; }
+
+  /* ── api groups ── */
+  .api-box {
+    background: #fff; border-radius: 16px;
+    border: 1px solid var(--slate200);
+    box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+    overflow: hidden;
+  }
+  .api-box-header {
+    padding: 10px 14px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .api-box-header .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .api-box-header h4 { font-size: 11px; font-weight: 900; letter-spacing: 0.5px; text-transform: uppercase; }
+  .api-box-body { padding: 0 14px 12px; }
+  .endpoint {
+    display: flex; align-items: center; gap: 6px;
+    padding: 4px 0; border-bottom: 1px solid var(--slate100);
+    font-size: 11px;
+  }
+  .endpoint:last-child { border-bottom: none; }
+  .method {
+    font-size: 9px; font-weight: 900; text-transform: uppercase;
+    letter-spacing: 0.5px; padding: 2px 5px; border-radius: 5px;
+    min-width: 36px; text-align: center; flex-shrink: 0;
+  }
+  .method.get    { background: #dcfce7; color: #15803d; }
+  .method.post   { background: #dbeafe; color: #1d4ed8; }
+  .method.put    { background: #fef3c7; color: #92400e; }
+  .method.patch  { background: #f3e8ff; color: #7e22ce; }
+  .method.delete { background: #fee2e2; color: #b91c1c; }
+  .ep-path { font-family: monospace; font-size: 10.5px; color: var(--slate600); }
+
+  /* ── db groups ── */
+  .db-box {
+    background: #fff; border-radius: 16px;
+    border: 1px solid var(--slate200);
+    box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+    overflow: hidden;
+  }
+  .db-box-header {
+    padding: 10px 14px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .db-box-header h4 { font-size: 11px; font-weight: 900; letter-spacing: 0.5px; text-transform: uppercase; }
+  .db-box-body { padding: 4px 14px 12px; }
+  .model-tag {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: var(--slate50); border: 1px solid var(--slate200);
+    border-radius: 8px; padding: 4px 9px; margin: 3px;
+    font-size: 11px; font-weight: 700; color: var(--slate700);
+  }
+  .model-tag .col-count { color: var(--slate400); font-size: 9.5px; }
+
+  /* ── external services ── */
+  .ext-box {
+    border-radius: 16px; padding: 16px 18px;
+    display: flex; align-items: flex-start; gap: 12px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+  }
+  .ext-icon { font-size: 28px; flex-shrink: 0; margin-top: 2px; }
+  .ext-box h4 { font-size: 13px; font-weight: 900; margin-bottom: 4px; }
+  .ext-box p  { font-size: 11px; opacity: 0.7; line-height: 1.5; }
+  .ext-badge {
+    display: inline-block; font-size: 9.5px; font-weight: 700;
+    letter-spacing: 0.5px; text-transform: uppercase;
+    padding: 2px 7px; border-radius: 20px; margin-top: 6px;
+  }
+
+  /* ── data flow ── */
+  .flow-section { background: #fff; border-radius: 20px; padding: 24px 28px; border: 1px solid var(--slate200); box-shadow: 0 2px 12px rgba(0,0,0,0.04); }
+  .flow-title { font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; color: var(--slate400); margin-bottom: 16px; }
+  .flows { display: flex; flex-direction: column; gap: 14px; }
+  .flow-item { display: flex; align-items: center; gap: 0; flex-wrap: wrap; }
+  .flow-node {
+    padding: 6px 12px; border-radius: 20px; font-size: 11px; font-weight: 700;
+    white-space: nowrap; border: 1.5px solid transparent;
+  }
+  .flow-arrow { color: var(--slate400); margin: 0 6px; font-size: 16px; line-height: 1; }
+  .flow-label { font-size: 9px; font-weight: 700; text-transform: uppercase; color: var(--slate400); letter-spacing: 0.5px; }
+
+  /* ── section spacer ── */
+  .section { margin-bottom: 28px; }
+
+  /* ── big connector box ── */
+  .fastapi-banner {
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    border-radius: 20px; padding: 20px 28px;
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    margin-bottom: 16px; flex-wrap: wrap;
+  }
+  .fastapi-banner .left h3 { color: #fff; font-size: 16px; font-weight: 900; }
+  .fastapi-banner .left p  { color: rgba(255,255,255,0.4); font-size: 11px; margin-top: 3px; }
+  .fastapi-banner .stats { display: flex; gap: 20px; flex-wrap: wrap; }
+  .fastapi-banner .stat-item { text-align: center; }
+  .fastapi-banner .stat-item .num { color: #fff; font-size: 22px; font-weight: 900; line-height: 1; }
+  .fastapi-banner .stat-item .lbl { color: rgba(255,255,255,0.4); font-size: 9.5px; text-transform: uppercase; letter-spacing: 1px; margin-top: 3px; }
+
+  .pg-banner {
+    background: linear-gradient(135deg, #1e3a5f 0%, #0f2444 100%);
+    border-radius: 20px; padding: 20px 28px;
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    margin-bottom: 16px; flex-wrap: wrap;
+  }
+  .pg-banner .left h3 { color: #fff; font-size: 16px; font-weight: 900; }
+  .pg-banner .left p  { color: rgba(255,255,255,0.4); font-size: 11px; margin-top: 3px; }
+  .pg-banner .stats { display: flex; gap: 20px; flex-wrap: wrap; }
+  .pg-banner .stat-item .num { color: #60a5fa; font-size: 22px; font-weight: 900; line-height: 1; }
+  .pg-banner .stat-item .lbl { color: rgba(255,255,255,0.4); font-size: 9.5px; text-transform: uppercase; letter-spacing: 1px; margin-top: 3px; }
+
+  /* ── responsive ── */
+  @media (max-width: 900px) {
+    .col3 { grid-template-columns: 1fr; }
+    .col4 { grid-template-columns: repeat(2, 1fr); }
+    .page { padding: 20px 16px 60px; }
+    .title-bar { flex-direction: column; align-items: flex-start; }
+  }
+  @media (max-width: 600px) {
+    .col2, .col4 { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- ═══════════════════════════════════════════════
+       TITLE
+  ════════════════════════════════════════════════ -->
+  <div class="title-bar">
+    <div>
+      <h1>🎵 Vama Academy ERP</h1>
+      <p>High Level Design · System Architecture Overview</p>
+    </div>
+    <div class="tech-pills">
+      <span class="tech-pill">React 18</span>
+      <span class="tech-pill">Vite 4</span>
+      <span class="tech-pill">Tailwind CSS</span>
+      <span class="tech-pill">FastAPI</span>
+      <span class="tech-pill">SQLAlchemy</span>
+      <span class="tech-pill">PostgreSQL</span>
+      <span class="tech-pill">Razorpay</span>
+      <span class="tech-pill">Google Sheets</span>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       LAYER 1 — CLIENT
+  ════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="layer-label"><span>Layer 1 — Client (React SPA · Vite · Tailwind · Lucide)</span></div>
+    <div class="col3">
+
+      <!-- Admin Portal -->
+      <div class="portal">
+        <div class="portal-header" style="background:linear-gradient(135deg,#463a7a,#2d2550)">
+          <div class="icon">🛡️</div>
+          <div>
+            <h3>Admin Portal</h3>
+            <p>Protected · Role: Admin</p>
+          </div>
+        </div>
+        <div class="portal-body">
+          <ul class="route-list">
+            <li><span class="route-path">/</span><span class="route-comp">AdminDashboard</span></li>
+            <li><span class="route-path">/students</span><span class="route-comp">Dashboard</span></li>
+            <li><span class="route-path">/students/:id</span><span class="route-comp">StudentProfilePage</span></li>
+            <li><span class="route-path">/teacher</span><span class="route-comp">AllStaff</span></li>
+            <li><span class="route-path">/teacher/:id</span><span class="route-comp">StaffProfilePage</span></li>
+            <li><span class="route-path">/schedule</span><span class="route-comp">Scheduler</span></li>
+            <li><span class="route-path">/admin/curriculum</span><span class="route-comp">CurriculumDashboard</span></li>
+            <li><span class="route-path">/admin/syllabus</span><span class="route-comp">SyllabusBuilder</span></li>
+            <li><span class="route-path">/admin/payments</span><span class="route-comp">PaymentDashboard ✨</span></li>
+            <li><span class="route-path">/admin/packages</span><span class="route-comp">PackageManager ✨</span></li>
+            <li><span class="route-path">/admin/invoices</span><span class="route-comp">InvoiceManager ✨</span></li>
+            <li><span class="route-path">/admin/subscriptions</span><span class="route-comp">SubscriptionManager ✨</span></li>
+            <li><span class="route-path">/admin/exams</span><span class="route-comp">ExamSessionManager</span></li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Teacher Portal -->
+      <div class="portal">
+        <div class="portal-header" style="background:linear-gradient(135deg,#0d9488,#065f46)">
+          <div class="icon">👨‍🏫</div>
+          <div>
+            <h3>Teacher Portal</h3>
+            <p>Auth: JWT · /teacher-login</p>
+          </div>
+        </div>
+        <div class="portal-body">
+          <ul class="route-list">
+            <li><span class="route-path">/teacher-portal</span><span class="route-comp">TeacherDashboard</span></li>
+            <li><span class="route-path">…/calendar</span><span class="route-comp">TeacherCalendar</span></li>
+            <li><span class="route-path">…/session/:id</span><span class="route-comp">SessionDetails</span></li>
+            <li><span class="route-path">…/students</span><span class="route-comp">TeacherStudents</span></li>
+            <li><span class="route-path">…/students/:id</span><span class="route-comp">StudentDetail</span></li>
+            <li><span class="route-path">…/materials</span><span class="route-comp">MaterialUpload</span></li>
+          </ul>
+          <div style="margin-top:12px;padding-top:12px;border-top:1px solid #f1f5f9">
+            <p style="font-size:11px;color:#94a3b8;font-weight:700;">Key features</p>
+            <p style="font-size:11px;color:#64748b;margin-top:4px;line-height:1.6">
+              Mark attendance · Upload materials · View student progress · Manage sessions
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Student Portal -->
+      <div class="portal">
+        <div class="portal-header" style="background:linear-gradient(135deg,#2563eb,#1e40af)">
+          <div class="icon">🎓</div>
+          <div>
+            <h3>Student Portal</h3>
+            <p>Auth: localStorage · /student-login</p>
+          </div>
+        </div>
+        <div class="portal-body">
+          <ul class="route-list">
+            <li><span class="route-path">/student-portal</span><span class="route-comp">StudentDashboard</span></li>
+            <li><span class="route-path">…/schedule</span><span class="route-comp">StudentSchedule</span></li>
+            <li><span class="route-path">…/attendance</span><span class="route-comp">StudentAttendance</span></li>
+            <li><span class="route-path">…/progress</span><span class="route-comp">StudentProgress</span></li>
+            <li><span class="route-path">…/materials</span><span class="route-comp">StudentMaterials</span></li>
+            <li><span class="route-path">…/payments</span><span class="route-comp">StudentPayments ✨</span></li>
+            <li><span class="route-path">…/reschedule/:id</span><span class="route-comp">StudentReschedule</span></li>
+          </ul>
+          <div style="margin-top:12px;padding-top:12px;border-top:1px solid #f1f5f9">
+            <p style="font-size:11px;color:#94a3b8;font-weight:700;">Payment flow (new)</p>
+            <p style="font-size:11px;color:#64748b;margin-top:4px;line-height:1.6">
+              Browse grade-filtered packages → Confirm → Razorpay checkout → Verify → Invoice created
+            </p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- connector -->
+  <div class="arrow-row">
+    <div class="arrow-line"></div>
+    <div class="arrow-center">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+      <span>HTTPS / Axios</span>
+    </div>
+    <div class="arrow-line"></div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       LAYER 2 — API
+  ════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="layer-label"><span>Layer 2 — API (FastAPI · Python · Pydantic · CORS *)</span></div>
+
+    <div class="fastapi-banner">
+      <div class="left">
+        <h3>⚡ FastAPI Backend</h3>
+        <p>Async ASGI · Uvicorn · Auto-migrations on startup · PostgreSQL via SQLAlchemy ORM</p>
+      </div>
+      <div class="stats">
+        <div class="stat-item"><div class="num">40+</div><div class="lbl">Endpoints</div></div>
+        <div class="stat-item"><div class="num">8</div><div class="lbl">Modules</div></div>
+        <div class="stat-item"><div class="num">18</div><div class="lbl">DB Models</div></div>
+        <div class="stat-item"><div class="num">3</div><div class="lbl">Portals</div></div>
+      </div>
+    </div>
+
+    <div class="col4">
+
+      <!-- Auth -->
+      <div class="api-box">
+        <div class="api-box-header" style="background:#fef3c7">
+          <div class="dot" style="background:#d97706"></div>
+          <h4 style="color:#92400e">Auth</h4>
+        </div>
+        <div class="api-box-body">
+          <div class="endpoint"><span class="method post">POST</span><span class="ep-path">/student/login</span></div>
+          <div class="endpoint"><span class="method post">POST</span><span class="ep-path">/teacher/login</span></div>
+        </div>
+      </div>
+
+      <!-- Students -->
+      <div class="api-box">
+        <div class="api-box-header" style="background:#dbeafe">
+          <div class="dot" style="background:#2563eb"></div>
+          <h4 style="color:#1e40af">Students</h4>
+        </div>
+        <div class="api-box-body">
+          <div class="endpoint"><span class="method get">GET</span><span class="ep-path">/students</span></div>
+          <div class="endpoint"><span class="method post">POST</span><span class="ep-path">/students</span></div>
+          <div class="endpoint"><span class="method put">PUT</span><span class="ep-path">/students/{id}</span></div>
+          <div class="endpoint"><span class="method get">GET</span><span class="ep-path">/students/{id}/progress</span></div>
+          <div class="endpoint"><span class="method post">POST</span><span class="ep-path">/students/{id}/progress/{cid}</span></div>
+          <div class="endpoint"><span class="method get">GET</span><span class="ep-path">/student/{id}/sessions</span></div>
+          <div class="endpoint"><span class="method get">GET</span><span class="ep-path">/students/{id}/materials</span></div>
+        </div>
+      </div>
+
+      <!-- Staff -->
+      <div class="api-box">
+        <div class="api-box-header" style="background:#dcfce7">
+          <div class="dot" style="background:#059669"></div>
+          <h4 style="color:#065f46">Staff</h4>
+        </div>
+        <div class="api-box-body">
+          <div class="endpoint"><span class="method get">GET</span><span class="ep-path">/staff</span></div>
+          <div class="endpoint"><span class="method post">POST</span><span class="ep-path">/add-staff</span></div>
+          <div class="endpoint"><span class="method put">PUT</span><span class="ep-path">/staff/{id}</span></div>
+          <div class="endpoint"><span class="method get">GET</span><span class="ep-path">/teacher/{id}/sessions</span></div>
+          <div class="endpoint"><span class="method get">GET</span><span class="ep-path">/teacher/{id}/students</span></div>
+        </div>
+      </div>
+
+      <!-- Curriculum -->
+      <div class="api-box">
+        <div class="api-box-header" style="background:#f3e8ff">
+          <div class="dot" style="background:#7c3aed"></div>
+          <h4 style="color:#5b21b6">Curriculum</h4>
+        </div>
+        <div class="api-box-body">
+          <div class="endpoint"><span class="method get">GET</span><span class="ep-path">/admin/grades</span></div>
+          <div class="endpoint"><span class="method get">GET</span><span class="ep-path">/admin/subjects</span></div>
+          <div class="endpoint"><span class="method get">GET</span><span class="ep-path">/admin/exam-sessions</span></div>
+          <div class="endpoint"><span class="method get">GET</span><span class="ep-path">/admin/syllabi</span></div>
+          <div class="endpoint"><span class="method post">POST</span><span class="ep-path">/admin/syllabi</span></div>
+        </div>
+      </div>
+
+      <!-- Scheduling -->
+      <div class="api-box">
+        <div class="api-box-header" style="background:#ccfbf1">
+          <div class="dot" style="background:#0d9488"></div>
+          <h4 style="color:#134e4a">Scheduling</h4>
+        </div>
+        <div class="api-box-body">
+          <div class="endpoint"><span class="method get">GET</span><span class="ep-path">/batches</span></div>
+          <div class="endpoint"><span class="method post">POST</span><span class="ep-path">/batches</span></div>
+          <div class="endpoint"><span class="method post">POST</span><span class="ep-path">/sessions</span></div>
+          <div class="endpoint"><span class="method post">POST</span><span class="ep-path">/enrollments</span></div>
+          <div class="endpoint"><span class="method post">POST</span><span class="ep-path">/materials</span></div>
+        </div>
+      </div>
+
+      <!-- Packages -->
+      <div class="api-box">
+        <div class="api-box-header" style="background:#ede9fe">
+          <div class="dot" style="background:#463a7a"></div>
+          <h4 style="color:#463a7a">Packages ✨</h4>
+        </div>
+        <div class="api-box-body">
+          <div class="endpoint"><span class="method get">GET</span><span class="ep-path">/admin/packages</span></div>
+          <div class="endpoint"><span class="method post">POST</span><span class="ep-path">/admin/packages</span></div>
+          <div class="endpoint"><span class="method put">PUT</span><span class="ep-path">/admin/packages/{id}</span></div>
+          <div class="endpoint"><span class="method get">GET</span><span class="ep-path">/student/packages</span></div>
+          <div class="endpoint" style="border-bottom:none;color:#64748b;font-size:10px;padding-top:6px">
+            ↳ filtered by grade + course
+          </div>
+        </div>
+      </div>
+
+      <!-- Invoices -->
+      <div class="api-box">
+        <div class="api-box-header" style="background:#fce7f3">
+          <div class="dot" style="background:#e11d48"></div>
+          <h4 style="color:#9f1239">Invoices ✨</h4>
+        </div>
+        <div class="api-box-body">
+          <div class="endpoint"><span class="method get">GET</span><span class="ep-path">/admin/invoices</span></div>
+          <div class="endpoint"><span class="method post">POST</span><span class="ep-path">/admin/invoices</span></div>
+          <div class="endpoint"><span class="method patch">PATCH</span><span class="ep-path">/admin/invoices/{id}</span></div>
+          <div class="endpoint"><span class="method get">GET</span><span class="ep-path">/student/{id}/payments</span></div>
+          <div class="endpoint"><span class="method get">GET</span><span class="ep-path">/admin/payment-dashboard</span></div>
+        </div>
+      </div>
+
+      <!-- Razorpay -->
+      <div class="api-box">
+        <div class="api-box-header" style="background:#fff7ed">
+          <div class="dot" style="background:#f97316"></div>
+          <h4 style="color:#9a3412">Razorpay ✨</h4>
+        </div>
+        <div class="api-box-body">
+          <div class="endpoint"><span class="method post">POST</span><span class="ep-path">/student/payments/create-order</span></div>
+          <div class="endpoint"><span class="method post">POST</span><span class="ep-path">/student/payments/verify</span></div>
+          <div class="endpoint"><span class="method get">GET</span><span class="ep-path">/admin/subscriptions</span></div>
+          <div class="endpoint"><span class="method post">POST</span><span class="ep-path">/admin/subscriptions</span></div>
+          <div class="endpoint"><span class="method put">PUT</span><span class="ep-path">/admin/subscriptions/{id}</span></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- connector -->
+  <div class="arrow-row">
+    <div class="arrow-line"></div>
+    <div class="arrow-center">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+      <span>SQLAlchemy ORM</span>
+    </div>
+    <div class="arrow-line"></div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       LAYER 3 — DATABASE
+  ════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="layer-label"><span>Layer 3 — Data (PostgreSQL · SQLAlchemy 2 · Auto-migrations on startup)</span></div>
+
+    <div class="pg-banner">
+      <div class="left">
+        <h3>🐘 PostgreSQL Database</h3>
+        <p>Relational · ACID · psycopg2-binary · Schema auto-created via Base.metadata.create_all()</p>
+      </div>
+      <div class="stats">
+        <div class="stat-item"><div class="num" style="color:#60a5fa">18</div><div class="lbl">Tables</div></div>
+        <div class="stat-item"><div class="num" style="color:#34d399">4</div><div class="lbl">Domains</div></div>
+        <div class="stat-item"><div class="num" style="color:#a78bfa">12+</div><div class="lbl">FK Relations</div></div>
+      </div>
+    </div>
+
+    <div class="col4">
+
+      <!-- Users domain -->
+      <div class="db-box">
+        <div class="db-box-header" style="background:#dbeafe">
+          <span style="font-size:16px">👤</span>
+          <h4 style="color:#1e40af">Users</h4>
+        </div>
+        <div class="db-box-body">
+          <div>
+            <span class="model-tag">Staff <span class="col-count">10 cols</span></span>
+            <span class="model-tag">Student <span class="col-count">15 cols</span></span>
+          </div>
+          <p style="font-size:10.5px;color:#94a3b8;margin-top:8px;line-height:1.6">
+            Login credentials · contact info · grade · instrument · teacher assignment
+          </p>
+        </div>
+      </div>
+
+      <!-- Curriculum domain -->
+      <div class="db-box">
+        <div class="db-box-header" style="background:#f3e8ff">
+          <span style="font-size:16px">📚</span>
+          <h4 style="color:#5b21b6">Curriculum</h4>
+        </div>
+        <div class="db-box-body">
+          <div>
+            <span class="model-tag">Grade</span>
+            <span class="model-tag">Subject</span>
+            <span class="model-tag">ExamSession</span>
+            <span class="model-tag">Syllabus</span>
+            <span class="model-tag">SyllabusModule</span>
+            <span class="model-tag">SyllabusContent</span>
+            <span class="model-tag">StudentProgress</span>
+          </div>
+          <p style="font-size:10.5px;color:#94a3b8;margin-top:8px;line-height:1.6">
+            Trinity / ABRSM / RSL tracks · module weights · progress states
+          </p>
+        </div>
+      </div>
+
+      <!-- Scheduling domain -->
+      <div class="db-box">
+        <div class="db-box-header" style="background:#ccfbf1">
+          <span style="font-size:16px">📅</span>
+          <h4 style="color:#134e4a">Scheduling</h4>
+        </div>
+        <div class="db-box-body">
+          <div>
+            <span class="model-tag">Batch</span>
+            <span class="model-tag">ClassSession</span>
+            <span class="model-tag">StudentEnrollment</span>
+            <span class="model-tag">Attendance</span>
+            <span class="model-tag">Material</span>
+          </div>
+          <p style="font-size:10.5px;color:#94a3b8;margin-top:8px;line-height:1.6">
+            present/absent/late · batch → sessions → attendance chain
+          </p>
+        </div>
+      </div>
+
+      <!-- Payments domain -->
+      <div class="db-box">
+        <div class="db-box-header" style="background:#ede9fe">
+          <span style="font-size:16px">💳</span>
+          <h4 style="color:#463a7a">Payments ✨</h4>
+        </div>
+        <div class="db-box-body">
+          <div>
+            <span class="model-tag">Package</span>
+            <span class="model-tag">StudentPackage</span>
+            <span class="model-tag">Invoice</span>
+            <span class="model-tag">Subscription</span>
+          </div>
+          <p style="font-size:10.5px;color:#94a3b8;margin-top:8px;line-height:1.6">
+            Grade/course JSON arrays · sessions_used · billing cycles · Razorpay order refs
+          </p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       LAYER 4 — EXTERNAL SERVICES
+  ════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="layer-label"><span>Layer 4 — External Services</span></div>
+    <div class="col2">
+
+      <div class="ext-box" style="background:linear-gradient(135deg,#fff7ed,#ffedd5);border:1.5px solid #fed7aa">
+        <div class="ext-icon">💳</div>
+        <div>
+          <h4 style="color:#9a3412">Razorpay Payment Gateway</h4>
+          <p style="color:#c2410c">
+            Orders API · Payment verification · HMAC-SHA256 signature check ·
+            UPI / Cards / Net Banking / Wallets · Test mode fallback when keys absent
+          </p>
+          <div>
+            <span class="ext-badge" style="background:#fee2e2;color:#b91c1c">RAZORPAY_KEY_ID</span>
+            <span class="ext-badge" style="background:#fee2e2;color:#b91c1c">RAZORPAY_KEY_SECRET</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="ext-box" style="background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:1.5px solid #bbf7d0">
+        <div class="ext-icon">📊</div>
+        <div>
+          <h4 style="color:#14532d">Google Sheets (Legacy)</h4>
+          <p style="color:#166534">
+            Student data import via gspread · OAuth2 service account ·
+            Read rows · Append student · Update cell · Used for migration from existing sheet-based records
+          </p>
+          <div>
+            <span class="ext-badge" style="background:#dcfce7;color:#15803d">google-auth OAuth2</span>
+            <span class="ext-badge" style="background:#dcfce7;color:#15803d">Service Account</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       KEY DATA FLOWS
+  ════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="layer-label"><span>Key Data Flows</span></div>
+    <div class="flow-section">
+      <div class="flow-title">Critical paths through the system</div>
+      <div class="flows">
+
+        <div class="flow-item">
+          <span class="flow-node" style="background:#ede9fe;color:#463a7a;border-color:#c4b5fd">Student Portal</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-node" style="background:#fff7ed;color:#c2410c;border-color:#fed7aa">Browse Packages</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-node" style="background:#dbeafe;color:#1e40af;border-color:#93c5fd">GET /student/packages<br><span style="font-size:9px">(grade + course filter)</span></span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-node" style="background:#f3e8ff;color:#5b21b6;border-color:#d8b4fe">Confirm Modal</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-node" style="background:#fff7ed;color:#9a3412;border-color:#fed7aa">Razorpay Checkout</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-node" style="background:#dcfce7;color:#14532d;border-color:#86efac">POST /verify → Invoice + StudentPackage created</span>
+        </div>
+
+        <div class="flow-item">
+          <span class="flow-node" style="background:#ccfbf1;color:#134e4a;border-color:#5eead4">Teacher marks Attendance</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-node" style="background:#dbeafe;color:#1e40af;border-color:#93c5fd">Attendance table</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-node" style="background:#f3e8ff;color:#5b21b6;border-color:#d8b4fe">StudentPackage.sessions_used++</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-node" style="background:#fce7f3;color:#9f1239;border-color:#fbcfe8">Low session / expiry alert</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-node" style="background:#ede9fe;color:#463a7a;border-color:#c4b5fd">Renewal CTA shown</span>
+        </div>
+
+        <div class="flow-item">
+          <span class="flow-node" style="background:#fef3c7;color:#92400e;border-color:#fde68a">Admin creates Package</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-node" style="background:#dbeafe;color:#1e40af;border-color:#93c5fd">POST /admin/packages</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-node" style="background:#f3e8ff;color:#5b21b6;border-color:#d8b4fe">grades[] + courses[] stored as JSON</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-node" style="background:#ccfbf1;color:#134e4a;border-color:#5eead4">Publish toggle ON</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-node" style="background:#dcfce7;color:#14532d;border-color:#86efac">Visible to eligible students only</span>
+        </div>
+
+        <div class="flow-item">
+          <span class="flow-node" style="background:#fce7f3;color:#9f1239;border-color:#fbcfe8">Subscription nears renewal</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-node" style="background:#fff7ed;color:#c2410c;border-color:#fed7aa">Admin dashboard bell</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-node" style="background:#fef3c7;color:#92400e;border-color:#fde68a">Send Reminder (WhatsApp / Email)</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-node" style="background:#ede9fe;color:#463a7a;border-color:#c4b5fd">Student sees Renew CTA</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-node" style="background:#dcfce7;color:#14532d;border-color:#86efac">Payment → new Invoice</span>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       ER RELATIONSHIP SUMMARY
+  ════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="layer-label"><span>Entity Relationships (key)</span></div>
+    <div style="background:#fff;border-radius:20px;padding:24px 28px;border:1px solid var(--slate200);box-shadow:0 2px 12px rgba(0,0,0,0.04);">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;">
+
+        <div style="font-size:12px;line-height:2;color:var(--slate600);font-family:monospace">
+          <p style="font-weight:900;color:var(--slate900);font-family:var(--font);font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Academics</p>
+          Student →<span style="color:#7c3aed">many</span> StudentEnrollment → Batch<br>
+          Batch → <span style="color:#7c3aed">many</span> ClassSession → Attendance<br>
+          Staff → <span style="color:#7c3aed">many</span> Batch, ClassSession<br>
+          Student → <span style="color:#7c3aed">many</span> StudentProgress → SyllabusContent<br>
+          SyllabusContent → SyllabusModule → Syllabus<br>
+        </div>
+
+        <div style="font-size:12px;line-height:2;color:var(--slate600);font-family:monospace">
+          <p style="font-weight:900;color:var(--slate900);font-family:var(--font);font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Payments ✨</p>
+          Package → <span style="color:#463a7a">many</span> StudentPackage ← Student<br>
+          Package → <span style="color:#463a7a">many</span> Invoice ← Student<br>
+          Package → <span style="color:#463a7a">many</span> Subscription ← Student<br>
+          StudentPackage tracks sessions_used<br>
+          Invoice stores Razorpay payment_id ref<br>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- footer -->
+  <div style="text-align:center;padding-top:20px;color:var(--slate400);font-size:11px;">
+    Vama Academy ERP · HLD v1.0 · ✨ = new modules (Payment System)
+  </div>
+
+</div>
+</body>
+</html>

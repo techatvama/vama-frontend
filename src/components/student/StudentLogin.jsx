@@ -27,6 +27,10 @@ export default function StudentLogin() {
         try {
             const response = await api.post('/student/login', { email, password });
             localStorage.setItem('student', JSON.stringify(response.data.student));
+            // Store JWT token (Phase 1 security)
+            if (response.data.access_token) {
+                localStorage.setItem('student_token', response.data.access_token);
+            }
             navigate('/student-portal');
         } catch (err) {
             setError(err.response?.data?.detail || 'Invalid credentials');
@@ -128,7 +132,7 @@ export default function StudentLogin() {
                                 <input type="checkbox" className="w-5 h-5 rounded-lg bg-white/5 border-white/10 text-indigo-500 focus:ring-0 transition-all" />
                                 <span className="text-xs font-bold text-white/40 group-hover:text-white transition-colors">Remember me</span>
                             </label>
-                            <button type="button" className="text-xs font-bold text-indigo-400 hover:text-indigo-300">Forgot Password?</button>
+                            <button type="button" onClick={() => navigate('/forgot-password')} className="text-xs font-bold text-indigo-400 hover:text-indigo-300">Forgot Password?</button>
                         </div>
 
                         <button

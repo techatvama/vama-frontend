@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useAutoRefresh } from '../../hooks/useAutoRefresh';
 import { api } from '../../lib/api';
 import { parseSubject } from '../../lib/utils';
 import {
@@ -25,28 +26,34 @@ export default function StudentAttendance() {
     const [search, setSearch] = useState('');
     const navigate = useNavigate();
 
+    const [studentId, setStudentId] = useState(null);
+
     useEffect(() => {
         const stored = localStorage.getItem('student');
         if (stored) {
             const s = JSON.parse(stored);
             setStudent(s);
-            fetchAttendance(s.id);
+            setStudentId(s.id);
         } else {
             navigate('/student-login');
         }
     }, [navigate]);
 
-    const fetchAttendance = async (studentId) => {
-        setLoading(true);
+    const fetchAttendance = useCallback(async (isRefresh = false) => {
+        if (!studentId) return;
+        if (!isRefresh) setLoading(true);
         try {
             const res = await api.get(`/student/${studentId}/attendance`);
             setAttendance(res.data);
         } catch (err) {
             console.error(err);
         } finally {
-            setLoading(false);
+            if (!isRefresh) setLoading(false);
         }
-    };
+    }, [studentId]);
+
+    useEffect(() => { if (studentId) fetchAttendance(); }, [studentId, fetchAttendance]);
+    useAutoRefresh(fetchAttendance, 45000);
 
     const filteredAttendance = attendance.filter(a => {
         const matchesSearch = parseSubject(a.session?.batch?.subject)?.toLowerCase().includes(search.toLowerCase()) ||

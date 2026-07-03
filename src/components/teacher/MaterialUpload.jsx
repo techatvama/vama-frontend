@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { api, API_BASE } from '../../lib/api';
 import {
     FileUp,
@@ -12,9 +12,123 @@ import {
     Plus,
     ArrowLeft,
     Search,
-    User
+    User,
+    ChevronDown,
+    Users
 } from 'lucide-react';
 import { useNavigate } from 'react-router';
+
+// Searchable multi-select for students
+function StudentMultiSelect({ students, selected, onChange }) {
+    const [query, setQuery] = useState('');
+    const [open, setOpen] = useState(false);
+    const ref = useRef(null);
+
+    useEffect(() => {
+        const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, []);
+
+    const filtered = students.filter(s =>
+        `${s.first_name} ${s.last_name}`.toLowerCase().includes(query.toLowerCase())
+    );
+
+    const toggle = (id) => {
+        onChange(selected.includes(id) ? selected.filter(x => x !== id) : [...selected, id]);
+    };
+
+    const removeChip = (id) => onChange(selected.filter(x => x !== id));
+
+    return (
+        <div ref={ref} className="relative">
+            {/* Selected chips */}
+            {selected.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                    {selected.map(id => {
+                        const s = students.find(st => st.id === id);
+                        if (!s) return null;
+                        return (
+                            <span key={id} className="inline-flex items-center gap-1 px-2.5 py-1 bg-indigo-100 text-indigo-700 text-xs font-semibold rounded-full">
+                                {s.first_name} {s.last_name}
+                                <button type="button" onClick={() => removeChip(id)} className="hover:text-indigo-900">
+                                    <X className="w-3 h-3" />
+                                </button>
+                            </span>
+                        );
+                    })}
+                </div>
+            )}
+
+            {/* Trigger */}
+            <button
+                type="button"
+                onClick={() => setOpen(o => !o)}
+                className="w-full flex items-center justify-between px-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-semibold text-slate-700 focus:outline-none"
+            >
+                <span className="flex items-center gap-2 text-slate-500">
+                    <Users className="w-4 h-4" />
+                    {selected.length === 0
+                        ? 'All Students'
+                        : `${selected.length} student${selected.length > 1 ? 's' : ''} selected`}
+                </span>
+                <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+            </button>
+
+            {/* Dropdown */}
+            {open && (
+                <div className="absolute z-50 mt-2 w-full bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden">
+                    <div className="p-2 border-b border-slate-100">
+                        <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                            <input
+                                autoFocus
+                                value={query}
+                                onChange={e => setQuery(e.target.value)}
+                                placeholder="Search students..."
+                                className="w-full pl-9 pr-3 py-2 text-sm bg-slate-50 rounded-xl focus:outline-none border border-slate-100"
+                            />
+                        </div>
+                    </div>
+                    <div className="max-h-52 overflow-y-auto">
+                        {filtered.length === 0 ? (
+                            <p className="p-4 text-xs text-slate-400 text-center italic">No students found</p>
+                        ) : (
+                            filtered.map(s => {
+                                const checked = selected.includes(s.id);
+                                return (
+                                    <button
+                                        key={s.id}
+                                        type="button"
+                                        onClick={() => toggle(s.id)}
+                                        className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-slate-50 transition-colors ${checked ? 'bg-indigo-50' : ''}`}
+                                    >
+                                        <div className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${checked ? 'bg-indigo-600 border-indigo-600' : 'border-slate-300'}`}>
+                                            {checked && <CheckCircle2 className="w-3 h-3 text-white" />}
+                                        </div>
+                                        <span className="font-medium text-slate-800">{s.first_name} {s.last_name}</span>
+                                        {s.instrument && <span className="ml-auto text-xs text-slate-400">{s.instrument}</span>}
+                                    </button>
+                                );
+                            })
+                        )}
+                    </div>
+                    {selected.length > 0 && (
+                        <div className="p-2 border-t border-slate-100">
+                            <button
+                                type="button"
+                                onClick={() => { onChange([]); setOpen(false); }}
+                                className="w-full text-xs text-red-500 hover:text-red-700 font-semibold py-1"
+                            >
+                                Clear all
+                            </button>
+                        </div>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+}
 
 export default function MaterialUpload() {
     const [teacher, setTeacher] = useState(null);
@@ -24,12 +138,12 @@ export default function MaterialUpload() {
     const [uploading, setUploading] = useState(false);
     const navigate = useNavigate();
 
-    // Form State
     const [title, setTitle] = useState('');
-    const [selectedStudent, setSelectedStudent] = useState('');
+    const [selectedStudents, setSelectedStudents] = useState([]);
     const [file, setFile] = useState(null);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
 
     useEffect(() => {
         const stored = localStorage.getItem('teacher');
@@ -41,9 +155,7 @@ export default function MaterialUpload() {
     }, [navigate]);
 
     useEffect(() => {
-        if (teacher) {
-            fetchData();
-        }
+        if (teacher) fetchData();
     }, [teacher]);
 
     const fetchData = async () => {
@@ -72,16 +184,14 @@ export default function MaterialUpload() {
         const formData = new FormData();
         formData.append('file', file);
         formData.append('teacher_id', teacher.id);
-        if (selectedStudent) formData.append('student_id', selectedStudent);
         formData.append('title', title);
+        formData.append('student_ids', selectedStudents.join(','));
 
         try {
-            await api.post('/teacher/upload-material', formData, {
-                headers: { 'Content-Type': 'multipart/form-data' }
-            });
+            await api.post('/teacher/upload-material', formData);
             setSuccess(true);
             setTitle('');
-            setSelectedStudent('');
+            setSelectedStudents([]);
             setFile(null);
             fetchData();
             setTimeout(() => setSuccess(false), 3000);
@@ -93,7 +203,7 @@ export default function MaterialUpload() {
     };
 
     const getFileIcon = (type) => {
-        switch (type) {
+        switch ((type || '').toLowerCase()) {
             case 'pdf': return <FileText className="w-5 h-5 text-red-500" />;
             case 'image': return <ImageIcon className="w-5 h-5 text-blue-500" />;
             case 'audio': return <AudioIcon className="w-5 h-5 text-purple-500" />;
@@ -101,6 +211,16 @@ export default function MaterialUpload() {
             default: return <FileText className="w-5 h-5 text-slate-400" />;
         }
     };
+
+    const filteredMaterials = materials.filter((m) => {
+        if (!searchQuery.trim()) return true;
+        const q = searchQuery.toLowerCase();
+        const student = students.find(s => s.id === m.student_id);
+        const studentName = student
+            ? `${student.first_name} ${student.last_name}`.toLowerCase()
+            : 'all students';
+        return m.title?.toLowerCase().includes(q) || studentName.includes(q);
+    });
 
     if (!teacher) return null;
 
@@ -154,20 +274,17 @@ export default function MaterialUpload() {
                             </div>
 
                             <div>
-                                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 px-1">Assign to Student (Optional)</label>
-                                <div className="relative">
-                                    <select
-                                        value={selectedStudent}
-                                        onChange={(e) => setSelectedStudent(e.target.value)}
-                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-semibold text-slate-700 appearance-none"
-                                    >
-                                        <option value="">All Students</option>
-                                        {students.map(s => (
-                                            <option key={s.id} value={s.id}>{s.first_name} {s.last_name}</option>
-                                        ))}
-                                    </select>
-                                    <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-                                </div>
+                                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 px-1">
+                                    Assign to Students (Optional)
+                                </label>
+                                <StudentMultiSelect
+                                    students={students}
+                                    selected={selectedStudents}
+                                    onChange={setSelectedStudents}
+                                />
+                                <p className="text-[10px] text-slate-400 mt-1.5 px-1">
+                                    Leave empty to share with all students
+                                </p>
                             </div>
 
                             <div>
@@ -237,7 +354,9 @@ export default function MaterialUpload() {
                                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                                 <input
                                     type="text"
-                                    placeholder="Filter materials..."
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    placeholder="Search by student or title..."
                                     className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-100 rounded-xl focus:outline-none text-sm"
                                 />
                             </div>
@@ -247,9 +366,9 @@ export default function MaterialUpload() {
                             <div className="p-12 space-y-4">
                                 {[1, 2, 3, 4].map(i => <div key={i} className="h-20 bg-slate-50 animate-pulse rounded-2xl" />)}
                             </div>
-                        ) : materials.length > 0 ? (
+                        ) : filteredMaterials.length > 0 ? (
                             <div className="p-4 grid grid-cols-1 gap-4">
-                                {materials.map((m) => {
+                                {filteredMaterials.map((m) => {
                                     const student = students.find(s => s.id === m.student_id);
                                     return (
                                         <div
@@ -284,6 +403,11 @@ export default function MaterialUpload() {
                                         </div>
                                     );
                                 })}
+                            </div>
+                        ) : materials.length > 0 ? (
+                            <div className="flex flex-col items-center justify-center py-32 opacity-40">
+                                <Search className="w-16 h-16 mb-4" />
+                                <p className="font-bold text-lg">No results for "{searchQuery}"</p>
                             </div>
                         ) : (
                             <div className="flex flex-col items-center justify-center py-32 opacity-30">
