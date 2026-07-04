@@ -261,6 +261,30 @@ function OrgSettings({ flash, isSuperAdmin, centerName }) {
                     </div>
                 </div>
 
+                {/* Razorpay Integration (super admin only) */}
+                {isSuperAdmin && (
+                    <div>
+                        <p className="text-xs font-black text-slate-500 uppercase tracking-widest mb-3">Razorpay Integration</p>
+                        <div className="bg-slate-50 rounded-2xl p-4 space-y-3">
+                            <p className="text-xs text-slate-400 font-bold">Students can pay online via Razorpay. Enter your live keys from the <a href="https://dashboard.razorpay.com" target="_blank" rel="noreferrer" className="text-[#463a7a] underline">Razorpay Dashboard</a>.</p>
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest block mb-1">Key ID (rzp_live_...)</label>
+                                    <input value={form.razorpay_key_id || ''} onChange={e => setForm({ ...form, razorpay_key_id: e.target.value })} placeholder="rzp_live_xxxxxxxxxxxx" className={`${input} font-mono text-xs`} />
+                                </div>
+                                <div>
+                                    <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest block mb-1">Key Secret</label>
+                                    <input type="password" value={form.razorpay_key_secret || ''} onChange={e => setForm({ ...form, razorpay_key_secret: e.target.value })} placeholder="••••••••••••••••••••" className={`${input} font-mono text-xs`} />
+                                </div>
+                            </div>
+                            <label className="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" checked={form.razorpay_enabled === 'true' || form.razorpay_enabled === true} onChange={e => setForm({ ...form, razorpay_enabled: String(e.target.checked) })} className="w-4 h-4 accent-[#463a7a]" />
+                                <span className="text-xs font-black text-slate-700">Enable Razorpay online payments in student portal</span>
+                            </label>
+                        </div>
+                    </div>
+                )}
+
                 <button onClick={save} disabled={saving} className="bg-[#463a7a] text-white rounded-2xl px-6 py-3 font-black text-sm flex items-center gap-2 disabled:opacity-50">
                     {saving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />} Save Settings
                 </button>

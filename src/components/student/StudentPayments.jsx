@@ -555,6 +555,27 @@ export default function StudentPayments() {
                         </div>
                     )}
 
+                    {/* Queued package (starts after current is exhausted) */}
+                    {payData?.queued_package && (
+                        <div className="bg-white rounded-[28px] border-2 border-dashed border-violet-200 shadow-md p-5">
+                            <div className="flex items-center gap-3 mb-3">
+                                <div className="w-9 h-9 rounded-2xl bg-violet-100 flex items-center justify-center flex-shrink-0">
+                                    <Clock size={16} className="text-violet-600" />
+                                </div>
+                                <div>
+                                    <p className="text-[10px] font-black text-violet-500 uppercase tracking-widest">Queued — Starts After Current Package</p>
+                                    <p className="text-sm font-black text-slate-900">{payData.queued_package.name}</p>
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-3 gap-2 text-center bg-violet-50 rounded-2xl p-3">
+                                <div><p className="text-[10px] font-black text-slate-400 mb-0.5">Sessions</p><p className="text-sm font-black text-slate-900">{payData.queued_package.sessions_total}</p></div>
+                                <div><p className="text-[10px] font-black text-slate-400 mb-0.5">Starts</p><p className="text-sm font-black text-slate-900">{payData.queued_package.start_date}</p></div>
+                                <div><p className="text-[10px] font-black text-slate-400 mb-0.5">Price</p><p className="text-sm font-black text-[#463a7a]">₹{payData.queued_package.price?.toLocaleString('en-IN')}</p></div>
+                            </div>
+                            <p className="text-[11px] text-slate-400 mt-3 text-center">This package will activate automatically once your current package is fully used.</p>
+                        </div>
+                    )}
+
                     {/* Enrollment-based fee packages (grade/subject matched) */}
                     {payData?.enrollment_packages?.filter(ep => ep.fee_package_name).length > 0 && (
                         <div className="bg-white rounded-[28px] border border-slate-100 shadow-lg overflow-hidden">
@@ -714,8 +735,10 @@ export default function StudentPayments() {
                                 </div>
                                 {inv.paid_date && <p className="text-xs font-bold text-emerald-600 flex items-center gap-1.5 mb-3"><CheckCircle2 size={11} />Paid {format(new Date(inv.paid_date), 'MMMM d, yyyy')}</p>}
                                 <div className="flex gap-2">
-                                    <button className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-2xl text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-1.5">
-                                        <Download size={12} /> Receipt
+                                    <button
+                                        onClick={() => window.open(`${import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'}/student/invoices/${inv.id}/html`, '_blank')}
+                                        className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-2xl text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-1.5">
+                                        <Download size={12} /> Receipt / PDF
                                     </button>
                                     {inv.status === 'pending' && (
                                         <button
@@ -743,7 +766,7 @@ export default function StudentPayments() {
                         className={`pointer-events-auto w-full py-4 rounded-3xl font-black text-sm uppercase tracking-widest shadow-2xl flex items-center justify-center gap-2.5 transition-all hover:scale-[1.02] active:scale-[0.98]
                             ${needsRenewal ? 'bg-red-600 text-white' : 'bg-gradient-to-r from-[#463a7a] to-violet-600 text-white'}`}>
                         <Zap size={18} />
-                        {needsRenewal ? 'Package Expired — Renew Now' : isLow ? `Renew — ${sessionsRemaining} Session${sessionsRemaining !== 1 ? 's' : ''} Left` : pkg ? 'Change / Upgrade Package' : 'Browse & Subscribe'}
+                        {needsRenewal ? 'Package Expired — Renew Now' : isLow ? `Renew — ${sessionsRemaining} Session${sessionsRemaining !== 1 ? 's' : ''} Left` : pkg ? 'Renew Package' : 'Browse Packages'}
                     </button>
                 </div>
             )}

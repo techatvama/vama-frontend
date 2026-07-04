@@ -17,6 +17,7 @@ import {
     Loader2,
     Users,
     Package,
+    RefreshCw,
     AlertTriangle
 } from 'lucide-react';
 import { format, differenceInDays } from 'date-fns';
@@ -122,6 +123,27 @@ export default function StudentDashboard() {
                         <p className="text-indigo-100/60 font-medium text-sm sm:text-lg max-w-md">
                             You have {todaySessions.length === 0 ? 'no' : todaySessions.length} sessions scheduled for today. Keep up the momentum!
                         </p>
+                        {/* Compact package stats */}
+                        {activePackage && (
+                            <div className="flex items-center gap-3 flex-wrap mt-2">
+                                <div className="flex items-center gap-2 px-3 py-1.5 bg-white/10 backdrop-blur-sm rounded-2xl border border-white/20">
+                                    <Package size={13} className="text-indigo-300" />
+                                    <span className="text-white font-black text-xs">
+                                        {activePackage.sessions_remaining ?? (activePackage.sessions_total - activePackage.sessions_used)}
+                                        <span className="text-white/50 font-medium"> / {activePackage.sessions_total} classes left</span>
+                                    </span>
+                                </div>
+                                {activePackage.makeup_remaining > 0 && (
+                                    <div className="flex items-center gap-2 px-3 py-1.5 bg-white/10 backdrop-blur-sm rounded-2xl border border-white/20">
+                                        <RefreshCw size={13} className="text-violet-300" />
+                                        <span className="text-white font-black text-xs">
+                                            {activePackage.makeup_remaining}
+                                            <span className="text-white/50 font-medium"> makeup{activePackage.makeup_remaining !== 1 ? 's' : ''}</span>
+                                        </span>
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
 
                     <div className="p-1.5 bg-white/10 backdrop-blur-md rounded-[32px] sm:rounded-[40px] border border-white/10 shadow-inner self-start lg:self-auto">
