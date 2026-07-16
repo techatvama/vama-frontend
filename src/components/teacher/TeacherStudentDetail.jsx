@@ -66,10 +66,14 @@ export default function TeacherStudentDetail() {
     const handleUpdate = async () => {
         setSaving(true);
         try {
+            const teacher = JSON.parse(localStorage.getItem('teacher') || 'null');
+            const admin = JSON.parse(localStorage.getItem('admin') || 'null');
+            const changedBy = teacher?.name || admin?.name || '';
             await api.put(`/students/${studentId}`, {
                 current_grade: grade,
                 syllabus_type: syllabus,
                 is_exam_student: isExam,
+                changed_by: changedBy,
             });
             setSuccess(true);
             setProgressKey(k => k + 1);
@@ -309,7 +313,15 @@ export default function TeacherStudentDetail() {
                                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Live Progress</span>
                             </div>
                             <div className="p-4 sm:p-6">
-                                <StudentProgressEditor key={progressKey} studentIdFromProps={studentId} allowAddContent={true} />
+                                <StudentProgressEditor
+                                    key={progressKey}
+                                    studentIdFromProps={studentId}
+                                    allowAddContent={true}
+                                    onGradeChange={(newGrade) => {
+                                        setGrade(newGrade);
+                                        setProgressKey(k => k + 1);
+                                    }}
+                                />
                             </div>
                         </div>
                     </div>

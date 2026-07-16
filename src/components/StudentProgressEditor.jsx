@@ -15,7 +15,9 @@ import {
     FaComment,
     FaTrash,
     FaSearch,
-    FaExclamationTriangle
+    FaExclamationTriangle,
+    FaTrophy,
+    FaArrowUp
 } from 'react-icons/fa'
 import { api } from '../lib/api';
 
@@ -288,8 +290,51 @@ function SyllabusSection({ section, onUpdateProgress, disabled, allowAddContent,
     )
 }
 
+// Grade History Timeline Component
+function GradeHistoryTimeline({ gradeHistory, loading }) {
+    if (loading) return (
+        <div className="flex justify-center py-6">
+            <div className="w-5 h-5 border-2 border-[#463a7a]/20 border-t-[#463a7a] rounded-full animate-spin" />
+        </div>
+    )
+    if (!gradeHistory.length) return (
+        <p className="text-xs text-slate-400 italic text-center py-4">No grade changes recorded yet</p>
+    )
+    return (
+        <div className="space-y-3">
+            {gradeHistory.map((h, i) => (
+                <div key={h.id} className="flex gap-3">
+                    <div className="flex flex-col items-center">
+                        <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${h.change_type === 'auto_promote' ? 'bg-emerald-100 text-emerald-600' : 'bg-purple-100 text-purple-600'}`}>
+                            {h.change_type === 'auto_promote' ? <FaTrophy size={11} /> : <FaArrowUp size={11} />}
+                        </div>
+                        {i < gradeHistory.length - 1 && <div className="w-px flex-1 bg-slate-100 mt-1" />}
+                    </div>
+                    <div className="pb-4 flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                            {h.from_grade && (
+                                <>
+                                    <span className="text-xs font-medium text-slate-500">{h.from_grade}</span>
+                                    <span className="text-slate-300 text-xs">→</span>
+                                </>
+                            )}
+                            <span className="text-xs font-bold text-[#463a7a]">{h.to_grade}</span>
+                            <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wide ${h.change_type === 'auto_promote' ? 'bg-emerald-100 text-emerald-700' : 'bg-purple-100 text-purple-700'}`}>
+                                {h.change_type === 'auto_promote' ? 'Auto' : 'Manual'}
+                            </span>
+                        </div>
+                        {h.changed_by && <p className="text-[10px] text-slate-400 mt-0.5">by {h.changed_by}</p>}
+                        {h.notes && <p className="text-[10px] text-slate-500 mt-0.5 italic">{h.notes}</p>}
+                        <p className="text-[9px] text-slate-300 mt-0.5">{new Date(h.changed_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                    </div>
+                </div>
+            ))}
+        </div>
+    )
+}
+
 // Main Component
-export default function StudentProgressEditor({ studentIdFromProps, allowAddContent = false }) {
+export default function StudentProgressEditor({ studentIdFromProps, allowAddContent = false, onGradeChange }) {
     const [students, setStudents] = useState([])
     const [selectedStudentId, setSelectedStudentId] = useState(studentIdFromProps || '')
     const [data, setData] = useState(null)
@@ -297,6 +342,11 @@ export default function StudentProgressEditor({ studentIdFromProps, allowAddCont
     const [error, setError] = useState(null)
     const [updating, setUpdating] = useState(false)
     const [retryCount, setRetryCount] = useState(0)
+    const [gradeHistory, setGradeHistory] = useState([])
+    const [historyLoading, setHistoryLoading] = useState(false)
+    const [syllabusComplete, setSyllabusComplete] = useState(false)
+    const [nextGrade, setNextGrade] = useState(null)
+    const [promoting, setPromoting] = useState(false)
 
     // Fetch students on mount
     useEffect(() => {
@@ -336,14 +386,32 @@ export default function StudentProgressEditor({ studentIdFromProps, allowAddCont
         fetchProgress()
     }, [selectedStudentId, studentIdFromProps, retryCount])
 
+    // Fetch grade history when student changes
+    useEffect(() => {
+        const studentId = studentIdFromProps || selectedStudentId;
+        if (!studentId) return
+        const fetchHistory = async () => {
+            setHistoryLoading(true)
+            try {
+                const res = await api.get(`/students/${studentId}/grade-history`)
+                setGradeHistory(res.data)
+            } catch (err) {
+                console.error('Grade history fetch failed', err)
+            } finally {
+                setHistoryLoading(false)
+            }
+        }
+        fetchHistory()
+    }, [selectedStudentId, studentIdFromProps, retryCount])
+
     const updateProgress = async (contentId, updates) => {
         const studentId = studentIdFromProps || selectedStudentId;
         if (!studentId) return;
         setUpdating(true)
         try {
-            await api.post(`/students/${studentId}/progress/${contentId}`, updates)
+            const res = await api.post(`/students/${studentId}/progress/${contentId}`, updates)
 
-            // Optimistic update or refetch
+            // Optimistic update
             setData(prev => {
                 const newData = { ...prev }
                 newData.syllabus.modules = newData.syllabus.modules.map(m => ({
@@ -354,6 +422,12 @@ export default function StudentProgressEditor({ studentIdFromProps, allowAddCont
                 }))
                 return newData
             })
+
+            // Check if syllabus is now fully complete
+            if (res.data.syllabus_complete) {
+                setSyllabusComplete(true)
+                setNextGrade(res.data.next_grade)
+            }
         } catch (err) {
             console.error("Failed to update progress:", err)
         } finally {
@@ -369,6 +443,31 @@ export default function StudentProgressEditor({ studentIdFromProps, allowAddCont
             { name, content_type: contentType }
         )
         setData(res.data)
+        setSyllabusComplete(false)
+    }
+
+    const promoteGrade = async () => {
+        const studentId = studentIdFromProps || selectedStudentId;
+        if (!studentId || !nextGrade) return;
+        setPromoting(true)
+        try {
+            const teacher = JSON.parse(localStorage.getItem('teacher') || 'null')
+            const admin = JSON.parse(localStorage.getItem('admin') || 'null')
+            const changedBy = teacher?.name || admin?.name || ''
+            await api.post(`/teacher/students/${studentId}/promote`, {
+                to_grade: nextGrade,
+                changed_by: changedBy,
+            })
+            setSyllabusComplete(false)
+            setNextGrade(null)
+            setRetryCount(c => c + 1)  // refetch progress + history
+            if (onGradeChange) onGradeChange(nextGrade)
+        } catch (err) {
+            console.error("Promote failed:", err)
+            alert('Failed to promote grade. Please try again.')
+        } finally {
+            setPromoting(false)
+        }
     }
 
     // Calculate overall progress from data
@@ -569,23 +668,34 @@ export default function StudentProgressEditor({ studentIdFromProps, allowAddCont
                                 </div>
                             </div>
 
-                            {/* Action Cards */}
-                            <div className="grid grid-cols-1 gap-4">
-                                <button className="bg-white hover:bg-slate-50 border border-slate-200 p-4 rounded-xl shadow-sm text-left transition-all group">
-                                    <div className="w-10 h-10 bg-amber-50 rounded-lg flex items-center justify-center text-amber-600 mb-3 group-hover:scale-110 transition-transform">
-                                        <FaLightbulb size={18} />
+                            {/* Promote Banner — shows when syllabus is 100% done */}
+                            {syllabusComplete && nextGrade && allowAddContent && (
+                                <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 shadow-sm">
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <FaTrophy className="text-emerald-600" size={16} />
+                                        <h4 className="font-bold text-emerald-800 text-sm">Syllabus Complete!</h4>
                                     </div>
-                                    <h4 className="font-bold text-slate-800 text-sm mb-1">Practice Insights</h4>
-                                    <p className="text-xs text-slate-500">Generate a personalized practice plan based on current progress.</p>
-                                </button>
+                                    <p className="text-xs text-emerald-700 mb-3">
+                                        All topics are done. Ready to move to <strong>{nextGrade}</strong>?
+                                    </p>
+                                    <button
+                                        onClick={promoteGrade}
+                                        disabled={promoting}
+                                        className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
+                                    >
+                                        <FaArrowUp size={10} />
+                                        {promoting ? 'Promoting...' : `Promote to ${nextGrade}`}
+                                    </button>
+                                </div>
+                            )}
 
-                                <button className="bg-white hover:bg-slate-50 border border-slate-200 p-4 rounded-xl shadow-sm text-left transition-all group">
-                                    <div className="w-10 h-10 bg-indigo-50 rounded-lg flex items-center justify-center text-indigo-600 mb-3 group-hover:scale-110 transition-transform">
-                                        <FaHistory size={18} />
-                                    </div>
-                                    <h4 className="font-bold text-slate-800 text-sm mb-1">Full Activity Log</h4>
-                                    <p className="text-xs text-slate-500">Review detailed history of all status changes and teacher notes.</p>
-                                </button>
+                            {/* Grade History */}
+                            <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
+                                <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                                    <div className="w-1 h-4 bg-[#463a7a] rounded-full" />
+                                    Grade History
+                                </h3>
+                                <GradeHistoryTimeline gradeHistory={gradeHistory} loading={historyLoading} />
                             </div>
                         </div>
                     </div>

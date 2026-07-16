@@ -76,12 +76,14 @@ export default function StudentProgress() {
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [expandedModules, setExpandedModules] = useState({});
+    const [gradeHistory, setGradeHistory] = useState([]);
     const navigate = useNavigate();
 
     useEffect(() => {
         const student = JSON.parse(localStorage.getItem('student'));
         if (student) {
             fetchProgress(student.id);
+            fetchGradeHistory(student.id);
         } else {
             navigate('/student-login');
         }
@@ -98,6 +100,15 @@ export default function StudentProgress() {
             console.error(err);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const fetchGradeHistory = async (studentId) => {
+        try {
+            const res = await api.get(`/students/${studentId}/grade-history`);
+            setGradeHistory(res.data);
+        } catch (err) {
+            console.error(err);
         }
     };
 
@@ -349,6 +360,53 @@ export default function StudentProgress() {
                     })}
                 </div>
             </div>
+
+            {/* Grade Journey */}
+            {gradeHistory.length > 0 && (
+                <div className="bg-white rounded-[28px] sm:rounded-[40px] border border-slate-100 shadow-xl shadow-slate-200/50 overflow-hidden">
+                    <div className="p-5 sm:p-8 lg:p-10 border-b border-slate-50">
+                        <div className="flex items-center gap-3 sm:gap-6">
+                            <div className="w-11 h-11 sm:w-16 sm:h-16 rounded-2xl sm:rounded-3xl bg-yellow-50 flex items-center justify-center flex-shrink-0">
+                                <Award className="text-yellow-500 fill-current" size={22} />
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-0.5">Your Journey</p>
+                                <h3 className="text-base sm:text-2xl font-black text-slate-900 tracking-tight">Grade History</h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="p-5 sm:p-8 lg:p-10">
+                        <div className="space-y-4">
+                            {gradeHistory.map((h, i) => (
+                                <div key={h.id} className="flex gap-4">
+                                    <div className="flex flex-col items-center">
+                                        <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-white font-black text-xs ${h.change_type === 'auto_promote' ? 'bg-emerald-500' : 'bg-[#463a7a]'}`}>
+                                            {h.change_type === 'auto_promote' ? '★' : '↑'}
+                                        </div>
+                                        {i < gradeHistory.length - 1 && <div className="w-px flex-1 bg-slate-100 mt-2 mb-1" />}
+                                    </div>
+                                    <div className="pb-4 flex-1">
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                            {h.from_grade && (
+                                                <span className="text-sm text-slate-400 font-bold">{h.from_grade} →</span>
+                                            )}
+                                            <span className="text-sm font-black text-slate-900">{h.to_grade}</span>
+                                            <span className={`text-[9px] px-2 py-0.5 rounded-full font-black uppercase tracking-wide ${h.change_type === 'auto_promote' ? 'bg-emerald-100 text-emerald-700' : 'bg-purple-100 text-purple-700'}`}>
+                                                {h.change_type === 'auto_promote' ? 'Promoted' : 'Updated'}
+                                            </span>
+                                        </div>
+                                        {h.notes && <p className="text-xs text-slate-500 mt-0.5 italic">{h.notes}</p>}
+                                        <p className="text-[10px] text-slate-300 font-bold mt-1 uppercase tracking-widest">
+                                            {new Date(h.changed_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+                                            {h.changed_by && ` · ${h.changed_by}`}
+                                        </p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
