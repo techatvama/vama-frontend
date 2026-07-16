@@ -145,14 +145,20 @@ function SyllabusSection({ section, onUpdateProgress, disabled, allowAddContent,
     const completedWeight = items.filter(i => i.progress?.status === 'done').reduce((sum, i) => sum + (i.weight || 1), 0)
     const progress = totalWeight > 0 ? (completedWeight / totalWeight) * 100 : 0
 
+    const [addError, setAddError] = useState('')
+
     const handleAddItem = async () => {
         if (!newItemName.trim()) return
         setAddingItem(true)
+        setAddError('')
         try {
             await onAddContent(section.id, newItemName.trim(), newItemType)
             setNewItemName('')
             setNewItemType('piece')
             setShowAddForm(false)
+        } catch (err) {
+            const msg = err?.response?.data?.detail || err?.message || 'Failed to add item'
+            setAddError(msg)
         } finally {
             setAddingItem(false)
         }
@@ -235,39 +241,44 @@ function SyllabusSection({ section, onUpdateProgress, disabled, allowAddContent,
                     {allowAddContent && (
                         <div className="p-3 sm:p-4 bg-purple-50/40">
                             {showAddForm ? (
-                                <div className="flex flex-col sm:flex-row gap-2">
-                                    <input
-                                        autoFocus
-                                        value={newItemName}
-                                        onChange={(e) => setNewItemName(e.target.value)}
-                                        onKeyDown={(e) => e.key === 'Enter' && handleAddItem()}
-                                        placeholder="Item name (e.g. C major scale)"
-                                        className="flex-1 px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:border-[#463a7a]"
-                                    />
-                                    <select
-                                        value={newItemType}
-                                        onChange={(e) => setNewItemType(e.target.value)}
-                                        className="px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:border-[#463a7a] bg-white"
-                                    >
-                                        {CONTENT_TYPES.map(t => (
-                                            <option key={t} value={t}>{t}</option>
-                                        ))}
-                                    </select>
-                                    <div className="flex gap-2">
-                                        <button
-                                            onClick={handleAddItem}
-                                            disabled={addingItem || !newItemName.trim()}
-                                            className="px-3 py-1.5 bg-[#463a7a] text-white text-sm rounded-lg hover:bg-[#5a4a9f] disabled:opacity-50 transition-colors"
+                                <div>
+                                    <div className="flex flex-col sm:flex-row gap-2">
+                                        <input
+                                            autoFocus
+                                            value={newItemName}
+                                            onChange={(e) => setNewItemName(e.target.value)}
+                                            onKeyDown={(e) => e.key === 'Enter' && handleAddItem()}
+                                            placeholder="Item name (e.g. C major scale)"
+                                            className="flex-1 px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:border-[#463a7a]"
+                                        />
+                                        <select
+                                            value={newItemType}
+                                            onChange={(e) => setNewItemType(e.target.value)}
+                                            className="px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:border-[#463a7a] bg-white"
                                         >
-                                            {addingItem ? '...' : 'Add'}
-                                        </button>
-                                        <button
-                                            onClick={() => { setShowAddForm(false); setNewItemName('') }}
-                                            className="px-3 py-1.5 bg-slate-200 text-slate-600 text-sm rounded-lg hover:bg-slate-300 transition-colors"
-                                        >
-                                            Cancel
-                                        </button>
+                                            {CONTENT_TYPES.map(t => (
+                                                <option key={t} value={t}>{t}</option>
+                                            ))}
+                                        </select>
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={handleAddItem}
+                                                disabled={addingItem || !newItemName.trim()}
+                                                className="px-3 py-1.5 bg-[#463a7a] text-white text-sm rounded-lg hover:bg-[#5a4a9f] disabled:opacity-50 transition-colors"
+                                            >
+                                                {addingItem ? '...' : 'Add'}
+                                            </button>
+                                            <button
+                                                onClick={() => { setShowAddForm(false); setNewItemName(''); setAddError('') }}
+                                                className="px-3 py-1.5 bg-slate-200 text-slate-600 text-sm rounded-lg hover:bg-slate-300 transition-colors"
+                                            >
+                                                Cancel
+                                            </button>
+                                        </div>
                                     </div>
+                                    {addError && (
+                                        <p className="text-xs text-red-600 mt-1.5 font-medium">{addError}</p>
+                                    )}
                                 </div>
                             ) : (
                                 <button
