@@ -32,7 +32,7 @@ export default function BillingSettings() {
                     ))}
                 </div>
                 {tab === 'modes' && <PaymentModes flash={flash} />}
-                {tab === 'org' && <OrgSettings flash={flash} isSuperAdmin={isSuperAdmin} centerName={admin?.center_name} />}
+                {tab === 'org' && <OrgSettings flash={flash} isSuperAdmin={isSuperAdmin} centerName={admin?.center_name} centerId={admin?.center_id} />}
             </div>
         </div>
     );
@@ -168,7 +168,7 @@ function TemplateEditor({ tpl, onClose, onSave }) {
 }
 
 // ── Academy / GST ──
-function OrgSettings({ flash, isSuperAdmin, centerName }) {
+function OrgSettings({ flash, isSuperAdmin, centerName, centerId }) {
     const [form, setForm] = useState(null);
     const [saving, setSaving] = useState(false);
     const [uploading, setUploading] = useState(false);
@@ -261,33 +261,95 @@ function OrgSettings({ flash, isSuperAdmin, centerName }) {
                     </div>
                 </div>
 
-                {/* Razorpay Integration (super admin only) */}
-                {isSuperAdmin && (
-                    <div>
-                        <p className="text-xs font-black text-slate-500 uppercase tracking-widest mb-3">Razorpay Integration</p>
-                        <div className="bg-slate-50 rounded-2xl p-4 space-y-3">
-                            <p className="text-xs text-slate-400 font-bold">Students can pay online via Razorpay. Enter your live keys from the <a href="https://dashboard.razorpay.com" target="_blank" rel="noreferrer" className="text-[#463a7a] underline">Razorpay Dashboard</a>.</p>
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                                <div>
-                                    <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest block mb-1">Key ID (rzp_live_...)</label>
-                                    <input value={form.razorpay_key_id || ''} onChange={e => setForm({ ...form, razorpay_key_id: e.target.value })} placeholder="rzp_live_xxxxxxxxxxxx" className={`${input} font-mono text-xs`} />
-                                </div>
-                                <div>
-                                    <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest block mb-1">Key Secret</label>
-                                    <input type="password" value={form.razorpay_key_secret || ''} onChange={e => setForm({ ...form, razorpay_key_secret: e.target.value })} placeholder="••••••••••••••••••••" className={`${input} font-mono text-xs`} />
-                                </div>
-                            </div>
-                            <label className="flex items-center gap-2 cursor-pointer">
-                                <input type="checkbox" checked={form.razorpay_enabled === 'true' || form.razorpay_enabled === true} onChange={e => setForm({ ...form, razorpay_enabled: String(e.target.checked) })} className="w-4 h-4 accent-[#463a7a]" />
-                                <span className="text-xs font-black text-slate-700">Enable Razorpay online payments in student portal</span>
-                            </label>
-                        </div>
-                    </div>
-                )}
+                <RazorpaySettings flash={flash} isSuperAdmin={isSuperAdmin} defaultCenterId={centerId} />
 
                 <button onClick={save} disabled={saving} className="bg-[#463a7a] text-white rounded-2xl px-6 py-3 font-black text-sm flex items-center gap-2 disabled:opacity-50">
                     {saving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />} Save Settings
                 </button>
+            </div>
+        </div>
+    );
+}
+
+function RazorpaySettings({ flash, isSuperAdmin, defaultCenterId }) {
+    const [centers, setCenters] = useState([]);
+    const [centerId, setCenterId] = useState(defaultCenterId || null);
+    const [rzp, setRzp] = useState(null);
+    const [saving, setSaving] = useState(false);
+
+    useEffect(() => {
+        if (isSuperAdmin) {
+            api.get('/centers').then(r => {
+                const list = r.data || [];
+                setCenters(list);
+                if (!centerId && list.length > 0) setCenterId(list[0].id);
+            }).catch(() => {});
+        }
+    }, [isSuperAdmin]);
+
+    useEffect(() => {
+        const cid = isSuperAdmin ? centerId : defaultCenterId;
+        const url = cid ? `/admin/razorpay-settings?center_id=${cid}` : '/admin/razorpay-settings';
+        api.get(url).then(r => setRzp(r.data || {})).catch(() => setRzp({}));
+    }, [centerId, defaultCenterId, isSuperAdmin]);
+
+    const save = async () => {
+        if (!rzp) return;
+        setSaving(true);
+        const cid = isSuperAdmin ? centerId : defaultCenterId;
+        try {
+            const res = await api.put('/admin/razorpay-settings', { ...rzp, center_id: cid || null });
+            setRzp(res.data);
+            flash('Razorpay settings saved');
+        } catch { flash('Failed to save Razorpay settings'); }
+        finally { setSaving(false); }
+    };
+
+    if (!rzp) return null;
+
+    const centerLabel = isSuperAdmin
+        ? (centers.find(c => c.id === centerId)?.name || 'Select center')
+        : null;
+
+    return (
+        <div>
+            <p className="text-xs font-black text-slate-500 uppercase tracking-widest mb-3">Razorpay Integration</p>
+            <div className="bg-slate-50 rounded-2xl p-4 space-y-4">
+                <p className="text-xs text-slate-400 font-bold">
+                    Each center can have its own Razorpay account. Get your keys from the{' '}
+                    <a href="https://dashboard.razorpay.com" target="_blank" rel="noreferrer" className="text-[#463a7a] underline">Razorpay Dashboard</a>.
+                </p>
+
+                {isSuperAdmin && centers.length > 0 && (
+                    <div>
+                        <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest block mb-1">Configure for Center</label>
+                        <select value={centerId || ''} onChange={e => setCenterId(Number(e.target.value))} className={`${input} text-sm`}>
+                            {centers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </select>
+                        {centerLabel && <p className="text-[11px] text-slate-400 mt-1">Keys below apply only to <b>{centerLabel}</b>. Unconfigured centers fall back to the global keys.</p>}
+                    </div>
+                )}
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <div>
+                        <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest block mb-1">Key ID (rzp_live_...)</label>
+                        <input value={rzp.key_id || ''} onChange={e => setRzp({ ...rzp, key_id: e.target.value })} placeholder="rzp_live_xxxxxxxxxxxx" className={`${input} font-mono text-xs`} />
+                    </div>
+                    <div>
+                        <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest block mb-1">Key Secret</label>
+                        <input type="password" value={rzp.key_secret || ''} onChange={e => setRzp({ ...rzp, key_secret: e.target.value })} placeholder="••••••••••••••••••••" className={`${input} font-mono text-xs`} />
+                    </div>
+                </div>
+
+                <div className="flex items-center justify-between">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked={rzp.enabled === 'true' || rzp.enabled === true} onChange={e => setRzp({ ...rzp, enabled: String(e.target.checked) })} className="w-4 h-4 accent-[#463a7a]" />
+                        <span className="text-xs font-black text-slate-700">Enable online payments for this center</span>
+                    </label>
+                    <button onClick={save} disabled={saving} className="bg-[#463a7a] text-white rounded-xl px-4 py-2 text-xs font-black flex items-center gap-2 disabled:opacity-50">
+                        {saving ? <Loader2 className="animate-spin" size={13} /> : <Save size={13} />} Save
+                    </button>
+                </div>
             </div>
         </div>
     );

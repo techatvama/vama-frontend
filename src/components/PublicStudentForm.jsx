@@ -2,49 +2,95 @@ import { useState, useEffect } from 'react';
 import { api } from '../lib/api';
 import { Loader2, CheckCircle2, AlertCircle, Music, MapPin } from 'lucide-react';
 
-const initialForm = {
-    first_name: '', last_name: '', email: '', primary_phone_number: '',
-    guardian_email: '', emergency_contact: '',
-    date_of_birth: '', gender: '',
-    parent_name: '',
-    address: '', city: '', state: '',
-    desired_course: '', class_frequency: '',
-    nearest_vama_center: '', preferred_mode_of_contact: '',
-    blood_group: '', allergies: '',
-    referrer: '', notes: '',
-};
-
 const FIELD = "w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#463a7a]/15 focus:border-transparent transition-all";
 const LABEL = "text-[11px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block";
 
+function DynField({ field, value, onChange, centers, subjects }) {
+    const { key, label, type, required, options } = field;
+    const inputProps = {
+        id: key,
+        value: value || '',
+        onChange: e => onChange(key, e.target.value),
+        required: !!required,
+        className: FIELD,
+    };
+
+    if (type === 'select_subjects') {
+        return (
+            <select {...inputProps}>
+                <option value="">Select a course</option>
+                {subjects.length > 0
+                    ? subjects.map(s => <option key={s.id} value={s.name}>{s.name}</option>)
+                    : ['Guitar', 'Piano', 'Vocals', 'Violin', 'Drums', 'Keyboard'].map(s => (
+                        <option key={s} value={s}>{s}</option>
+                    ))
+                }
+            </select>
+        );
+    }
+
+    if (type === 'select_centers') {
+        return (
+            <select {...inputProps}>
+                <option value="">Select a center</option>
+                {centers.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+            </select>
+        );
+    }
+
+    if (type === 'select') {
+        return (
+            <select {...inputProps}>
+                <option value="">Select…</option>
+                {(options || []).map(o => <option key={o} value={o}>{o}</option>)}
+            </select>
+        );
+    }
+
+    if (type === 'textarea') {
+        return (
+            <textarea rows={3} {...inputProps} className={`${FIELD} resize-none`} />
+        );
+    }
+
+    return <input type={type || 'text'} {...inputProps} />;
+}
+
 export default function PublicStudentForm() {
-    const [form, setForm] = useState(initialForm);
+    const [formConfig, setFormConfig] = useState(null);
+    const [form, setForm] = useState({});
     const [centers, setCenters] = useState([]);
     const [subjects, setSubjects] = useState([]);
-    const [lockedCenter, setLockedCenter] = useState(null); // pre-selected from URL
+    const [lockedCenter, setLockedCenter] = useState(null);
     const [submitting, setSubmitting] = useState(false);
     const [done, setDone] = useState(false);
     const [error, setError] = useState('');
 
     useEffect(() => {
-        // Load centers and subjects in parallel
+        const params = new URLSearchParams(window.location.search);
+        const centerParam = params.get('center');
+
         Promise.all([
             api.get('/centers').catch(() => ({ data: [] })),
             api.get('/admin/subjects').catch(() => ({ data: [] })),
-        ]).then(([centersRes, subjectsRes]) => {
+            api.get('/public/form-config', { params: centerParam ? { center: centerParam } : {} }).catch(() => ({ data: null })),
+        ]).then(([centersRes, subjectsRes, configRes]) => {
             const loadedCenters = centersRes.data || [];
+            const config = configRes.data;
             setCenters(loadedCenters);
             setSubjects(subjectsRes.data || []);
+            setFormConfig(Array.isArray(config) ? config : null);
 
-            // Check URL for ?center= param and pre-select
-            const params = new URLSearchParams(window.location.search);
-            const centerParam = params.get('center');
+            // Initialize form values
+            const initial = {};
+            (Array.isArray(config) ? config : []).forEach(f => { initial[f.key] = ''; });
+            setForm(initial);
+
             if (centerParam) {
-                // Match by id or name (case-insensitive)
                 const match = loadedCenters.find(
                     c => String(c.id) === centerParam ||
-                         c.name.toLowerCase() === centerParam.toLowerCase() ||
-                         c.name.toLowerCase().replace(/\s+/g, '-') === centerParam.toLowerCase()
+                        c.name.toLowerCase() === centerParam.toLowerCase() ||
+                        c.name.toLowerCase().replace(/\s+/g, '-') === centerParam.toLowerCase()
                 );
                 if (match) {
                     setLockedCenter(match);
@@ -54,7 +100,7 @@ export default function PublicStudentForm() {
         });
     }, []);
 
-    const set = (field) => (e) => setForm(f => ({ ...f, [field]: e.target.value }));
+    const setField = (key, val) => setForm(f => ({ ...f, [key]: val }));
 
     const submit = async (e) => {
         e.preventDefault();
@@ -92,6 +138,16 @@ export default function PublicStudentForm() {
         );
     }
 
+    if (!formConfig) {
+        return (
+            <div className="min-h-screen bg-[#f4f3f8] flex items-center justify-center">
+                <Loader2 className="animate-spin text-[#463a7a]" size={36} />
+            </div>
+        );
+    }
+
+    const enabledFields = formConfig.filter(f => f.enabled !== false).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
     return (
         <div className="min-h-screen bg-[#f4f3f8] flex items-center justify-center p-4 py-10">
             <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-2xl overflow-hidden">
@@ -111,176 +167,40 @@ export default function PublicStudentForm() {
                     )}
                 </div>
 
-                <form onSubmit={submit} className="p-7 space-y-6">
+                <form onSubmit={submit} className="p-7 space-y-5">
                     {error && (
                         <div className="bg-red-50 border border-red-200 text-red-600 p-3 rounded-2xl text-sm font-bold flex items-center gap-2">
                             <AlertCircle size={15} /> {error}
                         </div>
                     )}
 
-                    {/* Personal */}
-                    <Section title="Personal Details">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label className={LABEL}>First Name *</label>
-                                <input required className={FIELD} value={form.first_name} onChange={set('first_name')} placeholder="Jane" />
-                            </div>
-                            <div>
-                                <label className={LABEL}>Last Name *</label>
-                                <input required className={FIELD} value={form.last_name} onChange={set('last_name')} placeholder="Doe" />
-                            </div>
-                            <div>
-                                <label className={LABEL}>Date of Birth</label>
-                                <input type="date" className={FIELD} value={form.date_of_birth} onChange={set('date_of_birth')} />
-                            </div>
-                            <div>
-                                <label className={LABEL}>Gender</label>
-                                <select className={FIELD} value={form.gender} onChange={set('gender')}>
-                                    <option value="">Select…</option>
-                                    <option>Male</option>
-                                    <option>Female</option>
-                                    <option>Other</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label className={LABEL}>Parent / Guardian Name</label>
-                                <input className={FIELD} value={form.parent_name} onChange={set('parent_name')} />
-                            </div>
-                            <div>
-                                <label className={LABEL}>Guardian Email</label>
-                                <input type="email" className={FIELD} value={form.guardian_email} onChange={set('guardian_email')} placeholder="For minors / parents" />
-                            </div>
-                        </div>
-                    </Section>
-
-                    {/* Contact */}
-                    <Section title="Contact">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="md:col-span-2">
-                                <label className={LABEL}>Email *</label>
-                                <input required type="email" className={FIELD} value={form.email} onChange={set('email')} placeholder="jane.doe@example.com" />
-                            </div>
-                            <div>
-                                <label className={LABEL}>Phone *</label>
-                                <input required type="tel" className={FIELD} value={form.primary_phone_number} onChange={set('primary_phone_number')} placeholder="+91 98765 43210" />
-                            </div>
-                            <div>
-                                <label className={LABEL}>Emergency Contact</label>
-                                <input type="tel" className={FIELD} value={form.emergency_contact} onChange={set('emergency_contact')} />
-                            </div>
-                            <div>
-                                <label className={LABEL}>Preferred Contact Mode</label>
-                                <select className={FIELD} value={form.preferred_mode_of_contact} onChange={set('preferred_mode_of_contact')}>
-                                    <option value="">Select…</option>
-                                    <option>Email</option>
-                                    <option>Phone</option>
-                                    <option>WhatsApp</option>
-                                </select>
-                            </div>
-                        </div>
-                    </Section>
-
-                    {/* Address */}
-                    <Section title="Address">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="md:col-span-2">
-                                <label className={LABEL}>Street Address</label>
-                                <textarea rows={2} className={`${FIELD} resize-none`} value={form.address} onChange={set('address')} />
-                            </div>
-                            <div>
-                                <label className={LABEL}>City</label>
-                                <input className={FIELD} value={form.city} onChange={set('city')} />
-                            </div>
-                            <div>
-                                <label className={LABEL}>State</label>
-                                <input className={FIELD} value={form.state} onChange={set('state')} />
-                            </div>
-                        </div>
-                    </Section>
-
-                    {/* Course */}
-                    <Section title="Course Preferences">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label className={LABEL}>Desired Course *</label>
-                                <select required className={FIELD} value={form.desired_course} onChange={set('desired_course')}>
-                                    <option value="">Select a course</option>
-                                    {subjects.length > 0
-                                        ? subjects.map(s => <option key={s.id} value={s.name}>{s.name}</option>)
-                                        : ['Guitar', 'Piano', 'Vocals', 'Violin', 'Drums', 'Keyboard'].map(s => (
-                                            <option key={s} value={s}>{s}</option>
-                                        ))
-                                    }
-                                </select>
-                            </div>
-                            <div>
-                                <label className={LABEL}>Class Frequency</label>
-                                <select className={FIELD} value={form.class_frequency} onChange={set('class_frequency')}>
-                                    <option value="">Select…</option>
-                                    <option>Weekly</option>
-                                    <option>Bi-Weekly</option>
-                                    <option>Monthly</option>
-                                </select>
-                            </div>
-
-                            {/* Center — locked if accessed via center-specific link */}
-                            <div className="md:col-span-2">
-                                <label className={LABEL}>Nearest Vama Center *</label>
-                                {lockedCenter ? (
-                                    <div className="flex items-center gap-2 px-4 py-3 bg-[#463a7a]/5 border border-[#463a7a]/20 rounded-2xl">
-                                        <MapPin size={15} className="text-[#463a7a] flex-shrink-0" />
-                                        <span className="text-sm font-black text-[#463a7a]">{lockedCenter.name}</span>
-                                        <span className="ml-auto text-[10px] font-black text-slate-400 uppercase tracking-widest">Pre-selected</span>
-                                    </div>
-                                ) : (
-                                    <select required className={FIELD} value={form.nearest_vama_center} onChange={set('nearest_vama_center')}>
-                                        <option value="">Select a center</option>
-                                        {centers.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-                                    </select>
-                                )}
-                            </div>
-                        </div>
-                    </Section>
-
-                    {/* Health */}
-                    <Section title="Health Info">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label className={LABEL}>Blood Group</label>
-                                <select className={FIELD} value={form.blood_group} onChange={set('blood_group')}>
-                                    <option value="">Select…</option>
-                                    {['A+','A-','B+','B-','AB+','AB-','O+','O-'].map(g => <option key={g}>{g}</option>)}
-                                </select>
-                            </div>
-                            <div>
-                                <label className={LABEL}>Allergies</label>
-                                <input className={FIELD} value={form.allergies} onChange={set('allergies')} placeholder="None / specify if any" />
-                            </div>
-                        </div>
-                    </Section>
-
-                    {/* Other */}
-                    <Section title="Additional Info">
-                        <div className="space-y-4">
-                            <div>
-                                <label className={LABEL}>How did you hear about us?</label>
-                                <select className={FIELD} value={form.referrer} onChange={set('referrer')}>
-                                    <option value="">Select…</option>
-                                    <option>Social Media</option>
-                                    <option>Google Search</option>
-                                    <option>Advertisement</option>
-                                    <option>Referral</option>
-                                    <option>Event</option>
-                                    <option>Returning Student</option>
-                                    <option>Other</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label className={LABEL}>Anything else we should know?</label>
-                                <textarea rows={3} className={`${FIELD} resize-none`} value={form.notes} onChange={set('notes')} placeholder="Goals, prior experience, scheduling constraints…" />
-                            </div>
-                        </div>
-                    </Section>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        {enabledFields.map(field => {
+                            const isLocked = field.key === 'nearest_vama_center' && lockedCenter;
+                            return (
+                                <div key={field.key} className={field.type === 'textarea' || field.type === 'select_centers' ? 'md:col-span-2' : ''}>
+                                    <label className={LABEL} htmlFor={field.key}>
+                                        {field.label}{field.required ? ' *' : ''}
+                                    </label>
+                                    {isLocked ? (
+                                        <div className="flex items-center gap-2 px-4 py-3 bg-[#463a7a]/5 border border-[#463a7a]/20 rounded-2xl">
+                                            <MapPin size={15} className="text-[#463a7a] flex-shrink-0" />
+                                            <span className="text-sm font-black text-[#463a7a]">{lockedCenter.name}</span>
+                                            <span className="ml-auto text-[10px] font-black text-slate-400 uppercase tracking-widest">Pre-selected</span>
+                                        </div>
+                                    ) : (
+                                        <DynField
+                                            field={field}
+                                            value={form[field.key]}
+                                            onChange={setField}
+                                            centers={centers}
+                                            subjects={subjects}
+                                        />
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
 
                     <button type="submit" disabled={submitting}
                         className="w-full bg-[#463a7a] hover:bg-[#3a2f66] active:scale-[0.99] text-white rounded-2xl py-4 font-black text-base transition-all flex items-center justify-center gap-2 disabled:opacity-50 shadow-lg shadow-indigo-900/20">
@@ -295,19 +215,6 @@ export default function PublicStudentForm() {
                     </p>
                 </form>
             </div>
-        </div>
-    );
-}
-
-function Section({ title, children }) {
-    return (
-        <div>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3 flex items-center gap-2">
-                <span className="w-4 h-px bg-slate-200 inline-block" />
-                {title}
-                <span className="flex-1 h-px bg-slate-100 inline-block" />
-            </p>
-            {children}
         </div>
     );
 }

@@ -209,8 +209,8 @@ function RescheduleModal({ session, studentId, onDone, onClose }) {
     const availableCount = slots.filter(s => !s.is_fully_booked).length;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
-            <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-md max-h-[92vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-[90] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
+            <div className="bg-white rounded-t-[32px] sm:rounded-[32px] shadow-2xl w-full sm:max-w-md h-[92dvh] sm:max-h-[88dvh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
 
                 {/* Header */}
                 <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
@@ -396,7 +396,7 @@ function Toast({ message, onDone }) {
         return () => clearTimeout(t);
     }, []);
     return (
-        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[60] flex items-center gap-3 bg-gray-900 text-white px-6 py-3.5 rounded-2xl shadow-2xl font-bold text-sm animate-bounce-in">
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-3 bg-gray-900 text-white px-6 py-3.5 rounded-2xl shadow-2xl font-bold text-sm animate-bounce-in">
             <CheckCircle2 size={18} className="text-emerald-400" />
             {message}
         </div>
@@ -408,24 +408,25 @@ function PackageStatusBanner({ pkg }) {
     if (!pkg) return null;
 
     const { can_book, block_reason, package_name, sessions_remaining, sessions_total,
-            sessions_used, makeup_remaining, makeup_total, end_date, days_left, status } = pkg;
+            sessions_used, makeup_remaining, makeup_total, end_date, days_left } = pkg;
 
-    const pct = sessions_total > 0 ? Math.round((sessions_used / sessions_total) * 100) : 0;
+    const remainPct = sessions_total > 0 ? Math.round((sessions_remaining / sessions_total) * 100) : 0;
 
     if (!can_book) {
         const msg = block_reason === 'expired'
-            ? `Your package expired on ${end_date}.`
+            ? `Package expired on ${end_date}.`
             : block_reason === 'exhausted'
-            ? `All ${sessions_total} sessions used.`
-            : 'No active package.';
+            ? `All ${sessions_total} sessions have been used.`
+            : 'No active package found.';
         return (
             <div className="bg-red-50 border border-red-200 rounded-[28px] p-5 flex items-start gap-4">
                 <div className="w-10 h-10 bg-red-100 rounded-2xl flex items-center justify-center flex-shrink-0">
                     <AlertCircle size={18} className="text-red-500" />
                 </div>
                 <div>
-                    <p className="font-black text-red-700 text-sm">Booking Blocked</p>
-                    <p className="text-red-500 text-xs font-bold mt-0.5">{msg} Contact your center to renew.</p>
+                    <p className="font-black text-red-700 text-sm">Booking Unavailable</p>
+                    <p className="text-red-500 text-xs font-bold mt-0.5">{msg}</p>
+                    <p className="text-red-400 text-[10px] font-black uppercase tracking-widest mt-2">Contact your center to renew</p>
                 </div>
             </div>
         );
@@ -435,40 +436,71 @@ function PackageStatusBanner({ pkg }) {
     const isExpiringSoon = days_left !== null && days_left <= 7;
     const warn = isLow || isExpiringSoon;
 
+    const barColor = isLow ? '#f59e0b' : '#463a7a';
+    const r = 20, circ = 2 * Math.PI * r;
+    const offset = circ - (remainPct / 100) * circ;
+
     return (
-        <div className={`rounded-[28px] p-5 border ${warn ? 'bg-amber-50 border-amber-200' : 'bg-white border-slate-100'} shadow-sm`}>
-            <div className="flex items-center justify-between mb-3">
-                <div>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Active Package</p>
-                    <p className="font-black text-slate-900 text-sm mt-0.5">{package_name}</p>
+        <div className={`rounded-[28px] border shadow-sm overflow-hidden ${warn ? 'bg-amber-50 border-amber-200' : 'bg-white border-slate-100'}`}>
+            <div className="p-5">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Active Package</p>
+                <p className="font-black text-slate-900 text-sm leading-snug">{package_name}</p>
+            </div>
+
+            {/* Stats row */}
+            <div className="flex items-center gap-4 px-5 pb-5">
+                {/* Mini donut */}
+                <div className="relative flex-shrink-0 w-12 h-12">
+                    <svg width="48" height="48" className="-rotate-90">
+                        <circle cx="24" cy="24" r={r} stroke="#f1f5f9" strokeWidth="5" fill="none" />
+                        <circle cx="24" cy="24" r={r} stroke={barColor} strokeWidth="5" fill="none"
+                            strokeDasharray={circ} strokeDashoffset={offset}
+                            strokeLinecap="round" className="transition-all duration-700" />
+                    </svg>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                        <span className="text-[10px] font-black" style={{ color: barColor }}>{sessions_remaining}</span>
+                    </div>
                 </div>
-                <div className="text-right">
-                    <p className={`text-2xl font-black leading-none ${isLow ? 'text-amber-500' : 'text-[#463a7a]'}`}>{sessions_remaining}</p>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">left of {sessions_total}</p>
+
+                <div className="flex-1 space-y-2">
+                    {/* Session bar */}
+                    <div>
+                        <div className="flex justify-between text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                            <span>Classes</span>
+                            <span style={{ color: barColor }}>{sessions_remaining} / {sessions_total} left</span>
+                        </div>
+                        <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                            <div className="h-full rounded-full transition-all duration-700"
+                                style={{ width: `${Math.max(2, remainPct)}%`, backgroundColor: barColor }} />
+                        </div>
+                    </div>
+                    {/* Makeups */}
+                    {makeup_total > 0 && (
+                        <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest">
+                            <span className="text-slate-400">Makeups</span>
+                            <span className={makeup_remaining === 0 ? 'text-red-400' : 'text-slate-500'}>
+                                {makeup_remaining} / {makeup_total}
+                            </span>
+                        </div>
+                    )}
                 </div>
             </div>
-            {/* Progress bar */}
-            <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden mb-3">
-                <div
-                    className={`h-full rounded-full transition-all ${isLow ? 'bg-amber-400' : 'bg-[#463a7a]'}`}
-                    style={{ width: `${Math.max(4, 100 - pct)}%` }}
-                />
-            </div>
-            <div className="flex items-center justify-between text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                <span>{end_date ? `Expires ${end_date}${days_left !== null ? ` · ${days_left}d left` : ''}` : ''}</span>
-                {makeup_total > 0 && (
-                    <span className={makeup_remaining === 0 ? 'text-red-400' : 'text-slate-400'}>
-                        {makeup_remaining}/{makeup_total} makeups
+
+            {/* Footer */}
+            <div className={`px-5 py-3 border-t flex items-center justify-between ${warn ? 'border-amber-200 bg-amber-100/40' : 'border-slate-50 bg-slate-50/60'}`}>
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                    {end_date ? `Expires ${end_date}` : ''}
+                    {days_left !== null ? ` · ${days_left}d left` : ''}
+                </span>
+                {warn && (
+                    <span className="text-[9px] font-black text-amber-600 uppercase tracking-widest">
+                        {isLow && isExpiringSoon
+                            ? `⚠ ${sessions_remaining} left · ${days_left}d`
+                            : isLow ? `⚠ ${sessions_remaining} classes left`
+                            : `⚠ Expires in ${days_left}d`}
                     </span>
                 )}
             </div>
-            {warn && (
-                <p className="mt-2 text-[10px] font-black text-amber-600 uppercase tracking-widest">
-                    {isLow && isExpiringSoon ? `⚠ Only ${sessions_remaining} class${sessions_remaining !== 1 ? 'es' : ''} left · expires in ${days_left} day${days_left !== 1 ? 's' : ''}` :
-                     isLow ? `⚠ Only ${sessions_remaining} class${sessions_remaining !== 1 ? 'es' : ''} remaining — renew soon` :
-                     `⚠ Package expires in ${days_left} day${days_left !== 1 ? 's' : ''}`}
-                </p>
-            )}
         </div>
     );
 }
@@ -671,19 +703,20 @@ export default function StudentSchedule() {
 
                 {/* ── Right panel ── */}
                 <div className="space-y-6">
-                    <PackageStatusBanner pkg={packageStatus} />
 
-                    {/* ── Selected Day Panel ── */}
-                    <div className="bg-white rounded-[40px] shadow-xl shadow-slate-200/60 border border-slate-100 p-8">
-                        <div className="flex items-center justify-between mb-8">
+                    {/* ── Selected Day Panel (FIRST) ── */}
+                    <div className="bg-white rounded-[40px] shadow-xl shadow-slate-200/60 border border-slate-100 overflow-hidden">
+                        {/* Day header */}
+                        <div className="flex items-center justify-between px-7 pt-7 pb-5 border-b border-slate-50">
                             <div>
-                                <h2 className="text-3xl font-black text-slate-900 tracking-tight">{format(selectedDate, 'EEEE')}</h2>
-                                <p className="text-[#463a7a] text-xs font-black uppercase tracking-widest mt-1">{format(selectedDate, 'MMMM d, yyyy')}</p>
+                                <h2 className="text-3xl font-black text-slate-900 tracking-tight leading-none">{format(selectedDate, 'EEEE')}</h2>
+                                <p className="text-[#463a7a] text-[11px] font-black uppercase tracking-widest mt-1.5">{format(selectedDate, 'MMMM d, yyyy')}</p>
                             </div>
-                            <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-[#463a7a]">
-                                <CalendarIcon size={22} />
+                            <div className="w-11 h-11 bg-indigo-50 rounded-2xl flex items-center justify-center text-[#463a7a]">
+                                <CalendarIcon size={20} />
                             </div>
                         </div>
+                        <div className="px-7 pb-7 pt-5">
 
                         {selectedDateSessions.length > 0 ? (
                             <div className="space-y-4">
@@ -768,13 +801,19 @@ export default function StudentSchedule() {
                                 })}
                             </div>
                         ) : (
-                            <div className="py-16 text-center opacity-30">
-                                <Music size={36} className="mx-auto mb-3 text-slate-200" />
-                                <h3 className="text-base font-black uppercase tracking-tight">Day is clear</h3>
-                                <p className="text-[10px] font-black uppercase tracking-widest mt-1">No classes scheduled</p>
+                            <div className="py-12 text-center">
+                                <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                                    <Music size={22} className="text-slate-300" />
+                                </div>
+                                <h3 className="text-sm font-black text-slate-300 uppercase tracking-tight">Day is clear</h3>
+                                <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest mt-1">No classes scheduled</p>
                             </div>
                         )}
+                        </div>{/* end inner px/pb div */}
                     </div>
+
+                    {/* ── Package Status (SECOND) ── */}
+                    <PackageStatusBanner pkg={packageStatus} />
 
                     {/* ── Latest feedback widget ── */}
                     <div className="bg-[#463a7a] rounded-[40px] p-8 text-white relative overflow-hidden shadow-2xl shadow-indigo-900/40">

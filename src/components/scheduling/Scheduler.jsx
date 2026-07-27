@@ -331,17 +331,16 @@ export default function Scheduler() {
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [segmentByTeacher, setSegmentByTeacher] = useState(false);
 
+    // Teachers are static — fetch once on mount only
+    useEffect(() => {
+        api.get('/staff')
+            .then(res => setTeachers(res.data.filter(s => s.calendar !== false)))
+            .catch(console.error);
+    }, []);
+
     useEffect(() => {
         fetchSessions();
-        fetchTeachers();
     }, [currentDate, viewMode, enrollmentFilter]);
-
-    const fetchTeachers = async () => {
-        try {
-            const res = await api.get('/staff');
-            setTeachers(res.data.filter(s => s.calendar !== false));
-        } catch (e) { console.error(e); }
-    };
 
     const fetchSessions = async () => {
         setLoading(true);

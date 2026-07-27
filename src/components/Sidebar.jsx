@@ -121,11 +121,7 @@ export default function Sidebar() {
     { icon: FaBell, label: "Notifications", link: "/notifications" },
     { icon: FaFileAlt, label: "Reports", link: "/reports" },
     { icon: FaCog, label: "Settings", link: "/settings" },
-  ].filter(item => {
-    // Only super admins see global Settings
-    if (item.label === "Settings" && !isSuperAdmin) return false;
-    return true;
-  });
+  ].filter(() => true);
 
   const toggleSubmenu = (label) => {
     setExpandedMenu(expandedMenu === label ? null : label);

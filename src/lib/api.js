@@ -2,8 +2,94 @@ import axios from 'axios';
 export const API_BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
 export const api = axios.create({
     baseURL: API_BASE,
-    timeout: 15000,
+    timeout: 30000,
 });
+
+// ── GET cache — prevents redundant refetches within a TTL window ──────────────
+// Keyed by full URL+params string. Writes (POST/PUT/PATCH/DELETE) to a resource
+// bust the cache for that path prefix.
+const _cache = new Map();           // key → { data, exp }
+const _inflight = new Map();        // key → Promise  (deduplicate concurrent calls)
+
+// Long-lived: stable reference data that rarely changes
+const LONG_TTL_PATHS = [
+    '/centers', '/staff', '/admin/subjects', '/admin/grades',
+    '/admin/payment-modes', '/scheduling/rooms', '/admin/syllabi',
+    '/admin/exam-sessions', '/centers/onboard',
+];
+// Short-lived: per-session/dynamic data
+const SHORT_TTL_PATHS = [
+    '/scheduling/calendar', '/calendar/filtered',
+    '/admin/invoices', '/students', '/admin/student-applications',
+    '/admin/reports', '/attendances', '/admin/subscriptions',
+    '/admin/students-overview',
+];
+
+function ttlFor(url) {
+    if (LONG_TTL_PATHS.some(p => url.startsWith(p)))  return 5 * 60 * 1000; // 5 min
+    if (SHORT_TTL_PATHS.some(p => url.startsWith(p))) return 20 * 1000;     // 20 s
+    return 60 * 1000;  // 1 min default
+}
+
+function cacheKey(url, params) {
+    const p = params && Object.keys(params).length
+        ? '?' + new URLSearchParams(params).toString()
+        : '';
+    return url + p;
+}
+
+// Bust all cache entries whose key starts with any of the given prefixes
+function bustCache(urlPrefixes) {
+    for (const key of _cache.keys()) {
+        if (urlPrefixes.some(p => key.startsWith(p))) _cache.delete(key);
+    }
+}
+
+// Map write endpoints → which cache prefixes they invalidate
+const BUST_MAP = [
+    { match: /\/students/,              busts: ['/students'] },
+    { match: /\/staff/,                 busts: ['/staff'] },
+    { match: /\/batches|\/sessions/,    busts: ['/scheduling/calendar', '/calendar/filtered', '/batches', '/sessions'] },
+    { match: /\/scheduling\/calendar/,  busts: ['/scheduling/calendar'] },
+    { match: /\/attendances/,           busts: ['/attendances', '/scheduling/calendar', '/calendar/filtered'] },
+    { match: /\/admin\/invoices/,       busts: ['/admin/invoices'] },
+    { match: /\/admin\/subscriptions/,  busts: ['/admin/subscriptions', '/students'] },
+    { match: /\/admin\/packages/,       busts: ['/admin/packages'] },
+    { match: /\/centers/,               busts: ['/centers'] },
+    { match: /\/admin\/subjects/,       busts: ['/admin/subjects'] },
+    { match: /\/admin\/grades/,         busts: ['/admin/grades'] },
+    { match: /\/admin\/syllabi/,        busts: ['/admin/syllabi'] },
+    { match: /\/admin\/settings/,       busts: ['/admin/settings'] },
+    { match: /\/admin\/form-config/,    busts: ['/admin/form-config', '/public/form-config'] },
+];
+
+export function clearApiCache() { _cache.clear(); _inflight.clear(); }
+
+// Patched GET that serves from cache when fresh
+const _originalGet = api.get.bind(api);
+api.get = (url, config = {}) => {
+    const key = cacheKey(url, config.params);
+    const now = Date.now();
+
+    // Return fresh cache hit immediately
+    const hit = _cache.get(key);
+    if (hit && hit.exp > now) return Promise.resolve({ data: hit.data });
+
+    // Deduplicate: if the same request is in-flight, return the same promise
+    if (_inflight.has(key)) return _inflight.get(key);
+
+    const req = _originalGet(url, config).then(res => {
+        _cache.set(key, { data: res.data, exp: now + ttlFor(url) });
+        _inflight.delete(key);
+        return res;
+    }).catch(err => {
+        _inflight.delete(key);
+        throw err;
+    });
+
+    _inflight.set(key, req);
+    return req;
+};
 
 // ── Auto-inject JWT token for all authenticated requests ───────────────────
 // Reads from admin/teacher/student localStorage keys based on who's logged in.
@@ -157,6 +243,10 @@ api.interceptors.response.use(
             // skip GET-like paths and login endpoints
             if (url.includes('/login') || url.includes('/logout')) return res;
 
+            // Bust relevant cache entries so next GET reflects the mutation
+            const bustEntry = BUST_MAP.find(e => e.match.test(url));
+            if (bustEntry) bustCache(bustEntry.busts);
+
             const matched = RESOURCE_PATTERNS.find(p => p.pattern.test(url));
             if (matched) {
                 let req = {};
@@ -182,8 +272,19 @@ api.interceptors.response.use(
         return res;
     },
     err => {
+        const cfg = err.config;
+        // Retry GET once on timeout — safe for idempotent reads (handles Neon cold-start)
+        if (
+            err.code === 'ECONNABORTED' &&
+            cfg && !cfg._timeoutRetried &&
+            (cfg.method || 'get').toLowerCase() === 'get'
+        ) {
+            cfg._timeoutRetried = true;
+            console.warn('[API] Timeout on', cfg.url, '— retrying once...');
+            return api.request({ ...cfg, _timeoutRetried: true });
+        }
         if (err.code === 'ECONNABORTED') {
-            console.error('[API] Request timed out:', err.config?.url);
+            console.error('[API] Request timed out:', cfg?.url);
         }
         return Promise.reject(err);
     }

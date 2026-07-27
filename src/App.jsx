@@ -35,6 +35,7 @@ import StudentReschedule from './components/student/StudentReschedule';
 import StudentAttendance from './components/student/StudentAttendance';
 
 import EnrollmentManager from './components/admin/EnrollmentManager';
+import StudentsProgressTable from './components/admin/StudentsProgressTable';
 import InvoiceCreator from './components/admin/InvoiceCreator';
 import BillingSettings from './components/admin/BillingSettings';
 import DashboardAlerts from './components/admin/DashboardAlerts';
@@ -102,7 +103,7 @@ export default function App() {
           <Route path="/teacher/:staffId" element={<StaffProfilePage />} />
           <Route path="/students" element={<Dashboard />} />
           <Route path="/students/add" element={<Dashboard />} />
-          <Route path="/students/progress" element={<StudentProgressEditor />} />
+          <Route path="/students/progress" element={<StudentsProgressTable />} />
           <Route path="/students/enrollments" element={<EnrollmentManager />} />
           <Route path="/students/forms" element={<FormManager />} />
           <Route path="/students/:studentId" element={<StudentProfilePage />} />

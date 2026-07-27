@@ -6,18 +6,13 @@ import {
     Calendar,
     BookOpen,
     FileText,
-    TrendingUp,
-    CheckCircle2,
     Clock,
     ArrowUpRight,
     Music,
-    Zap,
     Award,
     ChevronRight,
     Loader2,
-    Users,
     Package,
-    RefreshCw,
     AlertTriangle
 } from 'lucide-react';
 import { format, differenceInDays } from 'date-fns';
@@ -123,27 +118,6 @@ export default function StudentDashboard() {
                         <p className="text-indigo-100/60 font-medium text-sm sm:text-lg max-w-md">
                             You have {todaySessions.length === 0 ? 'no' : todaySessions.length} sessions scheduled for today. Keep up the momentum!
                         </p>
-                        {/* Compact package stats */}
-                        {activePackage && (
-                            <div className="flex items-center gap-3 flex-wrap mt-2">
-                                <div className="flex items-center gap-2 px-3 py-1.5 bg-white/10 backdrop-blur-sm rounded-2xl border border-white/20">
-                                    <Package size={13} className="text-indigo-300" />
-                                    <span className="text-white font-black text-xs">
-                                        {activePackage.sessions_remaining ?? (activePackage.sessions_total - activePackage.sessions_used)}
-                                        <span className="text-white/50 font-medium"> / {activePackage.sessions_total} classes left</span>
-                                    </span>
-                                </div>
-                                {activePackage.makeup_remaining > 0 && (
-                                    <div className="flex items-center gap-2 px-3 py-1.5 bg-white/10 backdrop-blur-sm rounded-2xl border border-white/20">
-                                        <RefreshCw size={13} className="text-violet-300" />
-                                        <span className="text-white font-black text-xs">
-                                            {activePackage.makeup_remaining}
-                                            <span className="text-white/50 font-medium"> makeup{activePackage.makeup_remaining !== 1 ? 's' : ''}</span>
-                                        </span>
-                                    </div>
-                                )}
-                            </div>
-                        )}
                     </div>
 
                     <div className="p-1.5 bg-white/10 backdrop-blur-md rounded-[32px] sm:rounded-[40px] border border-white/10 shadow-inner self-start lg:self-auto">
@@ -175,62 +149,84 @@ export default function StudentDashboard() {
             {/* Main Grid */}
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 sm:gap-8 lg:gap-10">
 
-                {/* Today's Classes */}
-                <div className="xl:col-span-2 space-y-5 sm:space-y-8">
-                    <div className="flex items-center justify-between px-1 sm:px-2">
-                        <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tighter flex items-center gap-3 sm:gap-4">
-                            <Calendar className="text-[#463a7a] w-6 h-6 sm:w-8 sm:h-8 flex-shrink-0" />
-                            TODAY'S SCHEDULE
-                        </h2>
-                        <button onClick={() => navigate('/student-portal/schedule')} className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-[#463a7a] transition-colors whitespace-nowrap">Full Calendar</button>
-                    </div>
-
-                    {todaySessions.length > 0 ? (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-                            {todaySessions.map(session => (
-                                <div key={session.id} className="bg-white rounded-[28px] sm:rounded-[40px] p-6 sm:p-8 shadow-xl shadow-slate-200/50 border border-slate-50 flex flex-col justify-between group hover:border-[#463a7a] transition-all duration-500 relative overflow-hidden">
-                                    <div className="absolute top-0 right-0 w-32 h-32 bg-[#463a7a]/5 rounded-bl-[80px] -mr-8 -mt-8 group-hover:bg-[#463a7a]/10 transition-colors" />
-
-                                    <div className="relative z-10">
-                                        <div className="flex justify-between items-start mb-6">
-                                            <div className="w-14 h-14 bg-slate-50 rounded-[20px] flex items-center justify-center text-[#463a7a] shadow-sm transform group-hover:rotate-12 transition-transform">
-                                                <Clock size={24} />
-                                            </div>
-                                            <div className="text-right">
-                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Timing</p>
-                                                <p className="text-lg font-black text-slate-900">{session.start_time} - {session.end_time}</p>
-                                            </div>
-                                        </div>
-
-                                        <div className="space-y-2">
-                                            <span className="px-3 py-1 bg-indigo-50 text-[#463a7a] text-[10px] font-black uppercase tracking-widest rounded-lg">{parseSubject(session.batch?.subject)}</span>
-                                            <h3 className="text-2xl font-black text-slate-900 tracking-tight leading-none pt-2 group-hover:text-[#463a7a] transition-colors">{session.batch?.name || `${parseSubject(session.batch?.subject)} Class`}</h3>
-                                        </div>
-                                    </div>
-
-                                    <div className="mt-8 pt-8 border-t border-slate-50 relative z-10 flex items-center justify-between">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center">
-                                                <Users size={14} className="text-slate-400" />
-                                            </div>
-                                            <p className="text-xs font-bold text-slate-500 uppercase">Group Session</p>
-                                        </div>
-                                        <button className="p-3 bg-slate-50 text-slate-400 rounded-xl group-hover:bg-[#463a7a] group-hover:text-white transition-all shadow-sm">
-                                            <ArrowUpRight size={18} />
-                                        </button>
-                                    </div>
+                {/* Today's Schedule */}
+                <div className="xl:col-span-2">
+                    <div className="bg-white rounded-[28px] sm:rounded-[36px] border border-slate-100 shadow-sm overflow-hidden">
+                        {/* Header */}
+                        <div className="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-slate-100">
+                            <div className="flex items-center gap-2.5">
+                                <div className="w-7 h-7 bg-indigo-50 rounded-xl flex items-center justify-center">
+                                    <Calendar size={14} className="text-[#463a7a]" />
                                 </div>
-                            ))}
-                        </div>
-                    ) : (
-                        <div className="bg-white rounded-[28px] sm:rounded-[40px] p-12 sm:p-20 text-center border-2 border-dashed border-slate-100 shadow-sm">
-                            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-slate-50 rounded-3xl flex items-center justify-center mx-auto mb-4 sm:mb-6 text-slate-200">
-                                <Music size={36} />
+                                <span className="text-sm font-black text-slate-900 uppercase tracking-widest">Today's Schedule</span>
+                                {todaySessions.length > 0 && (
+                                    <span className="px-2 py-0.5 bg-[#463a7a] text-white text-[10px] font-black rounded-full">{todaySessions.length}</span>
+                                )}
                             </div>
-                            <h3 className="text-xl sm:text-2xl font-black text-slate-300 tracking-tighter">No classes today</h3>
-                            <p className="text-slate-400 font-bold uppercase text-[10px] tracking-widest mt-2 px-4 sm:px-8">Relax, practice on your own, or explore your materials</p>
+                            <button
+                                onClick={() => navigate('/student-portal/schedule')}
+                                className="flex items-center gap-1 text-[10px] font-black text-slate-400 hover:text-[#463a7a] transition-colors uppercase tracking-widest"
+                            >
+                                Full Calendar <ChevronRight size={12} />
+                            </button>
                         </div>
-                    )}
+
+                        {/* Session list */}
+                        {todaySessions.length > 0 ? (
+                            <div className="divide-y divide-slate-50">
+                                {todaySessions.map((session, idx) => (
+                                    <div
+                                        key={session.id}
+                                        onClick={() => navigate('/student-portal/schedule')}
+                                        className="flex items-center gap-4 px-5 sm:px-6 py-4 hover:bg-slate-50/80 transition-colors cursor-pointer group"
+                                    >
+                                        {/* Time column */}
+                                        <div className="flex-shrink-0 w-20 sm:w-24">
+                                            <p className="text-sm font-black text-slate-900 tabular-nums">{session.start_time}</p>
+                                            <p className="text-[10px] font-bold text-slate-400 tabular-nums">{session.end_time}</p>
+                                        </div>
+
+                                        {/* Divider dot */}
+                                        <div className="flex-shrink-0 flex flex-col items-center gap-1 self-stretch py-1">
+                                            <div className="w-2 h-2 rounded-full bg-[#463a7a]" />
+                                            {idx < todaySessions.length - 1 && <div className="flex-1 w-px bg-slate-100" />}
+                                        </div>
+
+                                        {/* Info */}
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <span className="px-2 py-0.5 bg-indigo-50 text-[#463a7a] text-[9px] font-black uppercase tracking-widest rounded-md">
+                                                    {parseSubject(session.batch?.subject)}
+                                                </span>
+                                            </div>
+                                            <p className="text-sm font-black text-slate-900 truncate group-hover:text-[#463a7a] transition-colors">
+                                                {session.batch?.name || `${parseSubject(session.batch?.subject)} Class`}
+                                            </p>
+                                        </div>
+
+                                        {/* Arrow */}
+                                        <div className="flex-shrink-0 w-7 h-7 rounded-xl bg-slate-100 group-hover:bg-[#463a7a] flex items-center justify-center transition-colors">
+                                            <ArrowUpRight size={13} className="text-slate-400 group-hover:text-white transition-colors" />
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
+                                <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center mb-3">
+                                    <Music size={22} className="text-slate-300" />
+                                </div>
+                                <p className="text-sm font-black text-slate-300 tracking-tighter">No classes today</p>
+                                <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest mt-1">Rest or practice on your own</p>
+                                <button
+                                    onClick={() => navigate('/student-portal/schedule')}
+                                    className="mt-4 px-4 py-2 bg-slate-50 hover:bg-indigo-50 text-slate-500 hover:text-[#463a7a] text-[10px] font-black uppercase tracking-widest rounded-xl transition-colors"
+                                >
+                                    View Calendar
+                                </button>
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 {/* Sidebar Content */}
