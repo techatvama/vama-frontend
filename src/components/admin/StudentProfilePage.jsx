@@ -6,7 +6,7 @@ import {
     Mail, Phone, MapPin, Calendar, CreditCard, BookOpen,
     TrendingUp, Clock, CheckCircle, XCircle, AlertCircle,
     ArrowLeft, Loader2, GraduationCap, DollarSign,
-    Star, ChevronRight, Activity, Users, Pencil
+    Star, ChevronRight, Activity, Users, Pencil, Pause, UserX, RotateCcw
 } from 'lucide-react';
 
 const formatDate = (val) => {
@@ -61,6 +61,7 @@ export default function StudentProfilePage() {
     const [error, setError] = useState(null);
     const [activeTab, setActiveTab] = useState('overview');
     const [editOpen, setEditOpen] = useState(false);
+    const [statusSaving, setStatusSaving] = useState(false);
 
     const load = useCallback(() => {
         setLoading(true);
@@ -82,6 +83,22 @@ export default function StudentProfilePage() {
     }, [studentId]);
 
     useEffect(() => { load(); }, [load]);
+
+    const STATUS_CONFIRM = {
+        on_break: 'Mark this student as On Break?\n\nThey\'ll be removed from all class booking rosters immediately, their active package will be paused (session/expiry countdown stops), and payment reminders will be hidden until they\'re added back. All history and data stays intact — adding them into any class slot later automatically marks them Active again.',
+        dropped: 'Mark this student as Dropped?\n\nThey\'ll be removed from all class booking rosters immediately and payment reminders will be hidden. Nothing is deleted — all attendance/payment history stays visible, and adding them into any class slot later automatically marks them Active again.',
+        active: 'Mark this student as Active again?\n\nIf they were On Break, their package validity will be extended by however long they were paused, so they don\'t lose sessions they weren\'t using. (Note: adding them into a class slot does this automatically — you only need this button to reactivate without booking a class yet.)',
+    };
+
+    const changeEnrollmentStatus = (status) => {
+        if (statusSaving || status === (student?.enrollment_status || 'active')) return;
+        if (!confirm(STATUS_CONFIRM[status])) return;
+        setStatusSaving(true);
+        api.put(`/students/${studentId}/enrollment-status`, { status })
+            .then(() => load())
+            .catch(err => alert(err.response?.data?.detail || 'Failed to update status'))
+            .finally(() => setStatusSaving(false));
+    };
 
     if (loading) return (
         <div className="flex items-center justify-center min-h-[60vh]">
@@ -130,10 +147,37 @@ export default function StudentProfilePage() {
                     <ChevronRight size={14} className="text-slate-300" />
                     <span className="text-slate-800 font-semibold">{fullName}</span>
                 </div>
-                <button onClick={() => setEditOpen(true)}
-                    className="flex items-center gap-1.5 px-3.5 py-2 bg-[#463a7a] text-white rounded-lg text-xs font-bold hover:bg-[#342a5b] transition-colors">
-                    <Pencil size={13} /> Edit Details
-                </button>
+                <div className="flex items-center gap-2">
+                    {(student.enrollment_status || 'active') !== 'dropped' && (
+                        <>
+                            {(student.enrollment_status || 'active') === 'active' ? (
+                                <button onClick={() => changeEnrollmentStatus('on_break')} disabled={statusSaving}
+                                    className="flex items-center gap-1.5 px-3.5 py-2 bg-yellow-50 text-yellow-700 border border-yellow-200 rounded-lg text-xs font-bold hover:bg-yellow-100 transition-colors disabled:opacity-50">
+                                    <Pause size={13} /> Mark On Break
+                                </button>
+                            ) : (
+                                <button onClick={() => changeEnrollmentStatus('active')} disabled={statusSaving}
+                                    className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-bold hover:bg-emerald-100 transition-colors disabled:opacity-50">
+                                    <RotateCcw size={13} /> Mark Active
+                                </button>
+                            )}
+                            <button onClick={() => changeEnrollmentStatus('dropped')} disabled={statusSaving}
+                                className="flex items-center gap-1.5 px-3.5 py-2 bg-red-50 text-red-600 border border-red-200 rounded-lg text-xs font-bold hover:bg-red-100 transition-colors disabled:opacity-50">
+                                <UserX size={13} /> Mark Dropped
+                            </button>
+                        </>
+                    )}
+                    {student.enrollment_status === 'dropped' && (
+                        <button onClick={() => changeEnrollmentStatus('active')} disabled={statusSaving}
+                            className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-bold hover:bg-emerald-100 transition-colors disabled:opacity-50">
+                            <RotateCcw size={13} /> Reactivate
+                        </button>
+                    )}
+                    <button onClick={() => setEditOpen(true)}
+                        className="flex items-center gap-1.5 px-3.5 py-2 bg-[#463a7a] text-white rounded-lg text-xs font-bold hover:bg-[#342a5b] transition-colors">
+                        <Pencil size={13} /> Edit Details
+                    </button>
+                </div>
             </div>
 
             <div className="max-w-5xl mx-auto px-5 py-6 space-y-5">
@@ -154,8 +198,14 @@ export default function StudentProfilePage() {
                             <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-3 flex-wrap">
                                     <h1 className="text-2xl font-black text-white">{fullName || 'Unknown Student'}</h1>
-                                    <span className="px-2.5 py-1 bg-emerald-400/20 text-emerald-200 text-xs font-semibold rounded-full border border-emerald-400/30">
-                                        Active
+                                    <span className={`px-2.5 py-1 text-xs font-semibold rounded-full border
+                                        ${student.enrollment_status === 'dropped'
+                                            ? 'bg-red-400/20 text-red-200 border-red-400/30'
+                                            : student.enrollment_status === 'on_break'
+                                            ? 'bg-yellow-400/20 text-yellow-200 border-yellow-400/30'
+                                            : 'bg-emerald-400/20 text-emerald-200 border-emerald-400/30'}`}>
+                                        {student.enrollment_status === 'dropped' ? 'Dropped'
+                                            : student.enrollment_status === 'on_break' ? 'On Break' : 'Active'}
                                     </span>
                                     {outstanding > 0 && (
                                         <span className="px-2.5 py-1 bg-orange-400/20 text-orange-200 text-xs font-semibold rounded-full border border-orange-400/30 flex items-center gap-1">

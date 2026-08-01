@@ -3,17 +3,22 @@ import { useLocation } from "react-router";
 import { api } from "../lib/api";
 import Sidebar from "./Sidebar";
 import AddStudentDialog from "./AddStudentDialog";
-import { Search, ChevronLeft, ChevronRight, Edit, Loader2 } from "lucide-react";
+import { Search, ChevronLeft, ChevronRight, Edit, Loader2, Users, UserCheck, UserPlus, Download } from "lucide-react";
 import { useNavigate } from "react-router";
+import * as XLSX from "xlsx";
 
 export default function Dashboard() {
   const navigate = useNavigate();
 
   // State management
   const [records, setRecords] = useState([]);
+  const [staffList, setStaffList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");     // all | active | inactive
+  const [teacherFilter, setTeacherFilter] = useState("all");   // all | <teacher_id>
+  const [subjectFilter, setSubjectFilter] = useState("all");   // all | <subject>
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
@@ -37,7 +42,7 @@ export default function Dashboard() {
     "First Name": s.first_name || "—",
     "Last Name": s.last_name || "—",
     "Email": s.email || "—",
-    "Desired Course": s.desired_course || "—",
+    "Desired Course": s.desired_course || s.instrument || "—",
     "Primary Phone Number": s.primary_phone_number || "—",
     "Select your nearest Vama Center ": s.nearest_vama_center || "—",
     "Address": s.address || "—",
@@ -51,8 +56,12 @@ export default function Dashboard() {
     setLoading(true);
     setError(null);
     try {
-      const response = await api.get("/students");
-      setRecords((response.data || []).map(mapStudent));
+      const [studentsRes, staffRes] = await Promise.all([
+        api.get("/students"),
+        api.get("/staff").catch(() => ({ data: [] })),
+      ]);
+      setStaffList(staffRes.data || []);
+      setRecords((studentsRes.data || []).map(mapStudent));
     } catch (err) {
       console.error("Dashboard fetch error:", err);
       setError(err.response?.data?.detail || err.message || "Failed to load students.");
@@ -60,6 +69,8 @@ export default function Dashboard() {
       setLoading(false);
     }
   };
+
+  const teacherName = (teacherId) => staffList.find(t => t.id === teacherId)?.name || "Unassigned";
 
   // Called by AddStudentDialog after save.
   // If updatedStudent is provided (edit), patch local state — no re-fetch needed.
@@ -83,14 +94,30 @@ export default function Dashboard() {
     }
   }, [pathname]);
 
+  const subjectOptions = useMemo(() => {
+    const set = new Set(records.map(r => r["Desired Course"]).filter(v => v && v !== "—"));
+    return Array.from(set).sort();
+  }, [records]);
+
   // Filtering & Sorting
   const filteredRecords = useMemo(() => {
-    return records.filter(record =>
-      Object.entries(record).some(([key, value]) =>
+    return records.filter(record => {
+      const matchesSearch = Object.entries(record).some(([key, value]) =>
         key !== 'id' && String(value).toLowerCase().includes(searchTerm.toLowerCase())
-      )
-    );
-  }, [records, searchTerm]);
+      );
+      if (!matchesSearch) return false;
+
+      const status = record.enrollment_status || 'active';
+      if (statusFilter === 'active' && status !== 'active') return false;
+      if (statusFilter === 'inactive' && status === 'active') return false;
+
+      if (teacherFilter !== 'all' && String(record.teacher_id || '') !== teacherFilter) return false;
+
+      if (subjectFilter !== 'all' && record["Desired Course"] !== subjectFilter) return false;
+
+      return true;
+    });
+  }, [records, searchTerm, statusFilter, teacherFilter, subjectFilter]);
 
   const sortedRecords = useMemo(() => {
     if (!sortConfig.key) return filteredRecords;
@@ -101,6 +128,15 @@ export default function Dashboard() {
       return (aValue > bValue ? 1 : -1) * (sortConfig.direction === 'asc' ? 1 : -1);
     });
   }, [filteredRecords, sortConfig]);
+
+  const stats = useMemo(() => {
+    const today = new Date().toDateString();
+    return {
+      total: records.length,
+      active: records.filter(r => (r.enrollment_status || 'active') === 'active').length,
+      newToday: records.filter(r => r.created_at && new Date(r.created_at).toDateString() === today).length,
+    };
+  }, [records]);
 
   // Pagination
   const totalPages = Math.ceil(filteredRecords.length / rowsPerPage);
@@ -124,6 +160,26 @@ export default function Dashboard() {
   const handleCloseModal = () => {
     setAddAction(false);
     setEditingStudent(null);
+  };
+
+  const handleDownloadExcel = () => {
+    const rows = sortedRecords.map(r => ({
+      "Joined On": r["Timestamp"],
+      "First Name": r["First Name"],
+      "Last Name": r["Last Name"],
+      "Email": r["Email"],
+      "Phone": r["Primary Phone Number"],
+      "Course": r["Desired Course"],
+      "Center": r["Select your nearest Vama Center "],
+      "Teacher": teacherName(r.teacher_id),
+      "Status": (r.enrollment_status || 'active') === 'active' ? 'Active'
+        : r.enrollment_status === 'on_break' ? 'On Break' : 'Dropped',
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Students");
+    const stamp = new Date().toISOString().slice(0, 10);
+    XLSX.writeFile(wb, `students-${stamp}.xlsx`);
   };
 
   return (
@@ -158,10 +214,40 @@ export default function Dashboard() {
           </div>
         )}
 
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+          <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex items-center gap-4">
+            <div className="w-11 h-11 rounded-xl bg-[#463a7a]/10 flex items-center justify-center flex-shrink-0">
+              <Users size={20} className="text-[#463a7a]" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-slate-900 leading-none">{stats.total}</p>
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mt-1">Total</p>
+            </div>
+          </div>
+          <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex items-center gap-4">
+            <div className="w-11 h-11 rounded-xl bg-emerald-50 flex items-center justify-center flex-shrink-0">
+              <UserCheck size={20} className="text-emerald-600" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-slate-900 leading-none">{stats.active}</p>
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mt-1">Active</p>
+            </div>
+          </div>
+          <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex items-center gap-4">
+            <div className="w-11 h-11 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
+              <UserPlus size={20} className="text-blue-600" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-slate-900 leading-none">{stats.newToday}</p>
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mt-1">New Today</p>
+            </div>
+          </div>
+        </div>
+
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
           {/* Toolbar */}
-          <div className="p-5 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-center gap-4 bg-slate-50/50">
-            <div className="relative w-full sm:w-72">
+          <div className="p-5 border-b border-slate-100 flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-3 bg-slate-50/50">
+            <div className="relative w-full lg:w-64 flex-shrink-0">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
               <input
                 type="search"
@@ -171,6 +257,48 @@ export default function Dashboard() {
                 className="w-full pl-10 pr-4 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#463a7a]/20 focus:border-[#463a7a] transition-all"
               />
             </div>
+
+            <div className="flex flex-wrap items-center gap-2 flex-1">
+              <select
+                value={statusFilter}
+                onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
+                className="px-3 py-2 rounded-xl border border-slate-200 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#463a7a]/20 focus:border-[#463a7a] bg-white"
+              >
+                <option value="all">All Statuses</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive (Break/Dropped)</option>
+              </select>
+
+              <select
+                value={teacherFilter}
+                onChange={(e) => { setTeacherFilter(e.target.value); setCurrentPage(1); }}
+                className="px-3 py-2 rounded-xl border border-slate-200 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#463a7a]/20 focus:border-[#463a7a] bg-white"
+              >
+                <option value="all">All Teachers</option>
+                {staffList.map(t => (
+                  <option key={t.id} value={String(t.id)}>{t.name}</option>
+                ))}
+              </select>
+
+              <select
+                value={subjectFilter}
+                onChange={(e) => { setSubjectFilter(e.target.value); setCurrentPage(1); }}
+                className="px-3 py-2 rounded-xl border border-slate-200 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#463a7a]/20 focus:border-[#463a7a] bg-white"
+              >
+                <option value="all">All Subjects</option>
+                {subjectOptions.map(s => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            </div>
+
+            <button
+              onClick={handleDownloadExcel}
+              disabled={sortedRecords.length === 0}
+              className="flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+            >
+              <Download size={15} /> Download Excel
+            </button>
           </div>
 
           {/* Table */}
@@ -224,12 +352,20 @@ export default function Dashboard() {
                       {Object.keys(columnConfig).map((key) => (
                         <td key={key} className="px-6 py-4 text-sm text-slate-700 whitespace-nowrap">
                           {key === 'First Name' || key === 'Last Name' ? (
-                            <button
-                              onClick={() => navigate(`/students/${record.id}`)}
-                              className="font-medium text-[#463a7a] hover:underline text-left"
-                            >
-                              {record[key] || "—"}
-                            </button>
+                            <span className="flex items-center gap-1.5">
+                              <button
+                                onClick={() => navigate(`/students/${record.id}`)}
+                                className="font-medium text-[#463a7a] hover:underline text-left"
+                              >
+                                {record[key] || "—"}
+                              </button>
+                              {record.enrollment_status === 'on_break' && (
+                                <span title="On Break" className="w-2 h-2 rounded-full bg-yellow-400 flex-shrink-0" />
+                              )}
+                              {record.enrollment_status === 'dropped' && (
+                                <span title="Dropped" className="w-2 h-2 rounded-full bg-red-400 flex-shrink-0" />
+                              )}
+                            </span>
                           ) : (
                             record[key] || "—"
                           )}

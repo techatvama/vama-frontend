@@ -427,7 +427,7 @@ export default function TeacherStudents() {
                             </button>
                         </div>
                         <div className="flex-1 overflow-y-auto p-4 lg:p-6">
-                            <StudentProgressEditor studentIdFromProps={progressFor.id} />
+                            <StudentProgressEditor studentIdFromProps={progressFor.id} allowAddContent={true} />
                         </div>
                     </div>
                 </div>

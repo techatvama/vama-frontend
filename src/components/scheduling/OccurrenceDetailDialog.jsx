@@ -55,7 +55,7 @@ export default function OccurrenceDetailDialog({ session, onClose, onUpdate }) {
     }, [occ.id]);
 
     useEffect(() => { load(); }, [load]);
-    useEffect(() => { api.get('/students').then(r => setAllStudents(r.data || [])).catch(() => {}); }, []);
+    useEffect(() => { api.get('/students', { params: { exclude_dropped: true } }).then(r => setAllStudents(r.data || [])).catch(() => {}); }, []);
 
     // Cancel = this class only. Attendance is preserved server-side.
     const doCancel = async () => {
@@ -72,7 +72,10 @@ export default function OccurrenceDetailDialog({ session, onClose, onUpdate }) {
         setSaving(s => ({ ...s, [studentId]: true }));
         try {
             const r = await api.put(`/scheduling/occurrences/${occ.id}/attendance/${studentId}`, null, {
-                params: { status, notes: feedback[studentId] || undefined },
+                // Admin marking attendance is never blocked by package limits — only
+                // student self-booking is. If this pushes them past their package,
+                // it surfaces as a warning here and on the Payments overages page.
+                params: { status, notes: feedback[studentId] || undefined, bypass_package: true },
             });
             const w = r.data?.warnings || [];
             setWarnings(prev => ({ ...prev, [studentId]: w }));

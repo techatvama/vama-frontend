@@ -52,6 +52,7 @@ const BUST_MAP = [
     { match: /\/batches|\/sessions/,    busts: ['/scheduling/calendar', '/calendar/filtered', '/batches', '/sessions'] },
     { match: /\/scheduling\/calendar/,  busts: ['/scheduling/calendar'] },
     { match: /\/attendances/,           busts: ['/attendances', '/scheduling/calendar', '/calendar/filtered'] },
+    { match: /\/scheduling\/occurrences/, busts: ['/scheduling/occurrences', '/scheduling/calendar', '/calendar/filtered'] },
     { match: /\/admin\/invoices/,       busts: ['/admin/invoices'] },
     { match: /\/admin\/subscriptions/,  busts: ['/admin/subscriptions', '/students'] },
     { match: /\/admin\/packages/,       busts: ['/admin/packages'] },

@@ -129,7 +129,7 @@ function EditableText({ value, onChange, placeholder = "Enter text...", classNam
     )
 }
 
-const CONTENT_TYPES = ['piece', 'scale', 'exercise', 'theory', 'sight-reading', 'technique', 'other']
+const CONTENT_TYPES = ['song', 'piece', 'scale', 'exercise', 'theory', 'sight-reading', 'technique', 'other']
 
 // Section Component
 function SyllabusSection({ section, onUpdateProgress, disabled, allowAddContent, onAddContent }) {
@@ -239,59 +239,59 @@ function SyllabusSection({ section, onUpdateProgress, disabled, allowAddContent,
 
                     {/* Add Item Form */}
                     {allowAddContent && (
-                        <div className="p-3 sm:p-4 bg-purple-50/40">
+                        <div className="p-3 sm:p-4 border-t border-slate-100 bg-slate-50/60">
                             {showAddForm ? (
-                                <div>
+                                <div className="space-y-2">
                                     <div className="flex flex-col sm:flex-row gap-2">
                                         <input
                                             autoFocus
                                             value={newItemName}
                                             onChange={(e) => setNewItemName(e.target.value)}
                                             onKeyDown={(e) => e.key === 'Enter' && handleAddItem()}
-                                            placeholder="Item name (e.g. C major scale)"
-                                            className="flex-1 px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:border-[#463a7a]"
+                                            placeholder="Topic name (e.g. C major scale)"
+                                            className="flex-1 px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:border-[#463a7a] focus:ring-2 focus:ring-[#463a7a]/10 bg-white"
                                         />
                                         <select
                                             value={newItemType}
                                             onChange={(e) => setNewItemType(e.target.value)}
-                                            className="px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:border-[#463a7a] bg-white"
+                                            className="px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:border-[#463a7a] bg-white capitalize"
                                         >
                                             {CONTENT_TYPES.map(t => (
-                                                <option key={t} value={t}>{t}</option>
+                                                <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>
                                             ))}
                                         </select>
                                         <div className="flex gap-2">
                                             <button
                                                 onClick={handleAddItem}
                                                 disabled={addingItem || !newItemName.trim()}
-                                                className="px-3 py-1.5 bg-[#463a7a] text-white text-sm rounded-lg hover:bg-[#5a4a9f] disabled:opacity-50 transition-colors"
+                                                className="px-4 py-2 bg-[#463a7a] text-white text-sm font-bold rounded-xl hover:bg-[#5a4a9f] disabled:opacity-50 transition-colors flex items-center gap-1.5"
                                             >
-                                                {addingItem ? '...' : 'Add'}
+                                                {addingItem ? <><span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Adding…</> : <><FaPlus size={10} /> Add</>}
                                             </button>
                                             <button
                                                 onClick={() => { setShowAddForm(false); setNewItemName(''); setAddError('') }}
-                                                className="px-3 py-1.5 bg-slate-200 text-slate-600 text-sm rounded-lg hover:bg-slate-300 transition-colors"
+                                                className="px-3 py-2 bg-white border border-slate-200 text-slate-600 text-sm rounded-xl hover:bg-slate-100 transition-colors"
                                             >
                                                 Cancel
                                             </button>
                                         </div>
                                     </div>
                                     {addError && (
-                                        <p className="text-xs text-red-600 mt-1.5 font-medium">{addError}</p>
+                                        <p className="text-xs text-red-600 font-medium flex items-center gap-1">
+                                            <FaExclamationTriangle size={10} /> {addError}
+                                        </p>
                                     )}
+                                    <p className="text-[10px] text-slate-400">
+                                        Weights auto-balance equally — each of the {items.length + 1} topics will be {Math.round(100 / (items.length + 1))}%
+                                    </p>
                                 </div>
                             ) : (
                                 <button
                                     onClick={() => setShowAddForm(true)}
-                                    className="flex items-center gap-1.5 text-xs text-[#463a7a] font-medium hover:text-[#5a4a9f] transition-colors"
+                                    className="flex items-center gap-1.5 text-xs font-bold text-[#463a7a] hover:text-[#5a4a9f] px-3 py-2 rounded-xl hover:bg-white border border-dashed border-[#463a7a]/30 hover:border-[#463a7a]/50 w-full justify-center transition-all"
                                 >
-                                    <FaPlus size={10} /> Add item
+                                    <FaPlus size={10} /> Add topic to this module
                                 </button>
-                            )}
-                            {items.length > 0 && (
-                                <p className="text-[10px] text-slate-400 mt-1.5">
-                                    Adding an item auto-adjusts weights equally across all {items.length + (showAddForm ? 1 : 0)} items in this module
-                                </p>
                             )}
                         </div>
                     )}

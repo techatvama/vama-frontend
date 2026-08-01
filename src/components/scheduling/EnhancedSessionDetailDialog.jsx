@@ -173,7 +173,7 @@ export default function EnhancedSessionDetailDialog({ session, isOpen, onClose, 
     };
 
     const fetchAllStudents = async () => {
-        try { const res = await api.get('/students'); setAllStudents(res.data); }
+        try { const res = await api.get('/students', { params: { exclude_dropped: true } }); setAllStudents(res.data); }
         catch (e) { console.error(e); }
     };
 
@@ -218,7 +218,8 @@ export default function EnhancedSessionDetailDialog({ session, isOpen, onClose, 
         setAttendanceState(prev => ({ ...prev, [studentId]: status }));
         try {
             await api.put(`/sessions/${session.id}/attendance/${studentId}`, null, {
-                params: { status, notes: notes || undefined, require_feedback: status === 'present' },
+                // Admin/teacher marking attendance is never blocked by package limits.
+                params: { status, notes: notes || undefined, require_feedback: status === 'present', bypass_package: true },
             });
             onUpdate();
         } catch (e) {

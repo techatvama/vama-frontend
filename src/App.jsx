@@ -51,6 +51,7 @@ import SyllabusBuilder from './components/admin/SyllabusBuilder';
 import PaymentManager from './components/admin/PaymentManager';
 import PaymentAnalytics from './components/admin/PaymentAnalytics';
 import PaymentDashboard from './components/admin/PaymentDashboard';
+import AttendanceOverages from './components/admin/AttendanceOverages';
 import PackageManager from './components/admin/PackageManager';
 import InvoiceManager from './components/admin/InvoiceManager';
 import SubscriptionManager from './components/admin/SubscriptionManagerV2';
@@ -116,6 +117,7 @@ export default function App() {
           <Route path="/admin/exams" element={<ExamSessionManager />} />
           <Route path="/admin/syllabus" element={<SyllabusBuilder />} />
           <Route path="/admin/payments" element={<PaymentDashboard />} />
+          <Route path="/admin/payments/attendance-overages" element={<AttendanceOverages />} />
           <Route path="/admin/payments/legacy" element={<PaymentManager />} />
           <Route path="/admin/analytics" element={<PaymentAnalytics />} />
           <Route path="/admin/packages" element={<PackageManager />} />

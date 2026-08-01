@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router';
 import { api } from '../../lib/api';
 import {
     CheckCircle2, Clock, AlertCircle, Repeat,
-    Bell, Zap, Activity, ArrowUpRight, ArrowDownRight,
+    Bell, Zap, ArrowUpRight, ArrowDownRight,
     ChevronRight, Plus, AlertTriangle, IndianRupee
 } from 'lucide-react';
 
@@ -39,10 +39,10 @@ function KpiCard({ icon: Icon, label, value, sub, trend, trendUp, iconBg, iconCo
                         <RingChart pct={ring} size={34} stroke={3.5} color="#463a7a" />
                         <span className="text-xs font-semibold text-slate-400">{ring}%</span>
                     </div>
-                ) : trend !== undefined ? (
+                ) : trend != null ? (
                     <span className={`inline-flex items-center gap-0.5 text-xs font-semibold px-2 py-1 rounded-lg ${trendUp ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500'}`}>
                         {trendUp ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
-                        {trend}%
+                        {Math.abs(trend)}%
                     </span>
                 ) : null}
             </div>
@@ -96,8 +96,14 @@ export default function PaymentDashboard() {
     const [timeFilter, setTimeFilter] = useState('month');
     const [customFrom, setCustomFrom] = useState('');
     const [customTo, setCustomTo] = useState('');
+    const [overagesCount, setOveragesCount] = useState(0);
 
     useEffect(() => { loadDashboard(); }, [timeFilter, customFrom, customTo]);
+    useEffect(() => {
+        api.get('/admin/payments/attendance-overages')
+            .then(r => setOveragesCount((r.data || []).length))
+            .catch(() => {});
+    }, []);
 
     const loadDashboard = async () => {
         setLoading(true);
@@ -191,15 +197,16 @@ export default function PaymentDashboard() {
             <div className="max-w-[1400px] mx-auto px-6 lg:px-10 py-7 space-y-6 pb-20">
 
                 {/* ══════════════════ KPI GRID ══════════════════ */}
-                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
-                    <KpiCard icon={IndianRupee}  label="Total Invoiced"  value={fmt(kpi.totalInvoiced)}  sub={`${allInvoicesCount ?? 0} invoices`}  trend={14}  trendUp={true}   iconBg="bg-violet-50"  iconColor="text-violet-600" />
-                    <KpiCard icon={CheckCircle2} label="Collected"       value={fmt(kpi.totalReceived)} sub={`${kpi.collectionRate}% rate`}                   trend={8}   trendUp={true}   iconBg="bg-emerald-50" iconColor="text-emerald-600" />
-                    <KpiCard icon={Clock}        label="Total Due"       value={fmt(kpi.totalDue)}       sub="pending + partial"                               trend={5}   trendUp={false}  iconBg="bg-amber-50"   iconColor="text-amber-600" />
-                    <KpiCard icon={AlertCircle}  label="Overdue"         value={fmt(kpi.overdue)}        sub={`${kpi.overdueCount} students`}                  trend={12}  trendUp={false}  iconBg="bg-red-50"     iconColor="text-red-500" />
-                    <KpiCard icon={Repeat}       label="Active Subs"     value={String(kpi.activeSubscriptions)} sub="subscriptions"                          trend={6}   trendUp={true}   iconBg="bg-blue-50"    iconColor="text-blue-600" />
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+                    <KpiCard icon={IndianRupee}  label="Total Invoiced"  value={fmt(kpi.totalInvoiced)}  sub={`${allInvoicesCount ?? 0} invoices`}  trend={kpi.totalInvoicedTrend}  trendUp={kpi.totalInvoicedTrend >= 0}   iconBg="bg-violet-50"  iconColor="text-violet-600" />
+                    <KpiCard icon={CheckCircle2} label="Collected"       value={fmt(kpi.totalReceived)} sub={`${kpi.collectionRate}% rate`}                   trend={kpi.totalReceivedTrend}   trendUp={kpi.totalReceivedTrend >= 0}   iconBg="bg-emerald-50" iconColor="text-emerald-600" />
+                    <KpiCard icon={Clock}        label="Total Due"       value={fmt(kpi.totalDue)}       sub="pending + partial"                               trend={kpi.totalDueTrend}   trendUp={kpi.totalDueTrend >= 0}  iconBg="bg-amber-50"   iconColor="text-amber-600" />
+                    <KpiCard icon={AlertCircle}  label="Overdue"         value={fmt(kpi.overdue)}        sub={`${kpi.overdueCount} students`}                  trend={kpi.overdueTrend}  trendUp={kpi.overdueTrend >= 0}  iconBg="bg-red-50"     iconColor="text-red-500" />
+                    <KpiCard icon={Repeat}       label="Active Subs"     value={String(kpi.activeSubscriptions)} sub="subscriptions"                          trend={kpi.activeSubsTrend}   trendUp={kpi.activeSubsTrend >= 0}   iconBg="bg-blue-50"    iconColor="text-blue-600" />
                     <KpiCard icon={Bell}         label="Renewals"        value={String(kpi.upcomingRenewals)} sub="next 30 days"                                                            iconBg="bg-orange-50"  iconColor="text-orange-500" />
-                    <KpiCard icon={Zap}          label="Linked Dues"     value={fmt(kpi.totalDue * 0.62)} sub="attendance-based"                                                            iconBg="bg-pink-50"    iconColor="text-pink-500" />
-                    <KpiCard icon={Activity}     label="Sessions"        value={`${kpi.sessionsUsed}/${kpi.sessionsTotal}`} sub="used vs allocated"           ring={sessionsPct} iconBg="bg-teal-50" iconColor="text-teal-600" />
+                    <button onClick={() => navigate('/admin/payments/attendance-overages')} className="text-left">
+                        <KpiCard icon={Zap} label="Attendance Overages" value={String(overagesCount)} sub={overagesCount ? "need renewal" : "all clear"} iconBg="bg-pink-50" iconColor="text-pink-500" />
+                    </button>
                 </div>
 
                 {/* ══════════════════ ROW 1: Revenue + Grade Dues ══════════════════ */}

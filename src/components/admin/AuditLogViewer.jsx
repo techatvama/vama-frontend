@@ -33,18 +33,18 @@ export default function AuditLogViewer() {
         setLoading(true);
         setError(null);
         try {
-            const params = new URLSearchParams();
-            params.append('page', page);
-            params.append('limit', limit);
-            if (actionFilter) params.append('action', actionFilter);
-            if (fromDate) params.append('from_date', fromDate);
-            if (toDate) params.append('to_date', toDate);
+            const params = {};
+            params.page = page;
+            params.limit = limit;
+            if (actionFilter) params.action = actionFilter;
+            if (fromDate) params.from_date = fromDate;
+            if (toDate) params.to_date = toDate;
 
-            const res = await api.get(`/admin/audit-logs?${params.toString()}`);
+            const res = await api.get('/admin/audit-logs', { params });
             setLogs(res.data.logs || []);
             setTotalPages(res.data.pages || 1);
         } catch (err) {
-            setError('Failed to load audit logs');
+            setError(err.response?.data?.detail || 'Failed to load audit logs');
             console.error(err);
         } finally {
             setLoading(false);
@@ -59,11 +59,25 @@ export default function AuditLogViewer() {
     };
 
     const getActionBadgeColor = (action) => {
-        if (action.includes('created')) return 'bg-green-100 text-green-700';
-        if (action.includes('deleted')) return 'bg-red-100 text-red-700';
-        if (action.includes('updated')) return 'bg-blue-100 text-blue-700';
+        if (action.includes('created') || action.includes('approved') || action.includes('resent')) return 'bg-green-100 text-green-700';
+        if (action.includes('deleted') || action.includes('rejected')) return 'bg-red-100 text-red-700';
+        if (action.includes('updated') || action.includes('changed')) return 'bg-blue-100 text-blue-700';
         if (action.includes('assigned')) return 'bg-purple-100 text-purple-700';
         return 'bg-slate-100 text-slate-700';
+    };
+
+    const formatActor = (actor) => {
+        if (!actor) return '—';
+        // "staff:12" → "Staff #12", "student:5" → "Student #5"
+        const [type, id] = actor.split(':');
+        if (!type) return actor;
+        return `${type.charAt(0).toUpperCase() + type.slice(1)} #${id || '?'}`;
+    };
+
+    const parseDetail = (detail) => {
+        if (!detail) return null;
+        if (typeof detail === 'object') return detail;
+        try { return JSON.parse(detail); } catch { return null; }
     };
 
     return (
@@ -188,23 +202,25 @@ export default function AuditLogViewer() {
                                         <td className="px-6 py-3">
                                             <div className="flex items-center gap-2 text-slate-700">
                                                 <User className="w-4 h-4 text-slate-400" />
-                                                <span className="font-medium">{log.actor}</span>
+                                                <span className="font-medium">{formatActor(log.actor)}</span>
                                             </div>
                                         </td>
                                         <td className="px-6 py-3">
                                             <span className="text-slate-600">
-                                                {log.subject || '—'}
+                                                {log.subject ? formatActor(log.subject) : '—'}
                                             </span>
                                         </td>
                                         <td className="px-6 py-3">
-                                            <details className="cursor-pointer">
-                                                <summary className="text-indigo-600 hover:text-indigo-700 font-medium">
-                                                    View
-                                                </summary>
-                                                <div className="mt-2 bg-slate-50 rounded p-3 text-xs font-mono text-slate-700 max-w-md">
-                                                    <pre>{JSON.stringify(log.detail || {}, null, 2)}</pre>
-                                                </div>
-                                            </details>
+                                            {parseDetail(log.detail) ? (
+                                                <details className="cursor-pointer">
+                                                    <summary className="text-indigo-600 hover:text-indigo-700 font-medium text-xs">
+                                                        View details
+                                                    </summary>
+                                                    <div className="mt-2 bg-slate-50 rounded p-3 text-xs font-mono text-slate-700 max-w-md overflow-x-auto">
+                                                        <pre>{JSON.stringify(parseDetail(log.detail), null, 2)}</pre>
+                                                    </div>
+                                                </details>
+                                            ) : <span className="text-slate-400 text-xs">—</span>}
                                         </td>
                                     </tr>
                                 ))}

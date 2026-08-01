@@ -493,7 +493,7 @@ export default function TeacherSessionDetails() {
                             </button>
                         </div>
                         <div className="flex-1 overflow-y-auto p-4 lg:p-8">
-                            <StudentProgressEditor studentIdFromProps={showProgressModal.id} />
+                            <StudentProgressEditor studentIdFromProps={showProgressModal.id} allowAddContent={true} />
                         </div>
                     </div>
                 </div>
