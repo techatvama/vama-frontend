@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router';
+import { api } from '../../lib/api';
 import {
     Calendar, LayoutDashboard, LogOut, Zap,
     BookOpen, FileText, CreditCard, User,
-    ChevronLeft, ChevronRight, Menu, X, CheckCircle2
+    ChevronLeft, ChevronRight, Menu, X, CheckCircle2, Check, ChevronsUpDown
 } from 'lucide-react';
 
 const NAV_ITEMS = [
@@ -20,6 +21,9 @@ export default function StudentSidebar() {
     const [collapsed, setCollapsed] = useState(false);
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
+    const [siblings, setSiblings] = useState([]);
+    const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+    const profileMenuRef = useRef(null);
     const navigate = useNavigate();
     const { pathname } = useLocation();
 
@@ -40,9 +44,37 @@ export default function StudentSidebar() {
 
     useEffect(() => { setDrawerOpen(false); }, [pathname]);
 
+    // Siblings linked via guardian_email — powers the switch-account option
+    // under the profile name/avatar. Only ever >1 entry when siblings exist.
+    useEffect(() => {
+        if (!student?.id) return;
+        api.get(`/student/${student.id}/siblings`)
+            .then((r) => setSiblings(r.data || []))
+            .catch(() => setSiblings([]));
+    }, [student?.id]);
+
+    useEffect(() => {
+        const onClick = (e) => {
+            if (profileMenuRef.current && !profileMenuRef.current.contains(e.target)) setProfileMenuOpen(false);
+        };
+        document.addEventListener('mousedown', onClick);
+        return () => document.removeEventListener('mousedown', onClick);
+    }, []);
+
+    const switchToSibling = (child) => {
+        setProfileMenuOpen(false);
+        if (!student || child.id === student.id) return;
+        // Same shape, swapped identity fields; reload so every view re-fetches for the newly selected child.
+        const next = { ...student, id: child.id, first_name: child.first_name,
+            last_name: child.last_name, email: child.email, current_grade: child.current_grade };
+        localStorage.setItem('student', JSON.stringify(next));
+        window.location.assign('/student-portal');
+    };
+
     const handleLogout = () => {
         localStorage.removeItem('student');
         localStorage.removeItem('student_token');
+        localStorage.removeItem('student_refresh_token');
         navigate('/student-login');
     };
 
@@ -142,16 +174,40 @@ export default function StudentSidebar() {
                     </nav>
 
                     {/* User + logout */}
-                    <div className="p-4 border-t border-slate-100">
-                        <div className="flex items-center gap-3 p-3.5 bg-slate-50 rounded-2xl mb-3">
+                    <div className="p-4 border-t border-slate-100 relative" ref={profileMenuRef}>
+                        {profileMenuOpen && siblings.length > 1 && (
+                            <div className="absolute z-30 left-4 right-4 bottom-full mb-2 bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden">
+                                <p className="px-4 py-2 text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Switch account</p>
+                                {siblings.map((c) => {
+                                    const active = c.id === student.id;
+                                    return (
+                                        <button key={c.id} onClick={() => switchToSibling(c)}
+                                            className={`w-full flex items-center justify-between gap-3 px-4 py-3 text-left hover:bg-slate-50 transition-colors ${active ? 'bg-indigo-50/50' : ''}`}>
+                                            <div className="min-w-0">
+                                                <p className="text-sm font-black text-slate-900 truncate">{c.first_name} {c.last_name}</p>
+                                                <p className="text-xs text-slate-400 font-bold">{c.current_grade || '—'}</p>
+                                            </div>
+                                            {active && <Check size={16} className="text-[#463a7a] flex-shrink-0" />}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        )}
+                        <button
+                            onClick={() => siblings.length > 1 && setProfileMenuOpen(o => !o)}
+                            className={`w-full flex items-center gap-3 p-3.5 bg-slate-50 rounded-2xl mb-3 ${siblings.length > 1 ? 'hover:bg-indigo-50/60 cursor-pointer' : 'cursor-default'}`}
+                        >
                             <div className="w-10 h-10 rounded-2xl bg-[#463a7a] flex items-center justify-center font-black text-white text-sm flex-shrink-0">
                                 {initials}
                             </div>
-                            <div className="overflow-hidden">
+                            <div className="overflow-hidden flex-1 min-w-0 text-left">
                                 <p className="text-sm font-black text-slate-900 truncate">{student.first_name} {student.last_name}</p>
                                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider truncate">{student.course || 'Student'}</p>
                             </div>
-                        </div>
+                            {siblings.length > 1 && (
+                                <ChevronsUpDown size={14} className="text-slate-400 flex-shrink-0" />
+                            )}
+                        </button>
                         <button
                             onClick={handleLogout}
                             className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-2xl transition-all font-black text-[10px] tracking-widest uppercase"
@@ -195,18 +251,44 @@ export default function StudentSidebar() {
                     </nav>
 
                     {/* User + logout */}
-                    <div className="p-3 border-t border-slate-100">
-                        <div className={`flex items-center gap-3 p-3 bg-slate-50 rounded-2xl ${collapsed ? 'justify-center' : ''}`}>
+                    <div className="p-3 border-t border-slate-100 relative" ref={profileMenuRef}>
+                        {profileMenuOpen && siblings.length > 1 && (
+                            <div className="absolute z-30 left-3 right-3 bottom-full mb-2 bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden">
+                                <p className="px-4 py-2 text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Switch account</p>
+                                {siblings.map((c) => {
+                                    const active = c.id === student.id;
+                                    return (
+                                        <button key={c.id} onClick={() => switchToSibling(c)}
+                                            className={`w-full flex items-center justify-between gap-3 px-4 py-3 text-left hover:bg-slate-50 transition-colors ${active ? 'bg-indigo-50/50' : ''}`}>
+                                            <div className="min-w-0">
+                                                <p className="text-sm font-black text-slate-900 truncate">{c.first_name} {c.last_name}</p>
+                                                <p className="text-xs text-slate-400 font-bold">{c.current_grade || '—'}</p>
+                                            </div>
+                                            {active && <Check size={16} className="text-[#463a7a] flex-shrink-0" />}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        )}
+                        <button
+                            onClick={() => siblings.length > 1 && setProfileMenuOpen(o => !o)}
+                            className={`w-full flex items-center gap-3 p-3 bg-slate-50 rounded-2xl transition-colors ${collapsed ? 'justify-center' : ''} ${siblings.length > 1 ? 'hover:bg-indigo-50/60 cursor-pointer' : 'cursor-default'}`}
+                        >
                             <div className="w-10 h-10 rounded-2xl bg-[#463a7a] flex items-center justify-center font-black text-white text-sm flex-shrink-0">
                                 {initials}
                             </div>
                             {!collapsed && (
-                                <div className="overflow-hidden flex-1 min-w-0">
-                                    <p className="text-sm font-black text-slate-900 truncate">{student.first_name} {student.last_name}</p>
-                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider truncate">{student.course || 'Student'}</p>
-                                </div>
+                                <>
+                                    <div className="overflow-hidden flex-1 min-w-0 text-left">
+                                        <p className="text-sm font-black text-slate-900 truncate">{student.first_name} {student.last_name}</p>
+                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider truncate">{student.course || 'Student'}</p>
+                                    </div>
+                                    {siblings.length > 1 && (
+                                        <ChevronsUpDown size={14} className="text-slate-400 flex-shrink-0" />
+                                    )}
+                                </>
                             )}
-                        </div>
+                        </button>
                         <button
                             onClick={handleLogout}
                             className={`w-full flex items-center ${collapsed ? 'justify-center' : 'gap-3 px-3'} py-3 mt-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-2xl transition-all group font-black text-[10px] tracking-widest uppercase`}

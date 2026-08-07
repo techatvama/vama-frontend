@@ -27,9 +27,11 @@ export default function StudentLogin() {
         try {
             const response = await api.post('/student/login', { email, password });
             localStorage.setItem('student', JSON.stringify(response.data.student));
-            // Store JWT token (Phase 1 security)
             if (response.data.access_token) {
                 localStorage.setItem('student_token', response.data.access_token);
+            }
+            if (response.data.refresh_token) {
+                localStorage.setItem('student_refresh_token', response.data.refresh_token);
             }
             navigate('/student-portal');
         } catch (err) {

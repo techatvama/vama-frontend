@@ -1,7 +1,6 @@
 import React, { useEffect } from 'react';
 import { Outlet, useNavigate } from 'react-router';
 import StudentSidebar from './StudentSidebar';
-import ChildSwitcher from './ChildSwitcher';
 
 export default function StudentPortal() {
     const navigate = useNavigate();
@@ -18,7 +17,6 @@ export default function StudentPortal() {
             <StudentSidebar />
             <main className="flex-1 min-w-0 overflow-y-auto">
                 <div className="pt-16 lg:pt-0 pb-20 lg:pb-0">
-                    <ChildSwitcher />
                     <Outlet />
                 </div>
             </main>

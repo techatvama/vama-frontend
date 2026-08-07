@@ -50,6 +50,7 @@ export default function TeacherSidebar() {
     const handleLogout = () => {
         localStorage.removeItem('teacher');
         localStorage.removeItem('teacher_token');
+        localStorage.removeItem('teacher_refresh_token');
         navigate('/teacher-login');
     };
 

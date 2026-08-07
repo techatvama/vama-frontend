@@ -199,6 +199,21 @@ function buildMessage(url, method, req, res) {
 // ── Auto-refresh access token on 401 ─────────────────────────────────────────
 let _refreshing = null;
 
+function _detectUserType() {
+    if (localStorage.getItem('admin_token'))   return 'admin';
+    if (localStorage.getItem('teacher_token')) return 'teacher';
+    if (localStorage.getItem('student_token')) return 'student';
+    return null;
+}
+const _refreshKey  = { admin: 'admin_refresh_token',   teacher: 'teacher_refresh_token',   student: 'student_refresh_token' };
+const _accessKey   = { admin: 'admin_token',            teacher: 'teacher_token',            student: 'student_token' };
+const _loginRoute  = { admin: '/admin-login',           teacher: '/teacher-login',           student: '/student-login' };
+const _clearKeys   = {
+    admin:   ['admin_token', 'admin_refresh_token', 'admin'],
+    teacher: ['teacher_token', 'teacher_refresh_token', 'teacher'],
+    student: ['student_token', 'student_refresh_token', 'student'],
+};
+
 api.interceptors.response.use(null, async (err) => {
     const original = err.config;
     const status = err.response?.status;
@@ -211,8 +226,15 @@ api.interceptors.response.use(null, async (err) => {
         !original._retried
     ) {
         original._retried = true;
-        const refreshToken = localStorage.getItem('admin_refresh_token');
-        if (!refreshToken) return Promise.reject(err);
+        const userType = _detectUserType();
+        if (!userType) return Promise.reject(err);
+
+        const refreshToken = localStorage.getItem(_refreshKey[userType]);
+        if (!refreshToken) {
+            _clearKeys[userType].forEach(k => localStorage.removeItem(k));
+            window.location.href = _loginRoute[userType];
+            return Promise.reject(err);
+        }
 
         try {
             // Deduplicate concurrent refresh calls
@@ -222,15 +244,14 @@ api.interceptors.response.use(null, async (err) => {
             }
             const { data } = await _refreshing;
             if (data.access_token) {
-                localStorage.setItem('admin_token', data.access_token);
+                localStorage.setItem(_accessKey[userType], data.access_token);
                 original.headers.Authorization = `Bearer ${data.access_token}`;
                 return api(original);
             }
         } catch {
             // Refresh failed — clear tokens, redirect to login
-            localStorage.removeItem('admin_token');
-            localStorage.removeItem('admin_refresh_token');
-            window.location.href = '/admin-login';
+            _clearKeys[userType].forEach(k => localStorage.removeItem(k));
+            window.location.href = _loginRoute[userType];
         }
     }
     return Promise.reject(err);

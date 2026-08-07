@@ -3,9 +3,14 @@ import { useLocation } from "react-router";
 import { api } from "../lib/api";
 import Sidebar from "./Sidebar";
 import AddStudentDialog from "./AddStudentDialog";
-import { Search, ChevronLeft, ChevronRight, Edit, Loader2, Users, UserCheck, UserPlus, Download } from "lucide-react";
+import { Search, ChevronLeft, ChevronRight, Edit, Loader2, Users, UserCheck, UserPlus, Download, Upload, X, CheckCircle2, XCircle, Trash2, AlertTriangle } from "lucide-react";
 import { useNavigate } from "react-router";
 import * as XLSX from "xlsx";
+
+const BULK_UPLOAD_TEMPLATE_COLUMNS = [
+  "First Name", "Last Name", "Email", "Phone", "Gender",
+  "Course", "Center", "Teacher", "Address", "Date of Birth",
+];
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -24,6 +29,18 @@ export default function Dashboard() {
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
   const [addaction, setAddAction] = useState(false);
   const [editingStudent, setEditingStudent] = useState(null);
+  const [bulkRows, setBulkRows] = useState(null);       // parsed rows awaiting confirmation
+  const [bulkUploading, setBulkUploading] = useState(false);
+  const [bulkResults, setBulkResults] = useState(null);  // per-row outcome after submit
+  const [bulkProgress, setBulkProgress] = useState({ done: 0, total: 0 });
+  const [bulkCreateSel, setBulkCreateSel] = useState(new Set()); // selected row indexes to actually create
+  const [selectedIds, setSelectedIds] = useState(new Set());     // selected student ids (table, for delete)
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteResults, setDeleteResults] = useState(null);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deleteSnapshot, setDeleteSnapshot] = useState({});  // id -> record, frozen before delete for the results view
+  const bulkFileInputRef = React.useRef(null);
 
   // Constants
   const columnConfig = {
@@ -182,6 +199,168 @@ export default function Dashboard() {
     XLSX.writeFile(wb, `students-${stamp}.xlsx`);
   };
 
+  const handleDownloadTemplate = () => {
+    const ws = XLSX.utils.aoa_to_sheet([BULK_UPLOAD_TEMPLATE_COLUMNS]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Students");
+    XLSX.writeFile(wb, "students-bulk-upload-template.xlsx");
+  };
+
+  const handleBulkFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // allow re-selecting the same file later
+    if (!file) return;
+
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, { type: "array" });
+    const sheet = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+
+    const teacherByName = new Map(
+      staffList.map(t => [String(t.name || "").trim().toLowerCase(), t.id])
+    );
+
+    const parsed = rows.map((r, idx) => {
+      const get = (...keys) => {
+        for (const k of keys) {
+          if (r[k] !== undefined && String(r[k]).trim() !== "") return String(r[k]).trim();
+        }
+        return "";
+      };
+      const email = get("Email", "email");
+      const teacherName = get("Teacher", "teacher");
+      return {
+        _row: idx + 2, // +2: header row + 1-indexing, matches spreadsheet line number
+        first_name: get("First Name", "first_name"),
+        last_name: get("Last Name", "last_name"),
+        email,
+        primary_phone_number: get("Phone", "Primary Phone Number", "primary_phone_number"),
+        gender: get("Gender", "gender"),
+        desired_course: get("Course", "Desired Course", "desired_course"),
+        nearest_vama_center: get("Center", "nearest_vama_center"),
+        address: get("Address", "address"),
+        date_of_birth: get("Date of Birth", "date_of_birth"),
+        teacher_id: teacherName ? teacherByName.get(teacherName.toLowerCase()) : undefined,
+        _error: !email ? "Missing email" : !get("First Name", "first_name") ? "Missing first name" : null,
+      };
+    });
+
+    setBulkResults(null);
+    setBulkRows(parsed);
+    setBulkCreateSel(new Set(parsed.filter(r => !r._error).map(r => r._row)));
+  };
+
+  const toggleBulkRowSel = (rowId) => {
+    setBulkCreateSel(prev => {
+      const next = new Set(prev);
+      next.has(rowId) ? next.delete(rowId) : next.add(rowId);
+      return next;
+    });
+  };
+
+  const toggleBulkSelAll = () => {
+    const selectable = bulkRows.filter(r => !r._error).map(r => r._row);
+    setBulkCreateSel(prev =>
+      selectable.every(id => prev.has(id)) ? new Set() : new Set(selectable)
+    );
+  };
+
+  const toggleSelectId = (id) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAllOnPage = (pageRecords) => {
+    const ids = pageRecords.map(r => r.id);
+    setSelectedIds(prev => {
+      const allSelected = ids.every(id => prev.has(id));
+      const next = new Set(prev);
+      ids.forEach(id => allSelected ? next.delete(id) : next.add(id));
+      return next;
+    });
+  };
+
+  const closeDeleteModal = () => {
+    setDeleteConfirm(false);
+    setDeleteResults(null);
+    setDeleteConfirmText("");
+    setDeleteSnapshot({});
+  };
+
+  const handleConfirmDelete = async () => {
+    setDeleting(true);
+    const ids = Array.from(selectedIds);
+    setDeleteSnapshot(Object.fromEntries(records.filter(r => selectedIds.has(r.id)).map(r => [r.id, r])));
+    try {
+      const { data } = await api.post("/students/bulk-delete", { student_ids: ids });
+      setDeleteResults(data.results);
+      const deletedIds = new Set(data.results.filter(r => r.ok).map(r => r.id));
+      if (deletedIds.size > 0) {
+        setRecords(prev => prev.filter(r => !deletedIds.has(r.id)));
+        setSelectedIds(prev => {
+          const next = new Set(prev);
+          deletedIds.forEach(id => next.delete(id));
+          return next;
+        });
+      }
+    } catch (err) {
+      setDeleteResults(
+        Array.from(selectedIds).map(id => ({ id, ok: false, message: err.response?.data?.detail || err.message || "Failed" }))
+      );
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const closeBulkModal = () => {
+    setBulkRows(null);
+    setBulkResults(null);
+    setBulkProgress({ done: 0, total: 0 });
+    setBulkCreateSel(new Set());
+  };
+
+  const BULK_CONCURRENCY = 5;
+
+  const handleBulkConfirm = async () => {
+    const toSubmit = bulkRows.filter(r => bulkCreateSel.has(r._row));
+    if (toSubmit.length === 0) return;
+
+    setBulkUploading(true);
+    const results = new Array(toSubmit.length);
+    setBulkProgress({ done: 0, total: toSubmit.length });
+    let doneCount = 0;
+
+    const submitRow = async (row) => {
+      try {
+        const { _row, _error, ...payload } = row;
+        await api.post("/students", payload);
+        return { row, ok: true };
+      } catch (err) {
+        return { row, ok: false, message: err.response?.data?.detail || err.message || "Failed" };
+      }
+    };
+
+    let nextIndex = 0;
+    const worker = async () => {
+      while (nextIndex < toSubmit.length) {
+        const i = nextIndex++;
+        results[i] = await submitRow(toSubmit[i]);
+        doneCount++;
+        setBulkProgress({ done: doneCount, total: toSubmit.length });
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(BULK_CONCURRENCY, toSubmit.length) }, worker));
+
+    setBulkResults(results);
+    setBulkUploading(false);
+    if (results.some(r => r.ok)) {
+      await fetchStudents();
+    }
+  };
+
   return (
     <div className="bg-gray-50 min-h-screen">
       {/* <Sidebar /> - Assuming Dashboard is rendered inside a layout or Sidebar is handled upstream */}
@@ -193,6 +372,199 @@ export default function Dashboard() {
           onSubmit={handleStudentSaved}
           initialData={editingStudent}
         />
+
+        {bulkRows && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[85vh] flex flex-col">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+                <h2 className="text-lg font-bold text-slate-900">
+                  {bulkResults ? "Bulk Upload Results" : `Review ${bulkRows.length} Student${bulkRows.length === 1 ? "" : "s"}`}
+                </h2>
+                <button onClick={closeBulkModal} className="p-1.5 text-slate-400 hover:text-slate-700 rounded-full hover:bg-slate-100">
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="overflow-y-auto px-6 py-4 flex-1">
+                {!bulkResults && (
+                  <p className="text-sm text-slate-500 mb-4">
+                    Each row will create a new student account and send an activation email.
+                    Rows with errors will be skipped.
+                  </p>
+                )}
+                <table className="min-w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-xs font-bold text-slate-500 uppercase">
+                      {!bulkResults && (
+                        <th className="py-2 pr-3 w-8">
+                          <input
+                            type="checkbox"
+                            checked={bulkRows.filter(r => !r._error).length > 0 && bulkRows.filter(r => !r._error).every(r => bulkCreateSel.has(r._row))}
+                            onChange={toggleBulkSelAll}
+                          />
+                        </th>
+                      )}
+                      <th className="py-2 pr-3">Row</th>
+                      <th className="py-2 pr-3">Name</th>
+                      <th className="py-2 pr-3">Email</th>
+                      <th className="py-2 pr-3">Course</th>
+                      <th className="py-2 pr-3">Center</th>
+                      <th className="py-2 pr-3">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {(bulkResults || bulkRows.map(row => ({ row, ok: null }))).map(({ row, ok, message }) => (
+                      <tr key={row._row}>
+                        {!bulkResults && (
+                          <td className="py-2 pr-3">
+                            <input
+                              type="checkbox"
+                              disabled={!!row._error}
+                              checked={bulkCreateSel.has(row._row)}
+                              onChange={() => toggleBulkRowSel(row._row)}
+                            />
+                          </td>
+                        )}
+                        <td className="py-2 pr-3 text-slate-400">{row._row}</td>
+                        <td className="py-2 pr-3">{row.first_name} {row.last_name}</td>
+                        <td className="py-2 pr-3">{row.email || "—"}</td>
+                        <td className="py-2 pr-3">{row.desired_course || "—"}</td>
+                        <td className="py-2 pr-3">{row.nearest_vama_center || "—"}</td>
+                        <td className="py-2 pr-3">
+                          {ok === null ? (
+                            row._error
+                              ? <span className="text-red-600 flex items-center gap-1"><XCircle size={14} />{row._error}</span>
+                              : <span className="text-slate-400">Ready</span>
+                          ) : ok ? (
+                            <span className="text-emerald-600 flex items-center gap-1"><CheckCircle2 size={14} />Created</span>
+                          ) : (
+                            <span className="text-red-600 flex items-center gap-1"><XCircle size={14} />{message}</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-100 bg-slate-50/50">
+                {bulkResults ? (
+                  <button
+                    onClick={closeBulkModal}
+                    className="px-4 py-2 rounded-xl bg-[#463a7a] text-white text-sm font-semibold hover:shadow-lg transition-all"
+                  >
+                    Done
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      onClick={closeBulkModal}
+                      className="px-4 py-2 rounded-xl border border-slate-200 text-slate-700 text-sm font-semibold hover:bg-slate-50 transition-all"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleBulkConfirm}
+                      disabled={bulkUploading || bulkCreateSel.size === 0}
+                      className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#463a7a] text-white text-sm font-semibold hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {bulkUploading && <Loader2 size={15} className="animate-spin" />}
+                      {bulkUploading
+                        ? `Creating ${bulkProgress.done} of ${bulkProgress.total}...`
+                        : `Create ${bulkCreateSel.size} Selected`}
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {deleteConfirm && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[85vh] flex flex-col">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+                <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                  <AlertTriangle size={18} className="text-red-600" />
+                  {deleteResults ? "Delete Results" : "Permanently Delete Students?"}
+                </h2>
+                <button onClick={closeDeleteModal} className="p-1.5 text-slate-400 hover:text-slate-700 rounded-full hover:bg-slate-100">
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="overflow-y-auto px-6 py-4 flex-1">
+                {deleteResults ? (
+                  <ul className="divide-y divide-slate-100 text-sm">
+                    {deleteResults.map(r => {
+                      const rec = deleteSnapshot[r.id];
+                      return (
+                        <li key={r.id} className="py-2 flex items-center justify-between gap-3">
+                          <span>{rec ? `${rec["First Name"]} ${rec["Last Name"]}` : `#${r.id}`}</span>
+                          {r.ok ? (
+                            <span className="text-emerald-600 flex items-center gap-1 flex-shrink-0"><CheckCircle2 size={14} />Deleted</span>
+                          ) : (
+                            <span className="text-red-600 flex items-center gap-1 flex-shrink-0"><XCircle size={14} />{r.message}</span>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : (
+                  <>
+                    <p className="text-sm text-slate-600 mb-3">
+                      This will <strong>permanently delete {selectedIds.size} student{selectedIds.size === 1 ? "" : "s"}</strong> and
+                      all of their invoices, payments, packages, attendance, and class enrollment history. This cannot be undone.
+                    </p>
+                    <ul className="max-h-40 overflow-y-auto text-sm text-slate-700 mb-4 border border-slate-100 rounded-lg divide-y divide-slate-100">
+                      {records.filter(r => selectedIds.has(r.id)).map(r => (
+                        <li key={r.id} className="px-3 py-1.5">{r["First Name"]} {r["Last Name"]} — {r["Email"]}</li>
+                      ))}
+                    </ul>
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                      Type <span className="font-mono font-bold">DELETE</span> to confirm
+                    </label>
+                    <input
+                      type="text"
+                      value={deleteConfirmText}
+                      onChange={(e) => setDeleteConfirmText(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
+                      placeholder="DELETE"
+                    />
+                  </>
+                )}
+              </div>
+
+              <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-100 bg-slate-50/50">
+                {deleteResults ? (
+                  <button
+                    onClick={closeDeleteModal}
+                    className="px-4 py-2 rounded-xl bg-[#463a7a] text-white text-sm font-semibold hover:shadow-lg transition-all"
+                  >
+                    Done
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      onClick={closeDeleteModal}
+                      className="px-4 py-2 rounded-xl border border-slate-200 text-slate-700 text-sm font-semibold hover:bg-slate-50 transition-all"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleConfirmDelete}
+                      disabled={deleting || deleteConfirmText !== "DELETE"}
+                      className="flex items-center gap-2 px-4 py-2 rounded-xl bg-red-600 text-white text-sm font-semibold hover:bg-red-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {deleting && <Loader2 size={15} className="animate-spin" />}
+                      {deleting ? "Deleting..." : `Delete ${selectedIds.size} Permanently`}
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
@@ -292,13 +664,42 @@ export default function Dashboard() {
               </select>
             </div>
 
-            <button
-              onClick={handleDownloadExcel}
-              disabled={sortedRecords.length === 0}
-              className="flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
-            >
-              <Download size={15} /> Download Excel
-            </button>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {selectedIds.size > 0 && (
+                <button
+                  onClick={() => setDeleteConfirm(true)}
+                  className="flex items-center justify-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-semibold transition-colors"
+                >
+                  <Trash2 size={15} /> Delete Selected ({selectedIds.size})
+                </button>
+              )}
+              <input
+                ref={bulkFileInputRef}
+                type="file"
+                accept=".xlsx,.xls,.csv"
+                onChange={handleBulkFileChange}
+                className="hidden"
+              />
+              <button
+                onClick={() => bulkFileInputRef.current?.click()}
+                className="flex items-center justify-center gap-2 px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-sm font-semibold transition-colors"
+              >
+                <Upload size={15} /> Bulk Upload
+              </button>
+              <button
+                onClick={handleDownloadTemplate}
+                className="text-xs text-slate-400 hover:text-[#463a7a] underline underline-offset-2 transition-colors"
+              >
+                Template
+              </button>
+              <button
+                onClick={handleDownloadExcel}
+                disabled={sortedRecords.length === 0}
+                className="flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Download size={15} /> Download Excel
+              </button>
+            </div>
           </div>
 
           {/* Table */}
@@ -306,6 +707,13 @@ export default function Dashboard() {
             <table className="min-w-full divide-y divide-slate-100">
               <thead>
                 <tr className="bg-slate-50 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  <th className="px-4 py-4 w-8">
+                    <input
+                      type="checkbox"
+                      checked={paginatedRecords.length > 0 && paginatedRecords.every(r => selectedIds.has(r.id))}
+                      onChange={() => toggleSelectAllOnPage(paginatedRecords)}
+                    />
+                  </th>
                   <th className="px-6 py-4 w-12">#</th>
                   {Object.keys(columnConfig).map((key) => (
                     <th
@@ -327,7 +735,7 @@ export default function Dashboard() {
               <tbody className="divide-y divide-slate-100">
                 {loading ? (
                   <tr>
-                    <td colSpan={Object.keys(columnConfig).length + 2} className="px-6 py-12 text-center text-slate-500">
+                    <td colSpan={Object.keys(columnConfig).length + 3} className="px-6 py-12 text-center text-slate-500">
                       <div className="flex justify-center items-center gap-2">
                         <Loader2 className="h-5 w-5 animate-spin" />
                         Loading data...
@@ -336,7 +744,7 @@ export default function Dashboard() {
                   </tr>
                 ) : paginatedRecords.length === 0 ? (
                   <tr>
-                    <td colSpan={Object.keys(columnConfig).length + 2} className="px-6 py-12 text-center text-slate-500">
+                    <td colSpan={Object.keys(columnConfig).length + 3} className="px-6 py-12 text-center text-slate-500">
                       No students found matching your criteria.
                     </td>
                   </tr>
@@ -346,6 +754,13 @@ export default function Dashboard() {
                       key={record.id}
                       className="group hover:bg-slate-50 transition-colors even:bg-slate-50/30"
                     >
+                      <td className="px-4 py-4">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(record.id)}
+                          onChange={() => toggleSelectId(record.id)}
+                        />
+                      </td>
                       <td className="px-6 py-4 text-xs text-slate-400">
                         {((currentPage - 1) * rowsPerPage) + idx + 1}
                       </td>

@@ -17,9 +17,11 @@ export default function TeacherLogin() {
         try {
             const response = await api.post('/teacher/login', { email, password });
             localStorage.setItem('teacher', JSON.stringify(response.data.teacher));
-            // Store JWT token (Phase 1 security)
             if (response.data.access_token) {
                 localStorage.setItem('teacher_token', response.data.access_token);
+            }
+            if (response.data.refresh_token) {
+                localStorage.setItem('teacher_refresh_token', response.data.refresh_token);
             }
             navigate('/teacher-portal');
         } catch (err) {
