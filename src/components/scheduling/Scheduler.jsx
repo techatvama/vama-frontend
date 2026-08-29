@@ -342,6 +342,13 @@ export default function Scheduler() {
         fetchSessions();
     }, [currentDate, viewMode, enrollmentFilter]);
 
+    // Keep the roster/attendance/cancellation state in sync with the student
+    // and teacher portals without a manual reload.
+    useEffect(() => {
+        const interval = setInterval(fetchSessions, 20000);
+        return () => clearInterval(interval);
+    }, [currentDate, viewMode, enrollmentFilter]);
+
     const fetchSessions = async () => {
         setLoading(true);
         try {
@@ -359,6 +366,7 @@ export default function Scheduler() {
                 params: {
                     start: format(start, 'yyyy-MM-dd'),
                     end:   format(end,   'yyyy-MM-dd'),
+                    include_roster: true,
                 },
             });
             const occ = res.data.occurrences || [];

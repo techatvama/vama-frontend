@@ -47,6 +47,11 @@ function ClassOptionsModal({ session, attendance, onCancel, onReschedule, onClos
     const isPast = new Date(session.date + 'T23:59:59') < new Date();
     const canReschedule = packageStatus?.can_book && (packageStatus?.makeup_remaining ?? 1) > 0;
 
+    const cancelWindowHours = packageStatus?.cancellation_window_hours ?? 24;
+    const sessionStart = new Date(`${session.date}T${session.start_time}:00`);
+    const hoursUntilStart = (sessionStart.getTime() - Date.now()) / 3600000;
+    const withinCancelWindow = hoursUntilStart < cancelWindowHours;
+
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
             <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-sm overflow-hidden" onClick={e => e.stopPropagation()}>
@@ -109,7 +114,17 @@ function ClassOptionsModal({ session, attendance, onCancel, onReschedule, onClos
                                 </div>
                             )}
 
-                            {!confirmCancel ? (
+                            {withinCancelWindow ? (
+                                <div className="w-full flex items-center gap-3 px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl opacity-60 cursor-not-allowed">
+                                    <Ban size={18} className="text-slate-400" />
+                                    <div>
+                                        <div className="text-sm font-black text-slate-500">Cancellation Window Passed</div>
+                                        <div className="text-xs font-medium text-slate-400">
+                                            Classes must be cancelled at least {cancelWindowHours}h in advance
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : !confirmCancel ? (
                                 <button
                                     onClick={() => setConfirmCancel(true)}
                                     className="w-full flex items-center justify-between px-5 py-4 border-2 border-red-100 bg-red-50 text-red-600 rounded-2xl font-black text-sm hover:bg-red-100 transition-all active:scale-95"

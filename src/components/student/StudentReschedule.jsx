@@ -268,19 +268,24 @@ export default function StudentReschedule() {
 
                                         {/* Time Slots */}
                                         <div className="p-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                            {slots.map((slot) => (
+                                            {slots.map((slot) => {
+                                                const isFull = slot.capacity > 0 && slot.enrolled >= slot.capacity;
+                                                return (
                                                 <button
                                                     key={slot.id}
-                                                    onClick={() => setSelectedSlot(slot)}
+                                                    onClick={() => !isFull && setSelectedSlot(slot)}
+                                                    disabled={isFull}
                                                     className={`
                                                         relative p-4 rounded-xl text-left transition-all border-2
-                                                        ${selectedSlot?.id === slot.id
+                                                        ${isFull
+                                                            ? 'bg-slate-50 border-slate-200 opacity-60 cursor-not-allowed'
+                                                            : selectedSlot?.id === slot.id
                                                             ? 'bg-blue-50 border-blue-500 shadow-lg scale-[1.02]'
                                                             : 'bg-white border-slate-200 hover:border-blue-300 hover:shadow-md'
                                                         }
                                                     `}
                                                 >
-                                                    {selectedSlot?.id === slot.id && (
+                                                    {selectedSlot?.id === slot.id && !isFull && (
                                                         <div className="absolute top-2 right-2">
                                                             <CheckCircle2 className="text-blue-600" size={20} />
                                                         </div>
@@ -300,16 +305,19 @@ export default function StudentReschedule() {
                                                     <div className="flex items-center gap-2">
                                                         <span className={`
                                                             text-xs font-semibold px-2 py-1 rounded-full
-                                                            ${slot.enrolled >= slot.capacity * 0.8
+                                                            ${isFull
+                                                                ? 'bg-red-100 text-red-700'
+                                                                : slot.enrolled >= slot.capacity * 0.8
                                                                 ? 'bg-orange-100 text-orange-700'
                                                                 : 'bg-emerald-100 text-emerald-700'
                                                             }
                                                         `}>
-                                                            {slot.enrolled}/{slot.capacity} students
+                                                            {isFull ? 'Full' : `${slot.enrolled}/${slot.capacity} students`}
                                                         </span>
                                                     </div>
                                                 </button>
-                                            ))}
+                                                );
+                                            })}
                                         </div>
                                     </div>
                                 ))}
