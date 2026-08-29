@@ -343,14 +343,16 @@ export default function Scheduler() {
     }, [currentDate, viewMode, enrollmentFilter]);
 
     // Keep the roster/attendance/cancellation state in sync with the student
-    // and teacher portals without a manual reload.
+    // and teacher portals without a manual reload. Silent: doesn't touch the
+    // loading flag, so the calendar updates in place instead of flashing the
+    // full-screen spinner every tick.
     useEffect(() => {
-        const interval = setInterval(fetchSessions, 20000);
+        const interval = setInterval(() => fetchSessions({ silent: true }), 20000);
         return () => clearInterval(interval);
     }, [currentDate, viewMode, enrollmentFilter]);
 
-    const fetchSessions = async () => {
-        setLoading(true);
+    const fetchSessions = async ({ silent = false } = {}) => {
+        if (!silent) setLoading(true);
         try {
             let start, end;
             if (viewMode === 'day') {
@@ -376,7 +378,7 @@ export default function Scheduler() {
         } catch (e) {
             console.error(e);
         } finally {
-            setLoading(false);
+            if (!silent) setLoading(false);
         }
     };
 
