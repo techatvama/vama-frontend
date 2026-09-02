@@ -66,7 +66,7 @@ export default function ClassSessionCard({ session, onClick, compact = false, vi
     const isDayView     = viewMode === 'day';
 
     // In day view show every student; week view caps at 4
-    const studentLimit  = isDayView && !compact ? enrolledStudents.length : (compact ? 2 : 4);
+    const studentLimit  = isDayView && !compact ? enrolledStudents.length : (compact ? 3 : 4);
     const visibleStudents = enrolledStudents.slice(0, studentLimit);
     const extraCount      = Math.max(0, enrollmentCount - visibleStudents.length);
 
@@ -201,21 +201,27 @@ export default function ClassSessionCard({ session, onClick, compact = false, vi
                 </div>
             )}
 
-            {/* ── STUDENTS: Compact mode (overlapping) — initials avatars row ── */}
+            {/* ── STUDENTS: Compact mode (overlapping) — readable names, not just
+                 avatar initials, so admins can identify who's booked without
+                 hovering or opening the slot. ── */}
             {compact && visibleStudents.length > 0 && (
-                <div className="px-2 pb-0.5 flex-1 overflow-hidden">
-                    <div className="flex items-center -space-x-1">
+                <div className="px-2 pb-0.5 flex-1 overflow-hidden min-h-0">
+                    <div className="space-y-px">
                         {visibleStudents.map((s, i) => (
-                            <div key={s.id}
-                                className="w-4 h-4 rounded-full border border-white flex items-center justify-center text-[6px] font-black text-white"
-                                style={{ backgroundColor: borderColor + (i === 0 ? 'ee' : i === 1 ? 'aa' : '77') }}
-                                title={`${s.first_name} ${s.last_name}`}>
-                                {s.first_name?.[0]}{s.last_name?.[0]}
+                            <div key={s.id} className="flex items-center gap-1 leading-none">
+                                <div className="w-3 h-3 rounded-full flex items-center justify-center text-[6px] font-black text-white flex-shrink-0"
+                                    style={{ backgroundColor: borderColor + (i === 0 ? 'ee' : 'aa') }}
+                                    title={`${s.first_name} ${s.last_name}`}>
+                                    {s.first_name?.[0]}{s.last_name?.[0]}
+                                </div>
+                                <span className="text-[8px] font-semibold truncate" style={{ color: textColor }}>
+                                    {s.first_name} {s.last_name?.[0]}.
+                                </span>
                             </div>
                         ))}
                         {extraCount > 0 && (
-                            <div className="w-4 h-4 rounded-full border border-white bg-gray-300 flex items-center justify-center text-[6px] font-bold text-gray-600">
-                                +{extraCount}
+                            <div className="text-[8px] font-bold pl-0.5" style={{ color: borderColor }}>
+                                +{extraCount} more
                             </div>
                         )}
                     </div>

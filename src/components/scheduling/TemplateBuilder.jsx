@@ -58,8 +58,16 @@ export default function TemplateBuilder({ onClose, onCreated }) {
 
     const submit = async () => {
         setError('');
-        if (!form.name || !startDate) { setError('Class name and start date are required.'); return; }
-        if ((freq === 'weekly' || freq === 'custom') && byday.length === 0) { setError('Pick at least one weekday.'); return; }
+        const missing = [];
+        if (!form.name.trim()) missing.push('class name');
+        if (!form.course) missing.push('program/course');
+        if (!form.teacher_id) missing.push('teacher');
+        if (!form.start_time) missing.push('start time');
+        if (!form.end_time) missing.push('end time');
+        if (!form.capacity || Number(form.capacity) <= 0) missing.push('capacity');
+        if (!startDate) missing.push('start date');
+        if ((freq === 'weekly' || freq === 'custom') && byday.length === 0) missing.push('at least one weekday');
+        if (missing.length) { setError(`Please fill in: ${missing.join(', ')}.`); return; }
         setSaving(true);
         try {
             const res = await api.post('/scheduling/templates', {
@@ -98,19 +106,19 @@ export default function TemplateBuilder({ onClose, onCreated }) {
                 <div className="p-6 lg:p-8 space-y-4">
                     {error && <div className="bg-red-50 border border-red-200 text-red-600 p-3 rounded-2xl text-sm font-bold">{error}</div>}
 
-                    <input className={field} placeholder="Class name (e.g. Violin Beginner)" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
+                    <input className={field} placeholder="Class name (e.g. Violin Beginner) *" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
                     <div className="grid grid-cols-2 gap-3">
                         <select className={field} value={form.course} onChange={e => setForm({ ...form, course: e.target.value })}>
-                            <option value="">Program / Course…</option>
+                            <option value="">Program / Course… *</option>
                             {subjects.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
                         </select>
                         <select className={field} value={form.teacher_id} onChange={e => setForm({ ...form, teacher_id: e.target.value })}>
-                            <option value="">Teacher…</option>
+                            <option value="">Teacher… *</option>
                             {teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                         </select>
                     </div>
                     <div className="grid grid-cols-3 gap-3">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest col-span-3 -mb-2">Time & capacity</label>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest col-span-3 -mb-2">Time & capacity *</label>
                         <input type="time" className={field} value={form.start_time} onChange={e => setForm({ ...form, start_time: e.target.value })} />
                         <input type="time" className={field} value={form.end_time} onChange={e => setForm({ ...form, end_time: e.target.value })} />
                         <input type="number" min="1" className={field} value={form.capacity} onChange={e => setForm({ ...form, capacity: e.target.value })} />
@@ -149,7 +157,7 @@ export default function TemplateBuilder({ onClose, onCreated }) {
 
                         <div className="grid grid-cols-2 gap-3">
                             <div>
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Start date</label>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Start date *</label>
                                 <input type="date" className={field} value={startDate} onChange={e => setStartDate(e.target.value)} />
                             </div>
                             <div>

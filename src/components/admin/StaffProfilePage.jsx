@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { api } from '../../lib/api';
 import {
-    ArrowLeft, ChevronRight, Loader2, Mail, Phone, Calendar,
+    ArrowLeft, ChevronRight, ChevronDown, Loader2, Mail, Phone, Calendar,
     Users, BookOpen, TrendingUp, Clock, Activity, Award,
     BarChart2, Layers, CheckCircle, Target, Zap, Star
 } from 'lucide-react';
@@ -75,15 +75,6 @@ const OccupancyRing = ({ pct }) => {
     );
 };
 
-const MiniBar = ({ value, max, color = 'bg-[#463a7a]' }) => {
-    const pct = max > 0 ? Math.min((value / max) * 100, 100) : 0;
-    return (
-        <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
-            <div className={`${color} h-full rounded-full`} style={{ width: `${pct}%`, transition: 'width 0.8s ease' }} />
-        </div>
-    );
-};
-
 const TabBtn = ({ id, label, icon: Icon, active, onClick }) => (
     <button onClick={() => onClick(id)}
         className={`flex items-center gap-2 px-5 py-3.5 text-sm font-semibold border-b-2 whitespace-nowrap transition-all
@@ -103,6 +94,12 @@ export default function StaffProfilePage() {
     const [data, setData] = useState(null);
     const [error, setError] = useState(null);
     const [activeTab, setActiveTab] = useState('overview');
+    const [openBatches, setOpenBatches] = useState(new Set());
+    const toggleBatch = (id) => setOpenBatches(prev => {
+        const next = new Set(prev);
+        next.has(id) ? next.delete(id) : next.add(id);
+        return next;
+    });
 
     useEffect(() => {
         setLoading(true);
@@ -388,28 +385,35 @@ export default function StaffProfilePage() {
                                                     </div>
                                                 </div>
                                                 <div className="px-5 py-4">
-                                                    <div className="grid grid-cols-4 gap-4 mb-3">
-                                                        {[
-                                                            { label: 'Students', value: b.enrolled, icon: Users },
-                                                            { label: 'Capacity', value: b.capacity, icon: Target },
-                                                            { label: 'Sessions', value: b.total_sessions, icon: Calendar },
-                                                            { label: 'Attendance', value: `${b.avg_attendance_rate}%`, icon: TrendingUp },
-                                                        ].map(s => (
-                                                            <div key={s.label} className="text-center">
-                                                                <div className="text-xl font-black text-slate-800">{s.value}</div>
-                                                                <div className="text-xs text-slate-400 mt-0.5 flex items-center justify-center gap-1">
-                                                                    <s.icon size={10} />{s.label}
+                                                    <button onClick={() => toggleBatch(b.id)}
+                                                        className="w-full flex items-center justify-between rounded-lg py-1 hover:bg-slate-50 transition-colors mb-3">
+                                                        <span className="flex items-center gap-1.5 text-sm font-bold text-slate-800">
+                                                            <Users size={13} className="text-slate-400" />
+                                                            {b.enrolled} / {b.capacity} students
+                                                            <ChevronDown size={13} className={`text-slate-400 transition-transform ${openBatches.has(b.id) ? 'rotate-180' : ''}`} />
+                                                        </span>
+                                                        <span className="text-xs text-slate-400">{b.capacity - b.enrolled} seats left</span>
+                                                    </button>
+
+                                                    {openBatches.has(b.id) && (
+                                                        <div className="mb-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                                                            {(b.enrolled_students || []).length === 0 ? (
+                                                                <p className="text-xs text-slate-400 text-center py-2">No students enrolled in this class yet</p>
+                                                            ) : (
+                                                                <div className="flex flex-wrap gap-1.5">
+                                                                    {b.enrolled_students.map(st => (
+                                                                        <span key={st.id} className={`text-xs font-semibold px-2.5 py-1 rounded-full ${c.bg} ${c.text}`}>
+                                                                            {st.first_name} {st.last_name}
+                                                                        </span>
+                                                                    ))}
                                                                 </div>
-                                                            </div>
-                                                        ))}
-                                                    </div>
+                                                            )}
+                                                        </div>
+                                                    )}
+
                                                     <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
                                                         <div className={`${barColor} h-full rounded-full transition-all`}
                                                             style={{ width: `${b.occupancy_pct}%` }} />
-                                                    </div>
-                                                    <div className="flex justify-between mt-1.5 text-xs text-slate-400">
-                                                        <span>{b.enrolled} enrolled</span>
-                                                        <span>{b.capacity - b.enrolled} seats left</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -427,55 +431,6 @@ export default function StaffProfilePage() {
                                     <KpiCard icon={Users} label="Total Students" value={analytics.active_students} accent="purple" />
                                     <KpiCard icon={CheckCircle} label="Total Sessions" value={analytics.total_sessions_taught} accent="blue" />
                                     <KpiCard icon={Award} label="Avg Attendance" value={`${analytics.overall_attendance_rate}%`} accent={analytics.overall_attendance_rate >= 75 ? 'green' : 'orange'} />
-                                </div>
-
-                                {/* Occupancy by batch – horizontal bar chart */}
-                                <div>
-                                    <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4">Student Load by Batch</h3>
-                                    <div className="space-y-3">
-                                        {batches.sort((a, b) => b.enrolled - a.enrolled).map(b => {
-                                            const c = subjectColor(b.subject);
-                                            return (
-                                                <div key={b.id}>
-                                                    <div className="flex items-center justify-between mb-1">
-                                                        <div className="flex items-center gap-2">
-                                                            <div className={`w-2 h-2 rounded-full ${c.dot}`} />
-                                                            <span className="text-sm font-medium text-slate-700">{b.subject}{b.name ? ` – ${b.name}` : ''}</span>
-                                                        </div>
-                                                        <span className="text-sm font-black text-slate-800">{b.enrolled} / {b.capacity}</span>
-                                                    </div>
-                                                    <MiniBar value={b.enrolled} max={b.capacity}
-                                                        color={b.occupancy_pct >= 80 ? 'bg-orange-400' : b.occupancy_pct >= 50 ? 'bg-yellow-400' : 'bg-emerald-500'} />
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-
-                                {/* Attendance by batch */}
-                                <div>
-                                    <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4">Attendance Rate by Batch</h3>
-                                    <div className="space-y-3">
-                                        {batches.sort((a, b) => b.avg_attendance_rate - a.avg_attendance_rate).map(b => {
-                                            const c = subjectColor(b.subject);
-                                            const attColor = b.avg_attendance_rate >= 80 ? 'bg-emerald-500' : b.avg_attendance_rate >= 60 ? 'bg-yellow-400' : 'bg-red-400';
-                                            return (
-                                                <div key={b.id}>
-                                                    <div className="flex items-center justify-between mb-1">
-                                                        <div className="flex items-center gap-2">
-                                                            <div className={`w-2 h-2 rounded-full ${c.dot}`} />
-                                                            <span className="text-sm font-medium text-slate-700">{b.subject}{b.name ? ` – ${b.name}` : ''}</span>
-                                                        </div>
-                                                        <span className={`text-sm font-black
-                                                            ${b.avg_attendance_rate >= 80 ? 'text-emerald-600' : b.avg_attendance_rate >= 60 ? 'text-yellow-600' : 'text-red-500'}`}>
-                                                            {b.avg_attendance_rate}%
-                                                        </span>
-                                                    </div>
-                                                    <MiniBar value={b.avg_attendance_rate} max={100} color={attColor} />
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
                                 </div>
 
                                 {/* Summary insight cards */}

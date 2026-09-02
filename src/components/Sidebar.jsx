@@ -118,6 +118,7 @@ export default function Sidebar() {
         { icon: FaBolt, label: "Syllabus Builder", link: "/admin/syllabus" },
       ]
     },
+    { icon: FaShieldAlt, label: "Alerts", link: "/admin/alerts" },
     { icon: FaBell, label: "Notifications", link: "/notifications" },
     { icon: FaFileAlt, label: "Reports", link: "/reports" },
     { icon: FaCog, label: "Settings", link: "/settings" },

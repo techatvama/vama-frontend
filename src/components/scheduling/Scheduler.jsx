@@ -118,44 +118,63 @@ const fmtTime = (t) => {
 };
 
 /**
- * Google-Calendar-style layout: overlapping sessions get placed in sub-columns.
+ * Fixed-lane layout, scoped to each cluster of time-overlapping sessions
+ * (not the whole day): within a cluster, every teacher gets one stable
+ * column in deterministic (sorted teacher_id) order, so e.g. Drums and
+ * Keyboard never swap columns between the 4pm and 5pm rows just because a
+ * greedy packer picked a different free slot each hour. Clustering (rather
+ * than one global column count for the day) keeps a quiet day's cards full
+ * width — a day with 15 different teachers spread across non-overlapping
+ * times shouldn't render 15 razor-thin columns everywhere.
  * Returns { [sessionId]: { col: 0-indexed, totalCols: N } }
  */
 function computeDayLayout(sessions) {
+    const laneKey = (s) => s.batch?.teacher_id ?? s.teacher_id ?? `unassigned-${s.batch?.subject || ''}`;
     const sorted = [...sessions].sort((a, b) => toMins(a.start_time) - toMins(b.start_time));
-    const result = {};       // sessionId -> { col }
-    const colEnds = [];      // colEnds[i] = endMinutes of last session placed in column i
+    const result = {};
 
+    // 1. Partition into clusters of transitively-overlapping sessions via a
+    // sweep: a session starts a new cluster only if it begins after every
+    // session so far in the current cluster has already ended.
+    const clusters = [];
+    let current = [];
+    let currentEnd = -Infinity;
     for (const s of sorted) {
         const startMins = toMins(s.start_time);
-        const endMins   = toMins(s.end_time);
-
-        // Find first column where the last session has already ended
-        let col = 0;
-        while (col < colEnds.length && colEnds[col] > startMins) col++;
-
-        if (col === colEnds.length) colEnds.push(endMins);
-        else colEnds[col] = endMins;
-
-        result[s.id] = { col };
-    }
-
-    // Second pass: for each session, find how many total columns its overlap group needs
-    for (const s of sorted) {
-        const sStart = toMins(s.start_time);
-        const sEnd   = toMins(s.end_time);
-        let maxCol = result[s.id].col;
-
-        for (const other of sorted) {
-            if (other.id === s.id) continue;
-            const oStart = toMins(other.start_time);
-            const oEnd   = toMins(other.end_time);
-            // Overlaps if they share any minute
-            if (oStart < sEnd && oEnd > sStart) {
-                maxCol = Math.max(maxCol, result[other.id].col);
-            }
+        if (current.length && startMins >= currentEnd) {
+            clusters.push(current);
+            current = [];
+            currentEnd = -Infinity;
         }
-        result[s.id].totalCols = maxCol + 1;
+        current.push(s);
+        currentEnd = Math.max(currentEnd, toMins(s.end_time));
+    }
+    if (current.length) clusters.push(current);
+
+    // 2. Within each cluster, assign stable per-teacher columns.
+    for (const cluster of clusters) {
+        const lanes = [...new Set(cluster.map(laneKey))].sort();
+        const laneIndex = Object.fromEntries(lanes.map((k, i) => [k, i]));
+        let totalCols = Math.max(lanes.length, 1);
+        const laneColEnds = {}; // laneKey -> endMinutes of the last session placed in its base column
+
+        for (const s of cluster) {
+            const key = laneKey(s);
+            const startMins = toMins(s.start_time);
+            const endMins   = toMins(s.end_time);
+
+            // A teacher's own lane is normally exclusive to them, but if
+            // they're genuinely double-booked (two overlapping sessions),
+            // give the later one an extra column instead of overlapping it.
+            if (laneColEnds[key] !== undefined && laneColEnds[key] > startMins) {
+                result[s.id] = { col: totalCols };
+                totalCols += 1;
+            } else {
+                result[s.id] = { col: laneIndex[key] };
+            }
+            laneColEnds[key] = Math.max(laneColEnds[key] || 0, endMins);
+        }
+        for (const s of cluster) result[s.id].totalCols = totalCols;
     }
 
     return result;
