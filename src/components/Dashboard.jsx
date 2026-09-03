@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useLocation } from "react-router";
 import { api } from "../lib/api";
+import { useAdmin } from "../context/AdminContext";
 import Sidebar from "./Sidebar";
 import AddStudentDialog from "./AddStudentDialog";
 import { Search, ChevronLeft, ChevronRight, Edit, Loader2, Users, UserCheck, UserPlus, Download, Upload, X, CheckCircle2, XCircle, Trash2, AlertTriangle } from "lucide-react";
@@ -14,9 +15,16 @@ const BULK_UPLOAD_TEMPLATE_COLUMNS = [
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const { centerId } = useAdmin();
 
   // State management
   const [records, setRecords] = useState([]);
+  // Same "has a currently active, non-expired package" definition used on
+  // the home dashboard (via /admin/reports) — not enrollment_status, which
+  // can drift out of sync with actual package state. null while loading, so
+  // the tile can fall back to the enrollment_status count instead of a
+  // misleading 0.
+  const [activePackageCount, setActivePackageCount] = useState(null);
   const [staffList, setStaffList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -73,12 +81,14 @@ export default function Dashboard() {
     setLoading(true);
     setError(null);
     try {
-      const [studentsRes, staffRes] = await Promise.all([
+      const [studentsRes, staffRes, reportsRes] = await Promise.all([
         api.get("/students"),
         api.get("/staff").catch(() => ({ data: [] })),
+        api.get("/admin/reports", { params: { period: "today", center_id: centerId || undefined } }).catch(() => null),
       ]);
       setStaffList(staffRes.data || []);
       setRecords((studentsRes.data || []).map(mapStudent));
+      if (reportsRes) setActivePackageCount(reportsRes.data?.students?.active ?? null);
     } catch (err) {
       console.error("Dashboard fetch error:", err);
       setError(err.response?.data?.detail || err.message || "Failed to load students.");
@@ -150,10 +160,13 @@ export default function Dashboard() {
     const today = new Date().toDateString();
     return {
       total: records.length,
-      active: records.filter(r => (r.enrollment_status || 'active') === 'active').length,
+      // Has a currently active package — same definition as the home
+      // dashboard's Active Students KPI (main.py /admin/reports). Falls back
+      // to the enrollment_status count only if that fetch hasn't landed yet.
+      active: activePackageCount ?? records.filter(r => (r.enrollment_status || 'active') === 'active').length,
       newToday: records.filter(r => r.created_at && new Date(r.created_at).toDateString() === today).length,
     };
-  }, [records]);
+  }, [records, activePackageCount]);
 
   // Pagination
   const totalPages = Math.ceil(filteredRecords.length / rowsPerPage);

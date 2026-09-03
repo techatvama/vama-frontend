@@ -24,6 +24,7 @@ export default function TeacherStudentDetail() {
     const [grade, setGrade] = useState('');
     const [syllabus, setSyllabus] = useState('Trinity');
     const [isExam, setIsExam] = useState(false);
+    const [myTrack, setMyTrack] = useState(null); // this teacher's per-instrument track, if found
     const [selectedExamSession, setSelectedExamSession] = useState('');
     const [availableExamSessions, setAvailableExamSessions] = useState([]);
     const [availableGrades, setAvailableGrades] = useState([]);
@@ -55,7 +56,23 @@ export default function TeacherStudentDetail() {
             setStudent(data);
             setGrade(data.current_grade || 'Debut');
             setSyllabus(data.syllabus_type || 'Trinity');
-            setIsExam(data.is_exam_student || false);
+
+            // Exam status is per-instrument now — find the track for the
+            // instrument this teacher actually teaches this student, and
+            // seed from that rather than the student-wide legacy fields.
+            let track = null;
+            try {
+                const teacher = JSON.parse(localStorage.getItem('teacher') || 'null');
+                if (teacher?.id) {
+                    const tracksRes = await api.get(`/admin/students/${studentId}/instructors`);
+                    track = tracksRes.data.find(t => String(t.teacher_id) === String(teacher.id)) || null;
+                }
+            } catch (e) {
+                console.error(e);
+            }
+            setMyTrack(track);
+            setIsExam(track ? !!track.is_exam_student : (data.is_exam_student || false));
+            setSelectedExamSession(track?.exam_session_id ? String(track.exam_session_id) : '');
         } catch (e) {
             console.error(e);
         } finally {
@@ -69,12 +86,21 @@ export default function TeacherStudentDetail() {
             const teacher = JSON.parse(localStorage.getItem('teacher') || 'null');
             const admin = JSON.parse(localStorage.getItem('admin') || 'null');
             const changedBy = teacher?.name || admin?.name || '';
+            const examSessionId = isExam && selectedExamSession ? Number(selectedExamSession) : null;
             await api.put(`/students/${studentId}`, {
                 current_grade: grade,
                 syllabus_type: syllabus,
-                is_exam_student: isExam,
                 changed_by: changedBy,
+                // Only carried here as a fallback when no per-instrument track
+                // was found (legacy data gap) — otherwise saved per-track below.
+                ...(myTrack ? {} : { is_exam_student: isExam }),
             });
+            if (myTrack) {
+                await api.put(`/admin/students/${studentId}/instructors/${myTrack.id}`, {
+                    is_exam_student: isExam,
+                    exam_session_id: examSessionId,
+                });
+            }
             setSuccess(true);
             setProgressKey(k => k + 1);
             setTimeout(() => setSuccess(false), 3000);
@@ -219,7 +245,7 @@ export default function TeacherStudentDetail() {
                                 {/* Exam Track toggle */}
                                 <div>
                                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">
-                                        Exam Track
+                                        Exam Track{myTrack?.instrument ? ` — ${myTrack.instrument}` : ''}
                                     </label>
                                     <button
                                         type="button"
@@ -240,7 +266,7 @@ export default function TeacherStudentDetail() {
                                     </button>
 
                                     {isExam && (
-                                        <div className="mt-3 p-4 bg-indigo-50/60 rounded-xl border border-indigo-100">
+                                        <div className="mt-3 p-4 bg-indigo-50/60 rounded-xl border border-indigo-100 space-y-3">
                                             <label className="block text-[10px] font-bold text-[#463a7a] uppercase tracking-widest mb-1.5">
                                                 Exam Session
                                             </label>
@@ -252,7 +278,9 @@ export default function TeacherStudentDetail() {
                                             >
                                                 <option value="">Choose a session...</option>
                                                 {availableExamSessions.map(s => (
-                                                    <option key={s.id} value={s.id}>{s.name} ({s.exam_board})</option>
+                                                    <option key={s.id} value={s.id}>
+                                                        {s.name} ({s.exam_board}){s.exam_date ? ` · ${new Date(s.exam_date + 'T00:00:00').toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}
+                                                    </option>
                                                 ))}
                                             </select>
                                             {availableExamSessions.length === 0 && (

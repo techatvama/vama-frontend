@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../../lib/api';
 import {
-    FileText, Plus, Edit2, Trash2, Search, X, Loader2, Save
+    FileText, Plus, Edit2, Trash2, Search, X, Loader2, Save, Calendar
 } from 'lucide-react';
 import { useNavigate } from 'react-router';
 
@@ -25,7 +25,7 @@ export default function ExamSessionManager() {
     const [showForm, setShowForm] = useState(false);
     const [editingSession, setEditingSession] = useState(null);
     const [search, setSearch] = useState('');
-    const [formData, setFormData] = useState({ name: '', exam_board: 'Trinity' });
+    const [formData, setFormData] = useState({ name: '', exam_board: 'Trinity', exam_date: '' });
     const [submitting, setSubmitting] = useState(false);
     const navigate = useNavigate();
 
@@ -64,7 +64,7 @@ export default function ExamSessionManager() {
 
     const handleEdit = (session) => {
         setEditingSession(session);
-        setFormData({ name: session.name, exam_board: session.exam_board });
+        setFormData({ name: session.name, exam_board: session.exam_board, exam_date: session.exam_date || '' });
         setShowForm(true);
     };
 
@@ -80,7 +80,7 @@ export default function ExamSessionManager() {
     };
 
     const resetForm = () => {
-        setFormData({ name: '', exam_board: 'Trinity' });
+        setFormData({ name: '', exam_board: 'Trinity', exam_date: '' });
         setEditingSession(null);
         setShowForm(false);
     };
@@ -161,6 +161,11 @@ export default function ExamSessionManager() {
                             </div>
 
                             <h3 className="text-xl font-black text-slate-900 mb-2 truncate">{session.name}</h3>
+                            {session.exam_date && (
+                                <p className="text-xs font-black text-[#463a7a] mb-1.5 flex items-center gap-1.5">
+                                    <Calendar size={12} /> {new Date(session.exam_date + 'T00:00:00').toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}
+                                </p>
+                            )}
                             <p className="text-xs font-bold text-slate-400 mb-6">
                                 {session.is_active ? '✅ Open for registration' : '🔒 Closed'}
                             </p>
@@ -240,6 +245,16 @@ export default function ExamSessionManager() {
                                         <option key={b.value} value={b.value}>{b.label}</option>
                                     ))}
                                 </select>
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Exam Date</label>
+                                <input
+                                    type="date"
+                                    value={formData.exam_date}
+                                    onChange={(e) => setFormData({ ...formData, exam_date: e.target.value })}
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-slate-900 font-semibold focus:outline-none focus:border-[#463a7a] focus:ring-2 focus:ring-[#463a7a]/10 transition-all"
+                                />
                             </div>
 
                             <div className="flex gap-3 pt-2">

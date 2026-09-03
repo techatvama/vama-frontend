@@ -66,6 +66,27 @@ const BUST_MAP = [
 
 export function clearApiCache() { _cache.clear(); _inflight.clear(); }
 
+// ── Request timing log — start/end time + duration for every API call ──────
+api.interceptors.request.use((config) => {
+    config.metadata = { startTime: new Date() };
+    console.log(`[${(config.method || 'get').toUpperCase()} ${config.url}] start_time=${config.metadata.startTime.toISOString()}`);
+    return config;
+});
+
+function _logResponseTiming(res, isError) {
+    const config = res.config || {};
+    const start = config.metadata?.startTime;
+    const endTime = new Date();
+    const durationMs = start ? endTime - start : null;
+    const status = isError ? (res.response?.status ?? 'ERR') : res.status;
+    console.log(`[${(config.method || 'get').toUpperCase()} ${config.url}] end_time=${endTime.toISOString()} duration_ms=${durationMs} status=${status}`);
+}
+
+api.interceptors.response.use(
+    (res) => { _logResponseTiming(res, false); return res; },
+    (err) => { _logResponseTiming(err, true); return Promise.reject(err); }
+);
+
 // Patched GET that serves from cache when fresh
 const _originalGet = api.get.bind(api);
 api.get = (url, config = {}) => {

@@ -30,6 +30,7 @@ export default function OccurrenceDetailDialog({ session, onClose, onUpdate }) {
     const [saving, setSaving] = useState({});
     const [feedback, setFeedback] = useState({});
     const [scopeAction, setScopeAction] = useState(null); // {kind,payload}
+    const [scopeSaving, setScopeSaving] = useState(false);
     const [showEdit, setShowEdit] = useState(false);
     const [showAdd, setShowAdd] = useState(false);
     const [search, setSearch] = useState('');
@@ -92,6 +93,7 @@ export default function OccurrenceDetailDialog({ session, onClose, onUpdate }) {
     const applyScope = async (scope) => {
         const { kind, payload } = scopeAction;
         setError('');
+        setScopeSaving(true);
         try {
             if (kind === 'time') await api.put(`/scheduling/occurrences/${occ.id}`, { scope, ...payload });
             else if (kind === 'cancel') await api.post(`/scheduling/occurrences/${occ.id}/cancel`, { scope });
@@ -99,7 +101,12 @@ export default function OccurrenceDetailDialog({ session, onClose, onUpdate }) {
             setScopeAction(null);
             onUpdate?.();
             onClose();
-        } catch (e) { setError(e.response?.data?.detail || 'Failed'); setScopeAction(null); }
+        } catch (e) {
+            setError(e.response?.data?.detail || 'Failed');
+            setScopeAction(null);
+        } finally {
+            setScopeSaving(false);
+        }
     };
 
     const isRecurring = occ.is_recurring;
@@ -316,9 +323,11 @@ export default function OccurrenceDetailDialog({ session, onClose, onUpdate }) {
                     title={scopeAction.kind === 'cancel' ? 'Cancel which classes?'
                         : scopeAction.kind === 'delete' ? 'Delete which classes?'
                         : 'Apply time change to…'}
-                    allow={scopeAction.kind === 'cancel' ? ['this', 'this_and_future'] : undefined}
+                    allow={(scopeAction.kind === 'cancel' || scopeAction.kind === 'delete') ? ['this', 'this_and_future'] : undefined}
+                    requireConfirm={scopeAction.kind === 'delete'}
+                    saving={scopeSaving}
                     onPick={applyScope}
-                    onClose={() => setScopeAction(null)}
+                    onClose={() => !scopeSaving && setScopeAction(null)}
                 />
             )}
         </div>

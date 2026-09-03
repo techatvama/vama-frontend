@@ -1,12 +1,17 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router';
+import {
+    format, startOfMonth, endOfMonth, startOfWeek, endOfWeek,
+    eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths,
+} from 'date-fns';
 import { api } from '../../lib/api';
 import AddStudentDialog from '../AddStudentDialog';
 import {
     Mail, Phone, MapPin, Calendar, CreditCard, BookOpen,
     TrendingUp, Clock, CheckCircle, XCircle, AlertCircle,
     ArrowLeft, Loader2, GraduationCap, DollarSign,
-    Star, ChevronRight, Activity, Users, Pencil, Pause, UserX, RotateCcw
+    Star, ChevronRight, ChevronLeft, Activity, Users, Pencil, Pause, UserX, RotateCcw,
+    CalendarDays, ExternalLink,
 } from 'lucide-react';
 
 const formatDate = (val) => {
@@ -49,6 +54,137 @@ const AttendanceBar = ({ rate }) => {
     return (
         <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
             <div className={`bg-gradient-to-r ${color} h-full rounded-full transition-all`} style={{ width: `${rate}%` }} />
+        </div>
+    );
+};
+
+const MiniScheduleCalendar = ({ studentId }) => {
+    const navigate = useNavigate();
+    const [month, setMonth] = useState(startOfMonth(new Date()));
+    const [selectedDay, setSelectedDay] = useState(new Date());
+    const [sessions, setSessions] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        setLoading(true);
+        const start = format(startOfWeek(month, { weekStartsOn: 1 }), 'yyyy-MM-dd');
+        const end = format(endOfWeek(endOfMonth(month), { weekStartsOn: 1 }), 'yyyy-MM-dd');
+        api.get('/scheduling/calendar', { params: { student_id: studentId, start, end } })
+            .then(res => setSessions(res.data?.occurrences || []))
+            .catch(() => setSessions([]))
+            .finally(() => setLoading(false));
+    }, [studentId, month]);
+
+    const byDate = sessions.reduce((acc, s) => {
+        (acc[s.date] = acc[s.date] || []).push(s);
+        return acc;
+    }, {});
+
+    const days = eachDayOfInterval({
+        start: startOfWeek(month, { weekStartsOn: 1 }),
+        end: endOfWeek(endOfMonth(month), { weekStartsOn: 1 }),
+    });
+
+    const selectedKey = format(selectedDay, 'yyyy-MM-dd');
+    const dayClasses = (byDate[selectedKey] || []).slice().sort((a, b) => (a.start_time || '').localeCompare(b.start_time || ''));
+
+    return (
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="px-4 py-3.5 border-b border-slate-100 flex items-center justify-between bg-gradient-to-br from-[#463a7a]/5 to-transparent">
+                <h3 className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                    <CalendarDays size={15} className="text-[#463a7a]" /> Class Schedule
+                </h3>
+                <button onClick={() => navigate('/schedule')}
+                    className="flex items-center gap-1 text-xs font-semibold text-[#463a7a] hover:underline">
+                    Scheduler <ExternalLink size={11} />
+                </button>
+            </div>
+
+            <div className="p-4">
+                <div className="flex items-center justify-between mb-3">
+                    <button onClick={() => setMonth(m => subMonths(m, 1))}
+                        className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-500 transition-colors">
+                        <ChevronLeft size={14} />
+                    </button>
+                    <span className="text-sm font-bold text-slate-800">{format(month, 'MMMM yyyy')}</span>
+                    <button onClick={() => setMonth(m => addMonths(m, 1))}
+                        className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-500 transition-colors">
+                        <ChevronRight size={14} />
+                    </button>
+                </div>
+
+                <div className="grid grid-cols-7 mb-1">
+                    {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
+                        <div key={i} className="text-center text-[10px] font-bold text-slate-400 py-1">{d}</div>
+                    ))}
+                </div>
+
+                <div className="grid grid-cols-7 gap-y-1">
+                    {days.map(day => {
+                        const key = format(day, 'yyyy-MM-dd');
+                        const inMonth = isSameMonth(day, month);
+                        const isToday = isSameDay(day, new Date());
+                        const isSel = isSameDay(day, selectedDay);
+                        const dayEvents = byDate[key] || [];
+                        const hasClass = dayEvents.length > 0;
+                        const hasCancelled = dayEvents.length > 0 && dayEvents.every(e => e.status === 'cancelled');
+                        return (
+                            <button
+                                key={key}
+                                onClick={() => setSelectedDay(day)}
+                                className={`mx-auto w-8 h-8 relative flex items-center justify-center rounded-full text-xs font-semibold transition-colors
+                                    ${!inMonth ? 'text-slate-300 hover:bg-slate-50' : 'text-slate-700'}
+                                    ${isSel ? 'bg-[#463a7a] text-white shadow-sm' : isToday ? 'bg-[#463a7a]/10 text-[#463a7a] ring-1 ring-[#463a7a]/30' : inMonth ? 'hover:bg-slate-100' : ''}`}
+                            >
+                                {format(day, 'd')}
+                                {hasClass && (
+                                    <span className={`absolute bottom-0.5 w-1 h-1 rounded-full
+                                        ${isSel ? 'bg-white' : hasCancelled ? 'bg-red-400' : 'bg-emerald-500'}`} />
+                                )}
+                            </button>
+                        );
+                    })}
+                </div>
+
+                <div className="mt-4 pt-4 border-t border-slate-100">
+                    <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                            {format(selectedDay, 'EEEE, d MMM')}
+                        </span>
+                        {!isSameDay(selectedDay, new Date()) && (
+                            <button onClick={() => setSelectedDay(new Date())}
+                                className="text-[11px] font-semibold text-[#463a7a] hover:underline">Today</button>
+                        )}
+                    </div>
+
+                    {loading ? (
+                        <div className="text-xs text-slate-400 py-4 text-center">Loading…</div>
+                    ) : dayClasses.length === 0 ? (
+                        <div className="text-xs text-slate-400 py-4 text-center bg-slate-50 rounded-lg border border-dashed border-slate-200">
+                            No classes this day
+                        </div>
+                    ) : (
+                        <div className="space-y-2">
+                            {dayClasses.map(cls => (
+                                <div key={cls.id}
+                                    className={`flex items-center justify-between p-2.5 rounded-lg border text-xs
+                                        ${cls.status === 'cancelled' ? 'bg-red-50 border-red-100' : 'bg-slate-50 border-slate-100'}`}>
+                                    <div className="min-w-0">
+                                        <div className={`font-semibold truncate ${cls.status === 'cancelled' ? 'text-red-500 line-through' : 'text-slate-800'}`}>
+                                            {cls.name || cls.course || 'Class'}
+                                        </div>
+                                        <div className="text-slate-500 truncate">{cls.teacher_name || '—'}</div>
+                                    </div>
+                                    <div className="text-right flex-shrink-0 ml-2">
+                                        <div className="font-semibold text-slate-700">{cls.start_time}–{cls.end_time}</div>
+                                        {cls.is_makeup && <div className="text-[10px] text-orange-500 font-bold uppercase">Makeup</div>}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
         </div>
     );
 };
@@ -180,7 +316,7 @@ export default function StudentProfilePage() {
                 </div>
             </div>
 
-            <div className="max-w-5xl mx-auto px-5 py-6 space-y-5">
+            <div className="max-w-6xl mx-auto px-5 py-6 space-y-5">
                 {/* ── Hero Card ── */}
                 <div className="bg-gradient-to-br from-[#463a7a] via-[#3a2f6b] to-[#2d2550] rounded-2xl overflow-hidden shadow-xl">
                     {/* subtle pattern */}
@@ -269,7 +405,8 @@ export default function StudentProfilePage() {
                     <div className="p-6">
                         {/* ─ Overview ─ */}
                         {activeTab === 'overview' && (
-                            <div className="space-y-6">
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                            <div className="lg:col-span-2 space-y-6">
                                 {/* Personal details grid */}
                                 <div>
                                     <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-3">Personal Details</h3>
@@ -354,6 +491,12 @@ export default function StudentProfilePage() {
                                         <p className="text-sm">No upcoming classes scheduled</p>
                                     </div>
                                 )}
+                            </div>
+
+                            {/* Sidebar: mini schedule calendar */}
+                            <div className="lg:col-span-1">
+                                <MiniScheduleCalendar studentId={studentId} />
+                            </div>
                             </div>
                         )}
 

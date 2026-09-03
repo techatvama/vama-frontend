@@ -40,6 +40,7 @@ export default function EnrollmentManager() {
     const [teachers, setTeachers] = useState([]);
     const [subjects, setSubjects] = useState([]);
     const [grades, setGrades] = useState([]);
+    const [examSessions, setExamSessions] = useState([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [fTeacher, setFTeacher] = useState('');
@@ -55,16 +56,18 @@ export default function EnrollmentManager() {
     const load = useCallback(async () => {
         setLoading(true);
         try {
-            const [st, tc, sj, gr] = await Promise.all([
+            const [st, tc, sj, gr, es] = await Promise.all([
                 api.get('/admin/students-overview'),
                 api.get('/staff'),
                 api.get('/admin/subjects'),
                 api.get('/admin/grades'),
+                api.get('/admin/exam-sessions'),
             ]);
             setStudents(st.data || []);
             setTeachers((tc.data || []).filter(t => t.takesClasses !== false && t.takes_classes !== false));
             setSubjects(sj.data || []);
             setGrades(gr.data || []);
+            setExamSessions((es.data || []).filter(s => s.is_active));
         } catch (e) { console.error(e); }
         finally { setLoading(false); }
     }, []);
@@ -259,7 +262,7 @@ export default function EnrollmentManager() {
             </div>
 
             {editing && (
-                <AssignDrawer student={editing} teachers={teachers} subjects={subjects} grades={grades} curricula={curricula}
+                <AssignDrawer student={editing} teachers={teachers} subjects={subjects} grades={grades} curricula={curricula} examSessions={examSessions}
                     onClose={() => setEditing(null)} onSaved={() => { setEditing(null); load(); }} />
             )}
             {progressFor && (
@@ -295,17 +298,16 @@ function Select({ value, onChange, icon: Icon, placeholder, options }) {
     );
 }
 
-function AssignDrawer({ student, teachers, subjects, grades, curricula, onClose, onSaved }) {
+function AssignDrawer({ student, teachers, subjects, grades, curricula, examSessions, onClose, onSaved }) {
     const [tracks, setTracks] = useState(student.tracks || []);
     const [newInstrument, setNewInstrument] = useState('');
     const [newTeacher, setNewTeacher] = useState('');
     const [newGrade, setNewGrade] = useState(grades[0]?.name || 'Debut');
     const [newSyllabus, setNewSyllabus] = useState(curricula[0] || 'Trinity');
-    const [form, setForm] = useState({
-        is_exam_student: !!student.is_exam_student, exam_date: student.exam_date || '',
-    });
+    const [newExam, setNewExam] = useState(false);
+    const [newExamSession, setNewExamSession] = useState('');
+    const sessionLabel = (s) => `${s.name}${s.exam_date ? ` · ${new Date(s.exam_date + 'T00:00:00').toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}`;
     const [busy, setBusy] = useState(false);
-    const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
     const [dirty, setDirty] = useState(false);
 
@@ -319,11 +321,14 @@ function AssignDrawer({ student, teachers, subjects, grades, curricula, onClose,
         }
         setBusy(true);
         try {
+            const examSessionId = newExam && newExamSession ? Number(newExamSession) : null;
             const r = await api.post(`/admin/students/${student.id}/instructors`, {
                 instrument: newInstrument,
                 teacher_id: Number(newTeacher),
                 grade: newGrade,
                 syllabus_type: newSyllabus,
+                is_exam_student: newExam,
+                exam_session_id: examSessionId,
             });
             setTracks(prev => [...prev, {
                 id: r.data.id,
@@ -332,9 +337,13 @@ function AssignDrawer({ student, teachers, subjects, grades, curricula, onClose,
                 teacher_name: teacherName(newTeacher),
                 grade: newGrade,
                 syllabus_type: newSyllabus,
+                is_exam_student: newExam,
+                exam_session_id: examSessionId,
+                exam_session_name: examSessionId ? examSessions.find(s => s.id === examSessionId)?.name : null,
             }]);
             setNewInstrument(''); setNewTeacher('');
             setNewGrade(grades[0]?.name || 'Debut'); setNewSyllabus(curricula[0] || 'Trinity');
+            setNewExam(false); setNewExamSession('');
             setDirty(true);
         } catch (e) { setError(e.response?.data?.detail || 'Failed to add class'); }
         finally { setBusy(false); }
@@ -356,17 +365,6 @@ function AssignDrawer({ student, teachers, subjects, grades, curricula, onClose,
         } catch (e) {
             setError(e.response?.data?.detail || 'Failed to update class');
         }
-    };
-
-    const saveStudentFields = async () => {
-        setSaving(true); setError('');
-        try {
-            await api.put(`/students/${student.id}`, {
-                is_exam_student: form.is_exam_student,
-                exam_date: form.is_exam_student ? (form.exam_date || null) : null,
-            });
-            onSaved();
-        } catch (e) { setError(e.response?.data?.detail || 'Failed to save'); setSaving(false); }
     };
 
     const close = () => (dirty ? onSaved() : onClose());
@@ -423,6 +421,22 @@ function AssignDrawer({ student, teachers, subjects, grades, curricula, onClose,
                                             {grades.map(g => <option key={g.id} value={g.name}>{g.name}</option>)}
                                         </select>
                                     </div>
+                                    {/* Per-class exam status */}
+                                    <div className="flex items-center gap-2 pl-0.5">
+                                        <button type="button"
+                                            onClick={() => updateTrackField(t.id, 'is_exam_student', !t.is_exam_student)}
+                                            className={`flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-xs font-black transition-all ${t.is_exam_student ? 'bg-amber-100 text-amber-700' : 'bg-white border border-slate-200 text-slate-400'}`}>
+                                            <Award size={13} /> Exam
+                                        </button>
+                                        {t.is_exam_student && (
+                                            <select className={`${smallField} flex-1`}
+                                                value={t.exam_session_id || ''}
+                                                onChange={e => updateTrackField(t.id, 'exam_session_id', e.target.value ? Number(e.target.value) : null)}>
+                                                <option value="">Select exam session…</option>
+                                                {examSessions.map(s => <option key={s.id} value={s.id}>{sessionLabel(s)}</option>)}
+                                            </select>
+                                        )}
+                                    </div>
                                 </div>
                             ))}
                         </div>
@@ -445,6 +459,19 @@ function AssignDrawer({ student, teachers, subjects, grades, curricula, onClose,
                                     {grades.map(g => <option key={g.id} value={g.name}>{g.name}</option>)}
                                 </select>
                             </div>
+                            <div className="flex items-center gap-2">
+                                <button type="button" onClick={() => setNewExam(!newExam)}
+                                    className={`flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-xs font-black transition-all ${newExam ? 'bg-amber-100 text-amber-700' : 'bg-white border border-slate-200 text-slate-400'}`}>
+                                    <Award size={13} /> Exam Student
+                                </button>
+                                {newExam && (
+                                    <select className={`${field} flex-1 py-2`}
+                                        value={newExamSession} onChange={e => setNewExamSession(e.target.value)}>
+                                        <option value="">Select exam session…</option>
+                                        {examSessions.map(s => <option key={s.id} value={s.id}>{sessionLabel(s)}</option>)}
+                                    </select>
+                                )}
+                            </div>
                             <button onClick={addTrack} disabled={busy}
                                 className="w-full bg-[#463a7a] hover:bg-[#3a2f66] text-white rounded-2xl py-2.5 font-black text-xs uppercase tracking-widest flex items-center justify-center gap-1.5 disabled:opacity-50">
                                 {busy ? <Loader2 className="animate-spin" size={15} /> : <><Plus size={15} /> Add Class</>}
@@ -452,28 +479,14 @@ function AssignDrawer({ student, teachers, subjects, grades, curricula, onClose,
                         </div>
                     </div>
 
-                    {/* Exam Student */}
-                    <div className="bg-slate-50 rounded-2xl p-4">
-                        <label className="flex items-center justify-between cursor-pointer">
-                            <span className="text-sm font-black text-slate-700 flex items-center gap-2"><Award size={16} className="text-amber-500" /> Exam Student</span>
-                            <button type="button" onClick={() => setForm({ ...form, is_exam_student: !form.is_exam_student })}
-                                className={`w-11 h-6 rounded-full transition-all relative ${form.is_exam_student ? 'bg-[#463a7a]' : 'bg-slate-300'}`}>
-                                <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full transition-all ${form.is_exam_student ? 'left-5.5 translate-x-0.5' : 'left-0.5'}`} />
-                            </button>
-                        </label>
-                        {form.is_exam_student && (
-                            <input type="date" className={`${field} mt-3`} value={form.exam_date || ''} onChange={e => setForm({ ...form, exam_date: e.target.value })} />
-                        )}
-                    </div>
-
                     <div className="bg-indigo-50 rounded-2xl p-3 text-[11px] font-bold text-[#463a7a] flex items-start gap-2">
                         <Sparkles size={14} className="mt-0.5 flex-shrink-0" />
-                        Each class has its own syllabus and grade. Curriculum and grade changes save instantly.
+                        Each class has its own syllabus, grade, and exam status. Changes save instantly.
                     </div>
 
-                    <button onClick={saveStudentFields} disabled={saving}
-                        className="w-full bg-[#463a7a] hover:bg-[#3a2f66] text-white rounded-2xl py-4 font-black text-sm uppercase tracking-widest transition-all flex items-center justify-center gap-2 disabled:opacity-50">
-                        {saving ? <Loader2 className="animate-spin" size={18} /> : <><Check size={18} /> Save & Close</>}
+                    <button onClick={close}
+                        className="w-full bg-[#463a7a] hover:bg-[#3a2f66] text-white rounded-2xl py-4 font-black text-sm uppercase tracking-widest transition-all flex items-center justify-center gap-2">
+                        <Check size={18} /> Close
                     </button>
                 </div>
             </div>
