@@ -12,7 +12,6 @@ import {
   FaChevronDown,
   FaChevronRight,
   FaChevronLeft,
-  FaUserPlus,
   FaListUl,
   FaBook,
   FaReceipt,
@@ -32,6 +31,7 @@ import {
   FaInbox
 } from "react-icons/fa";
 import { Link, Outlet, useLocation, useNavigate } from "react-router";
+import LandingPage from "./LandingPage";
 
 export default function Sidebar() {
   const { unreadCount } = useNotifications();
@@ -40,13 +40,16 @@ export default function Sidebar() {
   const [expandedMenu, setExpandedMenu] = useState(null);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [flyoutMenu, setFlyoutMenu] = useState(null); // { label, submenus, top } — shown when collapsed
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Auth guard — redirect to admin login if not authenticated
+  const isRoot = location.pathname === '/';
+
+  // Auth guard — redirect to admin login if not authenticated (root path shows the public landing page instead)
   useEffect(() => {
-    if (!admin) navigate('/admin-login');
-  }, [admin, navigate]);
+    if (!admin && !isRoot) navigate('/admin-login');
+  }, [admin, isRoot, navigate]);
 
   const handleLogout = () => {
     logout();
@@ -66,10 +69,16 @@ export default function Sidebar() {
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  // Close mobile menu on route change
+  // Close mobile menu / flyout on route change
   useEffect(() => {
     setIsMobileOpen(false);
+    setFlyoutMenu(null);
   }, [location.pathname]);
+
+  // Close flyout whenever the sidebar expands (no longer needed) or collapses fresh
+  useEffect(() => {
+    setFlyoutMenu(null);
+  }, [isExpanded]);
 
   const menuItems = [
     { icon: FaCalendarAlt, label: "Calendar", link: "/schedule" },
@@ -79,7 +88,6 @@ export default function Sidebar() {
       link: "/teacher",
       submenus: [
         { icon: FaListUl, label: "All Staff", link: "/teacher" },
-        { icon: FaUserPlus, label: "Add Staff", link: "/teacher/add" },
       ]
     },
     {
@@ -88,10 +96,9 @@ export default function Sidebar() {
       link: "/students",
       submenus: [
         { icon: FaListUl, label: "All Students", link: "/students" },
-        { icon: FaUserPlus, label: "Add Student", link: "/students/add" },
         { icon: FaUserCog, label: "Student Progress", link: "/students/progress" },
         { icon: FaBook, label: "Enrollments", link: "/students/enrollments" },
-        { icon: FaInbox, label: "Form Submissions", link: "/students/forms" },
+        { icon: FaInbox, label: "Form", link: "/students/forms" },
       ]
     },
     {
@@ -153,16 +160,6 @@ export default function Sidebar() {
         </div>
       </div>
 
-      {/* Desktop Toggle Button */}
-      {!isMobile && (
-        <button
-          onClick={() => setIsExpanded(!isExpanded)}
-          className="absolute top-4 -right-3 w-6 h-6 bg-[#463a7a] border border-white/30 rounded-full flex items-center justify-center shadow-md hover:scale-110 transition-transform z-50"
-        >
-          {isExpanded ? <FaChevronLeft size={10} /> : <FaChevronRight size={10} />}
-        </button>
-      )}
-
       {/* Navigation */}
       <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto">
         {menuItems.map((item) => {
@@ -175,8 +172,19 @@ export default function Sidebar() {
             <div key={item.label}>
               {hasSubmenus ? (
                 <button
-                  onClick={() => toggleSubmenu(item.label)}
-                  className={`w-full flex items-center ${isExpanded ? "justify-between" : "justify-center"} p-2.5 rounded-lg transition-colors ${parentActive ? "bg-white/20" : "hover:bg-white/10"}`}
+                  onClick={(e) => {
+                    if (!isExpanded && !isMobile) {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      setFlyoutMenu(prev =>
+                        prev?.label === item.label
+                          ? null
+                          : { label: item.label, submenus: item.submenus, top: rect.top }
+                      );
+                    } else {
+                      toggleSubmenu(item.label);
+                    }
+                  }}
+                  className={`w-full flex items-center ${isExpanded ? "justify-between" : "justify-center"} p-2.5 rounded-lg transition-colors ${parentActive ? "bg-white/20" : "hover:bg-white/10"} ${flyoutMenu?.label === item.label ? "bg-white/15" : ""}`}
                 >
                   <div className={`flex items-center ${isExpanded ? "gap-3" : ""}`}>
                     <Icon size={18} />
@@ -270,8 +278,10 @@ export default function Sidebar() {
     </>
   );
 
+  if (!admin && isRoot) return <LandingPage />;
+
   return (
-    <div className="flex min-h-screen">
+    <div className="flex h-screen overflow-hidden">
       {/* Mobile Header */}
       {isMobile && (
         <div className="fixed top-0 left-0 right-0 h-14 bg-[#463a7a] text-white flex items-center justify-between px-4 z-40 shadow-lg">
@@ -304,11 +314,12 @@ export default function Sidebar() {
         className={`
           ${isMobile
             ? `fixed inset-y-0 left-0 z-50 transform ${isMobileOpen ? "translate-x-0" : "-translate-x-full"}`
-            : `relative ${isExpanded ? "w-56" : "w-16"}`
+            : `sticky top-0 h-screen overflow-y-auto overflow-x-hidden ${isExpanded ? "w-56" : "w-16"}`
           }
           ${isMobile ? "w-64" : ""}
           bg-gradient-to-b from-[#463a7a] to-[#2d2550]
           text-white flex flex-col
+          flex-shrink-0
           transition-all duration-200 ease-out
           shadow-xl
         `}
@@ -325,6 +336,46 @@ export default function Sidebar() {
 
         <SidebarContent />
       </aside>
+
+      {/* Desktop Toggle Button — fixed so it isn't clipped by the sidebar's own overflow scroll */}
+      {!isMobile && (
+        <button
+          onClick={() => setIsExpanded(!isExpanded)}
+          style={{ left: isExpanded ? 212 : 52 }}
+          className="fixed top-4 w-6 h-6 bg-[#463a7a] border border-white/30 rounded-full flex items-center justify-center shadow-md hover:scale-110 transition-[left] duration-200 z-[60]"
+        >
+          {isExpanded ? <FaChevronLeft size={10} /> : <FaChevronRight size={10} />}
+        </button>
+      )}
+
+      {/* Flyout submenu — shown when a parent with children is clicked while the sidebar is collapsed */}
+      {flyoutMenu && (
+        <>
+          <div className="fixed inset-0 z-[150]" onClick={() => setFlyoutMenu(null)} />
+          <div
+            style={{ left: 68, top: Math.min(flyoutMenu.top, window.innerHeight - (flyoutMenu.submenus.length * 40 + 48)) }}
+            className="fixed z-[200] min-w-[190px] bg-[#2d2550] border border-white/10 rounded-xl shadow-2xl py-2 overflow-hidden"
+          >
+            <div className="px-3 py-1.5 text-[11px] font-bold text-white/50 uppercase tracking-wide">
+              {flyoutMenu.label}
+            </div>
+            {flyoutMenu.submenus.map((sub) => {
+              const SubIcon = sub.icon;
+              return (
+                <Link
+                  key={sub.label}
+                  to={sub.link}
+                  onClick={() => setFlyoutMenu(null)}
+                  className={`flex items-center gap-2 px-3 py-2 text-sm transition-colors ${isActive(sub.link) ? "bg-white/15 text-white" : "text-white/80 hover:bg-white/10 hover:text-white"}`}
+                >
+                  <SubIcon size={13} />
+                  {sub.label}
+                </Link>
+              );
+            })}
+          </div>
+        </>
+      )}
 
       {/* Main Content */}
       <main className={`flex-1 bg-gray-50 overflow-auto ${isMobile ? "pt-14" : ""}`}>

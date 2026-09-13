@@ -12,6 +12,7 @@ import {
     TrendingUp
 } from 'lucide-react';
 import { useNavigate } from 'react-router';
+import Toast from './shared/Toast';
 
 export default function GradeManager() {
     const [grades, setGrades] = useState([]);
@@ -25,6 +26,8 @@ export default function GradeManager() {
         description: ''
     });
     const [submitting, setSubmitting] = useState(false);
+    const [deletingId, setDeletingId] = useState(null);
+    const [toast, setToast] = useState(null);
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -50,15 +53,17 @@ export default function GradeManager() {
         try {
             if (editingGrade) {
                 await api.put(`/admin/grades/${editingGrade.id}`, formData);
+                setToast({ message: `"${formData.name}" updated.`, type: 'success' });
             } else {
                 await api.post('/admin/grades', formData);
+                setToast({ message: `"${formData.name}" created.`, type: 'success' });
             }
 
-            fetchGrades();
+            await fetchGrades();
             resetForm();
         } catch (err) {
             console.error(err);
-            alert(err.response?.data?.detail || 'Failed to save grade');
+            setToast({ message: err.response?.data?.detail || 'Failed to save grade', type: 'error' });
         } finally {
             setSubmitting(false);
         }
@@ -74,15 +79,19 @@ export default function GradeManager() {
         setShowForm(true);
     };
 
-    const handleDelete = async (id) => {
-        if (!confirm('Are you sure you want to delete this grade?')) return;
+    const handleDelete = async (id, name) => {
+        if (!confirm(`Delete "${name}"? This can't be undone.`)) return;
 
+        setDeletingId(id);
         try {
             await api.delete(`/admin/grades/${id}`);
-            fetchGrades();
+            setToast({ message: `"${name}" deleted.`, type: 'success' });
+            await fetchGrades();
         } catch (err) {
             console.error(err);
-            alert('Failed to delete grade');
+            setToast({ message: err.response?.data?.detail || 'Failed to delete grade', type: 'error' });
+        } finally {
+            setDeletingId(null);
         }
     };
 
@@ -184,17 +193,19 @@ export default function GradeManager() {
                             <div className="flex gap-3 flex-shrink-0">
                                 <button
                                     onClick={() => handleEdit(grade)}
-                                    className="p-4 bg-slate-50 text-slate-600 rounded-2xl hover:bg-slate-100 transition-all"
+                                    disabled={deletingId === grade.id}
+                                    className="p-4 bg-slate-50 text-slate-600 rounded-2xl hover:bg-slate-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                                     title="Edit"
                                 >
                                     <Edit2 size={18} />
                                 </button>
                                 <button
-                                    onClick={() => handleDelete(grade.id)}
-                                    className="p-4 bg-red-50 text-red-600 rounded-2xl hover:bg-red-100 transition-all"
+                                    onClick={() => handleDelete(grade.id, grade.name)}
+                                    disabled={deletingId === grade.id}
+                                    className="p-4 bg-red-50 text-red-600 rounded-2xl hover:bg-red-100 transition-all disabled:opacity-70 disabled:cursor-not-allowed"
                                     title="Delete"
                                 >
-                                    <Trash2 size={18} />
+                                    {deletingId === grade.id ? <Loader2 size={18} className="animate-spin" /> : <Trash2 size={18} />}
                                 </button>
                             </div>
                         </div>
@@ -332,6 +343,8 @@ export default function GradeManager() {
                     </div>
                 </div>
             )}
+
+            {toast && <Toast message={toast.message} type={toast.type} onDone={() => setToast(null)} />}
         </div>
     );
 }

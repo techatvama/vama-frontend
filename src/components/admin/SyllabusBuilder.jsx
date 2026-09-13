@@ -20,6 +20,7 @@ import {
     Zap
 } from 'lucide-react';
 import { useNavigate } from 'react-router';
+import Toast from './shared/Toast';
 
 export default function SyllabusBuilder() {
     const [subjects, setSubjects] = useState([]);
@@ -29,16 +30,23 @@ export default function SyllabusBuilder() {
     const [currentSyllabus, setCurrentSyllabus] = useState(null);
     const [loading, setLoading] = useState(false);
     const [fetchingSyllabus, setFetchingSyllabus] = useState(false);
+    const [creatingSyllabus, setCreatingSyllabus] = useState(false);
     const [expandedModules, setExpandedModules] = useState({});
 
     const [showModuleForm, setShowModuleForm] = useState(false);
     const [editingModule, setEditingModule] = useState(null);
     const [moduleFormData, setModuleFormData] = useState({ name: '', weight: 0 });
+    const [savingModule, setSavingModule] = useState(false);
 
     const [showContentForm, setShowContentForm] = useState(false);
     const [editingContent, setEditingContent] = useState(null);
     const [activeModuleId, setActiveModuleId] = useState(null);
     const [contentFormData, setContentFormData] = useState({ name: '', content_type: 'song', weight: 1 });
+    const [savingContent, setSavingContent] = useState(false);
+
+    // { type: 'module' | 'content', id } — tracks which single row is mid-delete
+    const [deleting, setDeleting] = useState(null);
+    const [toast, setToast] = useState(null);
 
     const navigate = useNavigate();
 
@@ -93,76 +101,113 @@ export default function SyllabusBuilder() {
         }
     };
 
+    // Re-fetch just the current syllabus by its known id — used after
+    // module/content saves and deletes. Skips the subject/grade lookup step
+    // (we already know which syllabus we're on) and doesn't toggle the
+    // full-page `fetchingSyllabus` spinner, so the modules list stays on
+    // screen and simply updates in place instead of flashing to blank.
+    const refreshCurrentSyllabus = async () => {
+        if (!currentSyllabus?.id) return;
+        try {
+            const res = await api.get(`/admin/syllabi/${currentSyllabus.id}`);
+            setCurrentSyllabus(res.data);
+        } catch (err) {
+            console.error(err);
+        }
+    };
+
     const handleCreateSyllabus = async () => {
+        setCreatingSyllabus(true);
         try {
             const res = await api.post('/admin/syllabi', {
                 subject_id: parseInt(selectedSubject),
                 grade_id: parseInt(selectedGrade),
             });
             setCurrentSyllabus(res.data);
+            setToast({ message: 'Syllabus created. Add your first module below.', type: 'success' });
         } catch (err) {
             console.error(err);
-            alert("Failed to create syllabus");
+            setToast({ message: err.response?.data?.detail || 'Failed to create syllabus', type: 'error' });
+        } finally {
+            setCreatingSyllabus(false);
         }
     };
 
     const handleSaveModule = async (e) => {
         e.preventDefault();
+        setSavingModule(true);
         try {
             if (editingModule) {
                 await api.put(`/admin/modules/${editingModule.id}`, moduleFormData);
+                setToast({ message: `"${moduleFormData.name}" updated.`, type: 'success' });
             } else {
                 await api.post('/admin/modules', {
                     ...moduleFormData,
                     syllabus_id: currentSyllabus.id
                 });
+                setToast({ message: `"${moduleFormData.name}" added.`, type: 'success' });
             }
-            fetchSyllabus();
+            await refreshCurrentSyllabus();
             setShowModuleForm(false);
             setEditingModule(null);
             setModuleFormData({ name: '', weight: 0 });
         } catch (err) {
-            alert("Failed to save module");
+            setToast({ message: err.response?.data?.detail || 'Failed to save module', type: 'error' });
+        } finally {
+            setSavingModule(false);
         }
     };
 
-    const handleDeleteModule = async (id) => {
-        if (!confirm("Delete module and all its content?")) return;
+    const handleDeleteModule = async (id, name) => {
+        if (!confirm(`Delete "${name}" and all its content? This can't be undone.`)) return;
+        setDeleting({ type: 'module', id });
         try {
             await api.delete(`/admin/modules/${id}`);
-            fetchSyllabus();
+            setToast({ message: `"${name}" deleted.`, type: 'success' });
+            await refreshCurrentSyllabus();
         } catch (err) {
-            alert("Failed to delete module");
+            setToast({ message: err.response?.data?.detail || 'Failed to delete module', type: 'error' });
+        } finally {
+            setDeleting(null);
         }
     };
 
     const handleSaveContent = async (e) => {
         e.preventDefault();
+        setSavingContent(true);
         try {
             if (editingContent) {
                 await api.put(`/admin/contents/${editingContent.id}`, contentFormData);
+                setToast({ message: `"${contentFormData.name}" updated.`, type: 'success' });
             } else {
                 await api.post('/admin/contents', {
                     ...contentFormData,
                     module_id: activeModuleId
                 });
+                setToast({ message: `"${contentFormData.name}" added.`, type: 'success' });
             }
-            fetchSyllabus();
+            await refreshCurrentSyllabus();
             setShowContentForm(false);
             setEditingContent(null);
             setContentFormData({ name: '', content_type: 'song', weight: 1 });
         } catch (err) {
-            alert("Failed to save content");
+            setToast({ message: err.response?.data?.detail || 'Failed to save content', type: 'error' });
+        } finally {
+            setSavingContent(false);
         }
     };
 
-    const handleDeleteContent = async (id) => {
-        if (!confirm("Delete this content item?")) return;
+    const handleDeleteContent = async (id, name) => {
+        if (!confirm(`Delete "${name}"? This can't be undone.`)) return;
+        setDeleting({ type: 'content', id });
         try {
             await api.delete(`/admin/contents/${id}`);
-            fetchSyllabus();
+            setToast({ message: `"${name}" deleted.`, type: 'success' });
+            await refreshCurrentSyllabus();
         } catch (err) {
-            alert("Failed to delete content");
+            setToast({ message: err.response?.data?.detail || 'Failed to delete content', type: 'error' });
+        } finally {
+            setDeleting(null);
         }
     };
 
@@ -248,6 +293,18 @@ export default function SyllabusBuilder() {
                         </button>
                     </div>
 
+                    {currentSyllabus.modules.length === 0 && (
+                        <div className="bg-white rounded-[40px] p-16 text-center border-2 border-dashed border-slate-100">
+                            <div className="w-16 h-16 bg-slate-50 rounded-3xl flex items-center justify-center mx-auto mb-5">
+                                <Layers className="text-slate-300" size={28} />
+                            </div>
+                            <h3 className="text-lg font-black text-slate-400 uppercase tracking-wide mb-1">No modules yet</h3>
+                            <p className="text-slate-400 text-sm font-medium">
+                                Add a module above to start building this syllabus.
+                            </p>
+                        </div>
+                    )}
+
                     <div className="space-y-4">
                         {currentSyllabus.modules.sort((a, b) => a.order - b.order).map((module, idx) => (
                             <div key={module.id} className="bg-white rounded-[40px] shadow-xl border border-slate-100 overflow-hidden group">
@@ -273,18 +330,22 @@ export default function SyllabusBuilder() {
                                                 setModuleFormData({ name: module.name, weight: module.weight });
                                                 setShowModuleForm(true);
                                             }}
-                                            className="p-3 text-slate-400 hover:text-[#463a7a] hover:bg-indigo-50 rounded-xl transition-all"
+                                            disabled={deleting?.type === 'module' && deleting.id === module.id}
+                                            className="p-3 text-slate-400 hover:text-[#463a7a] hover:bg-indigo-50 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
                                             <Edit2 size={18} />
                                         </button>
                                         <button
                                             onClick={(e) => {
                                                 e.stopPropagation();
-                                                handleDeleteModule(module.id);
+                                                handleDeleteModule(module.id, module.name);
                                             }}
-                                            className="p-3 text-red-300 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+                                            disabled={deleting?.type === 'module' && deleting.id === module.id}
+                                            className="p-3 text-red-300 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all disabled:opacity-70 disabled:cursor-not-allowed"
                                         >
-                                            <Trash2 size={18} />
+                                            {deleting?.type === 'module' && deleting.id === module.id
+                                                ? <Loader2 size={18} className="animate-spin" />
+                                                : <Trash2 size={18} />}
                                         </button>
                                         <div className="ml-2 text-slate-300">
                                             {expandedModules[module.id] ? <ChevronUp /> : <ChevronDown />}
@@ -329,15 +390,19 @@ export default function SyllabusBuilder() {
                                                                 setActiveModuleId(module.id);
                                                                 setShowContentForm(true);
                                                             }}
-                                                            className="p-2 text-slate-300 hover:text-[#463a7a] transition-colors"
+                                                            disabled={deleting?.type === 'content' && deleting.id === item.id}
+                                                            className="p-2 text-slate-300 hover:text-[#463a7a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                                         >
                                                             <Edit2 size={14} />
                                                         </button>
                                                         <button
-                                                            onClick={() => handleDeleteContent(item.id)}
-                                                            className="p-2 text-slate-300 hover:text-red-500 transition-colors"
+                                                            onClick={() => handleDeleteContent(item.id, item.name)}
+                                                            disabled={deleting?.type === 'content' && deleting.id === item.id}
+                                                            className="p-2 text-slate-300 hover:text-red-500 transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
                                                         >
-                                                            <Trash2 size={14} />
+                                                            {deleting?.type === 'content' && deleting.id === item.id
+                                                                ? <Loader2 size={14} className="animate-spin" />
+                                                                : <Trash2 size={14} />}
                                                         </button>
                                                     </div>
                                                 </div>
@@ -363,9 +428,11 @@ export default function SyllabusBuilder() {
                     </p>
                     <button
                         onClick={handleCreateSyllabus}
-                        className="px-10 py-5 bg-[#463a7a] text-white rounded-3xl font-black text-sm uppercase tracking-widest shadow-2xl hover:scale-105 transition-all flex items-center gap-3 mx-auto"
+                        disabled={creatingSyllabus}
+                        className="px-10 py-5 bg-[#463a7a] text-white rounded-3xl font-black text-sm uppercase tracking-widest shadow-2xl hover:scale-105 transition-all flex items-center gap-3 mx-auto disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
                     >
-                        <Plus size={20} /> Create Syllabus
+                        {creatingSyllabus ? <Loader2 size={20} className="animate-spin" /> : <Plus size={20} />}
+                        {creatingSyllabus ? 'Creating…' : 'Create Syllabus'}
                     </button>
                 </div>
             )}
@@ -398,8 +465,13 @@ export default function SyllabusBuilder() {
                                     className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-4 text-slate-900 font-black"
                                 />
                             </div>
-                            <button type="submit" className="w-full py-4 bg-[#463a7a] text-white rounded-2xl font-black uppercase shadow-xl">
-                                {editingModule ? 'Update Module' : 'Add Module'}
+                            <button
+                                type="submit"
+                                disabled={savingModule}
+                                className="w-full py-4 bg-[#463a7a] text-white rounded-2xl font-black uppercase shadow-xl flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                            >
+                                {savingModule && <Loader2 size={18} className="animate-spin" />}
+                                {savingModule ? 'Saving…' : editingModule ? 'Update Module' : 'Add Module'}
                             </button>
                         </form>
                     </div>
@@ -437,13 +509,20 @@ export default function SyllabusBuilder() {
                                     <option value="theory">Theory / Test</option>
                                 </select>
                             </div>
-                            <button type="submit" className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black uppercase shadow-xl">
-                                Save Item
+                            <button
+                                type="submit"
+                                disabled={savingContent}
+                                className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black uppercase shadow-xl flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                            >
+                                {savingContent && <Loader2 size={18} className="animate-spin" />}
+                                {savingContent ? 'Saving…' : 'Save Item'}
                             </button>
                         </form>
                     </div>
                 </div>
             )}
+
+            {toast && <Toast message={toast.message} type={toast.type} onDone={() => setToast(null)} />}
         </div>
     );
 }

@@ -130,37 +130,39 @@ export default function TeacherStudentDetail() {
         <div className="min-h-screen bg-slate-50">
 
             {/* ── Top Header ── */}
-            <div className="bg-[#463a7a] px-4 sm:px-8 pt-6 pb-8">
-                <div className="max-w-6xl mx-auto">
+            <div className="relative px-4 sm:px-8 pt-6 pb-9 overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-[#4c3f87] via-[#3b2f6b] to-[#241a45]" />
+                <div className="absolute -top-20 -right-16 w-72 h-72 rounded-full bg-white/[0.06] blur-2xl" />
+                <div className="max-w-6xl mx-auto relative z-10">
                     <button
                         onClick={() => navigate(-1)}
-                        className="flex items-center gap-2 text-indigo-300 hover:text-white transition-colors mb-6 text-sm font-semibold"
+                        className="flex items-center gap-1.5 text-indigo-200/60 hover:text-white transition-colors mb-6 text-xs font-bold uppercase tracking-widest"
                     >
-                        <ArrowLeft size={16} /> Back to Students
+                        <ArrowLeft size={14} strokeWidth={2.5} /> Back to Students
                     </button>
 
                     <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                         {/* Avatar */}
-                        <div className="w-16 h-16 sm:w-20 sm:h-20 bg-white rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0">
+                        <div className="w-16 h-16 sm:w-20 sm:h-20 bg-white rounded-2xl flex items-center justify-center shadow-[0_8px_24px_-8px_rgba(0,0,0,0.35)] flex-shrink-0">
                             <span className="text-2xl sm:text-3xl font-black text-[#463a7a]">{initials}</span>
                         </div>
 
                         {/* Name + badges */}
                         <div className="flex-1 min-w-0">
                             <div className="flex flex-wrap items-center gap-2 mb-2">
-                                <span className="px-3 py-1 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest rounded-full">
-                                    Active Artist
+                                <span className="px-2.5 py-1 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest rounded-full flex items-center gap-1">
+                                    <CheckCircle2 size={10} strokeWidth={2.5} /> Active Artist
                                 </span>
                                 {student.desired_course && (
-                                    <span className="px-3 py-1 bg-white/15 text-indigo-200 text-[10px] font-bold uppercase tracking-widest rounded-full flex items-center gap-1">
-                                        <Music size={10} /> {student.desired_course}
+                                    <span className="px-2.5 py-1 bg-white/12 text-indigo-200 text-[10px] font-bold uppercase tracking-widest rounded-full flex items-center gap-1">
+                                        <Music size={10} strokeWidth={2.5} /> {student.desired_course}
                                     </span>
                                 )}
                             </div>
-                            <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight truncate">
+                            <h1 className="text-2xl sm:text-[28px] font-black text-white tracking-tight truncate">
                                 {student.first_name} {student.last_name}
                             </h1>
-                            <p className="text-indigo-300 text-sm font-semibold mt-0.5">
+                            <p className="text-indigo-200/50 text-sm font-semibold mt-0.5">
                                 #ST-{String(student.id).padStart(4, '0')}
                             </p>
                         </div>
@@ -169,18 +171,18 @@ export default function TeacherStudentDetail() {
                         <div className="flex flex-col gap-2 sm:items-end">
                             {student.email && (
                                 <a href={`mailto:${student.email}`}
-                                    className="flex items-center gap-2 text-indigo-200/70 hover:text-white text-xs font-semibold transition-colors truncate max-w-[200px]">
-                                    <Mail size={12} /> {student.email}
+                                    className="flex items-center gap-2 text-indigo-200/60 hover:text-white text-xs font-semibold transition-colors truncate max-w-[200px]">
+                                    <Mail size={12} strokeWidth={2.25} /> {student.email}
                                 </a>
                             )}
                             {student.primary_phone_number && (
-                                <span className="flex items-center gap-2 text-indigo-200/70 text-xs font-semibold">
-                                    <Phone size={12} /> {student.primary_phone_number}
+                                <span className="flex items-center gap-2 text-indigo-200/60 text-xs font-semibold">
+                                    <Phone size={12} strokeWidth={2.25} /> {student.primary_phone_number}
                                 </span>
                             )}
                             {student.nearest_vama_center && (
-                                <span className="flex items-center gap-2 text-indigo-200/70 text-xs font-semibold">
-                                    <MapPin size={12} /> {student.nearest_vama_center}
+                                <span className="flex items-center gap-2 text-indigo-200/60 text-xs font-semibold">
+                                    <MapPin size={12} strokeWidth={2.25} /> {student.nearest_vama_center}
                                 </span>
                             )}
                         </div>
@@ -194,21 +196,21 @@ export default function TeacherStudentDetail() {
 
                     {/* ── Left: Student Parameters ── */}
                     <div className="lg:col-span-1 space-y-4">
-                        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                        <div className="bg-white rounded-2xl shadow-[0_1px_2px_rgba(15,23,42,0.04),0_12px_28px_-16px_rgba(15,23,42,0.15)] border border-slate-100 overflow-hidden">
                             {/* Card header */}
-                            <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-2">
-                                <Zap size={16} className="text-[#463a7a]" />
-                                <h3 className="text-sm font-black text-slate-800 uppercase tracking-wide">Student Parameters</h3>
+                            <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-2.5">
+                                <span className="w-7 h-7 rounded-lg bg-indigo-50 text-[#463a7a] flex items-center justify-center"><Zap size={14} strokeWidth={2.25} /></span>
+                                <h3 className="text-sm font-black text-slate-800 tracking-tight">Student Parameters</h3>
                             </div>
 
                             <div className="p-6 space-y-5">
                                 {/* Grade */}
                                 <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">
+                                    <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2">
                                         Performance Grade
                                     </label>
                                     <div className="relative">
-                                        <GraduationCap size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                                        <GraduationCap size={15} strokeWidth={2.25} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                                         <select
                                             value={grade}
                                             onChange={(e) => setGrade(e.target.value)}
@@ -224,11 +226,11 @@ export default function TeacherStudentDetail() {
 
                                 {/* Syllabus Track */}
                                 <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">
+                                    <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2">
                                         Syllabus Track
                                     </label>
                                     <div className="relative">
-                                        <BookOpen size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                                        <BookOpen size={15} strokeWidth={2.25} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                                         <select
                                             value={syllabus}
                                             onChange={(e) => setSyllabus(e.target.value)}
@@ -244,37 +246,37 @@ export default function TeacherStudentDetail() {
 
                                 {/* Exam Track toggle */}
                                 <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">
+                                    <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2">
                                         Exam Track{myTrack?.instrument ? ` — ${myTrack.instrument}` : ''}
                                     </label>
                                     <button
                                         type="button"
                                         onClick={() => setIsExam(v => !v)}
-                                        className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-all ${
+                                        className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-all ${
                                             isExam
-                                                ? 'bg-[#463a7a]/5 border-[#463a7a]/30 text-[#463a7a]'
+                                                ? 'bg-amber-50 border-amber-200 text-amber-700'
                                                 : 'bg-slate-50 border-slate-200 text-slate-500'
                                         }`}
                                     >
                                         <span className="flex items-center gap-2 text-sm font-bold">
-                                            <Award size={15} />
+                                            <Award size={15} strokeWidth={2.25} />
                                             {isExam ? 'Exam Track Active' : 'Enable Exam Track'}
                                         </span>
-                                        <div className={`w-9 h-5 rounded-full transition-all relative flex-shrink-0 ${isExam ? 'bg-[#463a7a]' : 'bg-slate-200'}`}>
+                                        <div className={`w-9 h-5 rounded-full transition-all relative flex-shrink-0 ${isExam ? 'bg-amber-500' : 'bg-slate-200'}`}>
                                             <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${isExam ? 'left-4' : 'left-0.5'}`} />
                                         </div>
                                     </button>
 
                                     {isExam && (
-                                        <div className="mt-3 p-4 bg-indigo-50/60 rounded-xl border border-indigo-100 space-y-3">
-                                            <label className="block text-[10px] font-bold text-[#463a7a] uppercase tracking-widest mb-1.5">
+                                        <div className="mt-3 p-4 bg-amber-50/60 rounded-xl border border-amber-100 space-y-3">
+                                            <label className="block text-[10px] font-black text-amber-700 uppercase tracking-widest mb-1.5">
                                                 Exam Session
                                             </label>
                                             <select
                                                 value={selectedExamSession}
                                                 onChange={(e) => setSelectedExamSession(e.target.value)}
                                                 onClick={(e) => e.stopPropagation()}
-                                                className="w-full px-3 py-2.5 bg-white border border-indigo-200 rounded-lg text-sm font-semibold text-slate-700 focus:outline-none focus:border-[#463a7a] transition-all appearance-none"
+                                                className="w-full px-3 py-2.5 bg-white border border-amber-200 rounded-lg text-sm font-semibold text-slate-700 focus:outline-none focus:border-amber-400 transition-all appearance-none"
                                             >
                                                 <option value="">Choose a session...</option>
                                                 {availableExamSessions.map(s => (
@@ -284,7 +286,7 @@ export default function TeacherStudentDetail() {
                                                 ))}
                                             </select>
                                             {availableExamSessions.length === 0 && (
-                                                <p className="text-[10px] text-indigo-400 mt-1.5">No active exam sessions. Add one from Curriculum → Exams.</p>
+                                                <p className="text-[10px] text-amber-600/70 font-semibold mt-1.5">No active exam sessions. Add one from Curriculum → Exams.</p>
                                             )}
                                         </div>
                                     )}
@@ -294,18 +296,18 @@ export default function TeacherStudentDetail() {
                                 <button
                                     onClick={handleUpdate}
                                     disabled={saving}
-                                    className={`w-full py-3 rounded-xl font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${
+                                    className={`w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all ${
                                         success
                                             ? 'bg-emerald-500 text-white'
-                                            : 'bg-[#463a7a] hover:bg-[#342a5b] text-white shadow-md hover:shadow-lg active:scale-[0.98]'
+                                            : 'bg-[#463a7a] hover:bg-[#342a5b] text-white shadow-[0_6px_18px_-4px_rgba(70,58,122,0.45)] active:scale-[0.98]'
                                     } disabled:opacity-50`}
                                 >
                                     {saving ? (
-                                        <><Loader2 size={16} className="animate-spin" /> Saving...</>
+                                        <><Loader2 size={16} className="animate-spin" /> Saving…</>
                                     ) : success ? (
-                                        <><CheckCircle2 size={16} /> Saved!</>
+                                        <><CheckCircle2 size={16} strokeWidth={2.25} /> Saved!</>
                                     ) : (
-                                        <><Save size={16} /> Save Parameters</>
+                                        <><Save size={16} strokeWidth={2.25} /> Save Parameters</>
                                     )}
                                 </button>
                             </div>
@@ -313,18 +315,18 @@ export default function TeacherStudentDetail() {
 
                         {/* Quick stats */}
                         <div className="grid grid-cols-2 gap-3">
-                            <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm text-center">
-                                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Grade</p>
-                                <p className="text-lg font-black text-[#463a7a]">{grade || '—'}</p>
+                            <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-[0_1px_2px_rgba(15,23,42,0.04)] text-center">
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Grade</p>
+                                <p className="text-lg font-black text-[#463a7a] tracking-tight">{grade || '—'}</p>
                             </div>
-                            <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm text-center">
-                                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Track</p>
-                                <p className="text-lg font-black text-[#463a7a]">{syllabus || '—'}</p>
+                            <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-[0_1px_2px_rgba(15,23,42,0.04)] text-center">
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Track</p>
+                                <p className="text-lg font-black text-[#463a7a] tracking-tight">{syllabus || '—'}</p>
                             </div>
                             {isExam && (
-                                <div className="col-span-2 bg-[#463a7a]/5 rounded-2xl p-4 border border-[#463a7a]/20 text-center">
-                                    <p className="text-xs font-bold text-[#463a7a] uppercase tracking-widest mb-1">Exam Track</p>
-                                    <p className="text-sm font-black text-[#463a7a]">Active</p>
+                                <div className="col-span-2 bg-amber-50 rounded-2xl p-4 border border-amber-200/60 text-center flex items-center justify-center gap-2">
+                                    <Award size={15} strokeWidth={2.25} className="text-amber-600" />
+                                    <p className="text-sm font-black text-amber-700">Exam Track Active</p>
                                 </div>
                             )}
                         </div>
@@ -332,13 +334,13 @@ export default function TeacherStudentDetail() {
 
                     {/* ── Right: Curriculum Tracker ── */}
                     <div className="lg:col-span-2">
-                        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                        <div className="bg-white rounded-2xl shadow-[0_1px_2px_rgba(15,23,42,0.04),0_12px_28px_-16px_rgba(15,23,42,0.15)] border border-slate-100 overflow-hidden">
                             <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                    <TrendingUp size={16} className="text-[#463a7a]" />
-                                    <h3 className="text-sm font-black text-slate-800 uppercase tracking-wide">Curriculum Tracker</h3>
+                                <div className="flex items-center gap-2.5">
+                                    <span className="w-7 h-7 rounded-lg bg-indigo-50 text-[#463a7a] flex items-center justify-center"><TrendingUp size={14} strokeWidth={2.25} /></span>
+                                    <h3 className="text-sm font-black text-slate-800 tracking-tight">Curriculum Tracker</h3>
                                 </div>
-                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Live Progress</span>
+                                <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg uppercase tracking-widest">Live</span>
                             </div>
                             <div className="p-4 sm:p-6">
                                 <StudentProgressEditor

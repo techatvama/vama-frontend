@@ -58,7 +58,8 @@ export default function Dashboard() {
     "Email": "Email",
     "Desired Course": "Course",
     "Primary Phone Number": "Phone",
-    "Select your nearest Vama Center ": "Center"
+    "Teacher": "Teacher",
+    "Status": "Status",
   };
 
   const mapStudent = (s) => ({
@@ -146,15 +147,22 @@ export default function Dashboard() {
     });
   }, [records, searchTerm, statusFilter, teacherFilter, subjectFilter]);
 
+  const sortValue = (record, key) => {
+    if (key === 'Teacher') return teacherName(record.teacher_id);
+    if (key === 'Status') return (record.enrollment_status || 'active') === 'active' ? 'Active' : 'Inactive';
+    return record[key];
+  };
+
   const sortedRecords = useMemo(() => {
     if (!sortConfig.key) return filteredRecords;
     return [...filteredRecords].sort((a, b) => {
-      const aValue = a[sortConfig.key];
-      const bValue = b[sortConfig.key];
+      const aValue = sortValue(a, sortConfig.key);
+      const bValue = sortValue(b, sortConfig.key);
       if (aValue === bValue) return 0;
       return (aValue > bValue ? 1 : -1) * (sortConfig.direction === 'asc' ? 1 : -1);
     });
-  }, [filteredRecords, sortConfig]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filteredRecords, sortConfig, staffList]);
 
   const stats = useMemo(() => {
     const today = new Date().toDateString();
@@ -794,6 +802,21 @@ export default function Dashboard() {
                                 <span title="Dropped" className="w-2 h-2 rounded-full bg-red-400 flex-shrink-0" />
                               )}
                             </span>
+                          ) : key === 'Teacher' ? (
+                            teacherName(record.teacher_id)
+                          ) : key === 'Status' ? (
+                            (() => {
+                              const isActive = (record.enrollment_status || 'active') === 'active';
+                              return (
+                                <span
+                                  className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${
+                                    isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'
+                                  }`}
+                                >
+                                  {isActive ? 'Active' : 'Inactive'}
+                                </span>
+                              );
+                            })()
                           ) : (
                             record[key] || "—"
                           )}

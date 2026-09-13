@@ -13,6 +13,7 @@ import {
     Save
 } from 'lucide-react';
 import { useNavigate } from 'react-router';
+import Toast from './shared/Toast';
 
 export default function SubjectManager() {
     const [subjects, setSubjects] = useState([]);
@@ -26,6 +27,8 @@ export default function SubjectManager() {
         is_active: true
     });
     const [submitting, setSubmitting] = useState(false);
+    const [deletingId, setDeletingId] = useState(null);
+    const [toast, setToast] = useState(null); // { message, type }
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -35,7 +38,7 @@ export default function SubjectManager() {
     const fetchSubjects = async () => {
         setLoading(true);
         try {
-            const res = await api.get('/admin/subjects');
+            const res = await api.get('/admin/subjects', { params: { include_inactive: true } });
             setSubjects(res.data);
         } catch (err) {
             console.error(err);
@@ -51,15 +54,17 @@ export default function SubjectManager() {
         try {
             if (editingSubject) {
                 await api.put(`/admin/subjects/${editingSubject.id}`, formData);
+                setToast({ message: `"${formData.name}" updated.`, type: 'success' });
             } else {
                 await api.post('/admin/subjects', formData);
+                setToast({ message: `"${formData.name}" created.`, type: 'success' });
             }
 
-            fetchSubjects();
+            await fetchSubjects();
             resetForm();
         } catch (err) {
             console.error(err);
-            alert(err.response?.data?.detail || 'Failed to save subject');
+            setToast({ message: err.response?.data?.detail || 'Failed to save subject', type: 'error' });
         } finally {
             setSubmitting(false);
         }
@@ -75,15 +80,19 @@ export default function SubjectManager() {
         setShowForm(true);
     };
 
-    const handleDelete = async (id) => {
-        if (!confirm('Are you sure you want to delete this subject?')) return;
+    const handleDelete = async (id, name) => {
+        if (!confirm(`Delete "${name}"? This can't be undone.`)) return;
 
+        setDeletingId(id);
         try {
             await api.delete(`/admin/subjects/${id}`);
-            fetchSubjects();
+            setToast({ message: `"${name}" deleted.`, type: 'success' });
+            await fetchSubjects();
         } catch (err) {
             console.error(err);
-            alert('Failed to delete subject');
+            setToast({ message: err.response?.data?.detail || 'Failed to delete subject', type: 'error' });
+        } finally {
+            setDeletingId(null);
         }
     };
 
@@ -182,17 +191,19 @@ export default function SubjectManager() {
                         <div className="flex gap-3 pt-6 border-t border-slate-50">
                             <button
                                 onClick={() => handleEdit(subject)}
-                                className="flex-1 py-3 bg-slate-50 text-slate-600 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-100 transition-all flex items-center justify-center gap-2"
+                                disabled={deletingId === subject.id}
+                                className="flex-1 py-3 bg-slate-50 text-slate-600 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-100 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 <Edit2 size={14} />
                                 Edit
                             </button>
                             <button
-                                onClick={() => handleDelete(subject.id)}
-                                className="flex-1 py-3 bg-red-50 text-red-600 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-red-100 transition-all flex items-center justify-center gap-2"
+                                onClick={() => handleDelete(subject.id, subject.name)}
+                                disabled={deletingId === subject.id}
+                                className="flex-1 py-3 bg-red-50 text-red-600 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-red-100 transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
                             >
-                                <Trash2 size={14} />
-                                Delete
+                                {deletingId === subject.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                                {deletingId === subject.id ? 'Deleting…' : 'Delete'}
                             </button>
                         </div>
                     </div>
@@ -311,6 +322,8 @@ export default function SubjectManager() {
                     </div>
                 </div>
             )}
+
+            {toast && <Toast message={toast.message} type={toast.type} onDone={() => setToast(null)} />}
         </div>
     );
 }

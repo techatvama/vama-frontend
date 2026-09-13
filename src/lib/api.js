@@ -60,6 +60,11 @@ const BUST_MAP = [
     { match: /\/admin\/subjects/,       busts: ['/admin/subjects'] },
     { match: /\/admin\/grades/,         busts: ['/admin/grades'] },
     { match: /\/admin\/syllabi/,        busts: ['/admin/syllabi'] },
+    // Modules/contents live inside a syllabus's detail response — saving or
+    // deleting either must invalidate that cached syllabus too, or the
+    // Syllabus Builder keeps showing the pre-edit state for up to 5 minutes.
+    { match: /\/admin\/modules/,        busts: ['/admin/syllabi'] },
+    { match: /\/admin\/contents/,       busts: ['/admin/syllabi'] },
     { match: /\/admin\/settings/,       busts: ['/admin/settings'] },
     { match: /\/admin\/form-config/,    busts: ['/admin/form-config', '/public/form-config'] },
 ];

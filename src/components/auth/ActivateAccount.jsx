@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router';
 import { api } from '../../lib/api';
 import { PASSWORD_RULES, isPasswordValid } from '../../lib/password';
 import { Lock, Loader2, AlertCircle, CheckCircle2, ShieldCheck, ArrowRight } from 'lucide-react';
+import { BRAND } from '../../lib/brand';
 import AuthShell from './AuthShell';
 
 export default function ActivateAccount() {
@@ -44,29 +45,34 @@ export default function ActivateAccount() {
 
     if (checking) {
         return <AuthShell title="Activating…" subtitle="Verifying your link">
-            <div className="flex justify-center py-12"><Loader2 className="animate-spin text-indigo-400" size={40} /></div>
+            <div className="flex justify-center py-12"><Loader2 className="animate-spin" style={{ color: BRAND.purple }} size={36} /></div>
         </AuthShell>;
     }
 
     if (!valid && !done) {
         return <AuthShell title="Link expired" subtitle="This activation link is invalid or used">
-            <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-5 rounded-2xl flex items-center gap-3 text-sm font-bold">
-                <AlertCircle size={20} /> This activation link is no longer valid. Ask an admin to resend it, or use “Forgot password”.
+            <div className="bg-red-50 border border-red-100 text-red-600 p-4 rounded-xl flex items-center gap-2.5 text-sm font-medium">
+                <AlertCircle size={18} className="shrink-0" /> This activation link is no longer valid. Ask an admin to resend it, or use "Forgot password".
             </div>
-            <button onClick={() => navigate('/forgot-password')} className="mt-6 w-full bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-[28px] py-5 font-black transition-all">
+            <button onClick={() => navigate('/forgot-password')} className="mt-6 w-full bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 rounded-xl py-3.5 font-semibold transition-all">
                 Request a new link
             </button>
         </AuthShell>;
     }
 
     if (done) {
-        return <AuthShell title="You're all set!" subtitle="Account activated" icon={<CheckCircle2 className="text-emerald-400" />}>
-            <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 p-5 rounded-2xl flex items-center gap-3 text-sm font-bold">
-                <CheckCircle2 size={20} /> Your password is set and your account is active. Sign in to continue.
+        return <AuthShell title="You're all set!" subtitle="Account activated" icon={<CheckCircle2 size={22} className="text-emerald-600" />}>
+            <div className="bg-emerald-50 border border-emerald-100 text-emerald-700 p-4 rounded-xl flex items-center gap-2.5 text-sm font-medium">
+                <CheckCircle2 size={18} className="shrink-0" /> Your password is set and your account is active. Sign in to continue.
             </div>
             <div className="grid grid-cols-3 gap-3 mt-6">
                 {[['Student', '/student-login'], ['Teacher', '/teacher-login'], ['Admin', '/admin-login']].map(([label, to]) => (
-                    <button key={to} onClick={() => navigate(to)} className="bg-indigo-500 hover:bg-indigo-600 text-white rounded-2xl py-4 font-black text-xs transition-all">
+                    <button
+                        key={to}
+                        onClick={() => navigate(to)}
+                        className="rounded-xl py-3 font-semibold text-xs transition-opacity hover:opacity-90"
+                        style={{ backgroundColor: '#EDEBF5', color: BRAND.purple }}
+                    >
                         {label}
                     </button>
                 ))}
@@ -75,11 +81,11 @@ export default function ActivateAccount() {
     }
 
     return (
-        <AuthShell title="Set your password" subtitle="Activate your VAMA account" icon={<ShieldCheck className="text-yellow-400" />}>
+        <AuthShell title="Set your password" subtitle="Activate your VAMA account" icon={<ShieldCheck size={22} />}>
             <form onSubmit={handleSubmit} className="space-y-5">
                 {error && (
-                    <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-4 rounded-2xl flex items-center gap-3 text-sm font-bold">
-                        <AlertCircle size={18} /> {error}
+                    <div className="bg-red-50 border border-red-100 text-red-600 p-3.5 rounded-xl flex items-center gap-2.5 text-sm font-medium">
+                        <AlertCircle size={18} className="shrink-0" /> {error}
                     </div>
                 )}
                 <PasswordInput value={password} onChange={setPassword} placeholder="New password" />
@@ -89,7 +95,7 @@ export default function ActivateAccount() {
                     {PASSWORD_RULES.map((r) => {
                         const ok = r.test(password);
                         return (
-                            <li key={r.id} className={`flex items-center gap-2 text-xs font-bold ${ok ? 'text-emerald-400' : 'text-white/30'}`}>
+                            <li key={r.id} className={`flex items-center gap-2 text-xs font-medium ${ok ? 'text-emerald-600' : 'text-slate-400'}`}>
                                 <CheckCircle2 size={14} /> {r.label}
                             </li>
                         );
@@ -97,8 +103,9 @@ export default function ActivateAccount() {
                 </ul>
 
                 <button type="submit" disabled={loading}
-                    className="w-full bg-indigo-500 hover:bg-indigo-600 text-white rounded-[28px] py-6 font-black text-lg shadow-2xl shadow-indigo-900/30 active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50">
-                    {loading ? <Loader2 className="animate-spin" /> : <>ACTIVATE ACCOUNT <ArrowRight size={20} /></>}
+                    className="w-full text-white rounded-xl py-3.5 font-semibold shadow-lg transition-opacity hover:opacity-90 active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50"
+                    style={{ backgroundColor: BRAND.orange }}>
+                    {loading ? <Loader2 className="animate-spin" size={18} /> : <>Activate Account <ArrowRight size={18} /></>}
                 </button>
             </form>
         </AuthShell>
@@ -107,11 +114,11 @@ export default function ActivateAccount() {
 
 function PasswordInput({ value, onChange, placeholder }) {
     return (
-        <div className="relative group">
-            <Lock className="absolute left-6 top-1/2 -translate-y-1/2 text-white/20 group-focus-within:text-indigo-400 transition-colors" size={20} />
+        <div className="relative">
+            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
             <input
                 type="password" value={value} onChange={(e) => onChange(e.target.value)} required placeholder={placeholder}
-                className="w-full bg-white/5 border-2 border-white/5 rounded-[28px] py-5 pl-14 pr-6 text-white font-bold placeholder:text-white/10 focus:outline-none focus:border-indigo-400 transition-all shadow-inner"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 pl-11 pr-4 text-slate-900 font-medium placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#463A7A]/15 focus:border-[#463A7A]/40 transition-all"
             />
         </div>
     );

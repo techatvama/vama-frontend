@@ -12,18 +12,23 @@ const initials = (f, l) => `${(f || '?')[0]}${(l || '')[0] || ''}`.toUpperCase()
 const aColor = (id) => AVATAR_COLORS[(id || 0) % AVATAR_COLORS.length];
 
 function Avatar({ id, first, last, size = 40 }) {
-    return <div className="rounded-2xl flex items-center justify-center text-white text-xs font-black flex-shrink-0"
+    return <div className="rounded-2xl flex items-center justify-center text-white text-xs font-black flex-shrink-0 shadow-[0_2px_6px_-1px_rgba(0,0,0,0.15)]"
         style={{ width: size, height: size, backgroundColor: aColor(id) }}>{initials(first, last)}</div>;
 }
 
 function Stat({ icon: Icon, label, value, tone = 'indigo' }) {
-    const tones = { indigo: 'bg-indigo-50 text-[#463a7a]', emerald: 'bg-emerald-50 text-emerald-600', amber: 'bg-amber-50 text-amber-600', rose: 'bg-rose-50 text-rose-600' };
+    const tones = {
+        indigo: 'from-indigo-50 to-indigo-100/50 text-[#463a7a]',
+        emerald: 'from-emerald-50 to-emerald-100/50 text-emerald-600',
+        amber: 'from-amber-50 to-amber-100/50 text-amber-600',
+        rose: 'from-rose-50 to-rose-100/50 text-rose-600',
+    };
     return (
-        <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-100 flex items-center gap-4">
-            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${tones[tone]}`}><Icon size={22} /></div>
-            <div>
-                <p className="text-2xl font-black text-slate-900 leading-none">{value}</p>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">{label}</p>
+        <div className="bg-white rounded-2xl p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_12px_28px_-16px_rgba(15,23,42,0.15)] border border-slate-100 flex items-center gap-4">
+            <div className={`w-11 h-11 rounded-2xl flex items-center justify-center bg-gradient-to-br flex-shrink-0 ${tones[tone]}`}><Icon size={20} strokeWidth={2.25} /></div>
+            <div className="min-w-0">
+                <p className="text-2xl font-black text-slate-900 leading-none tracking-tight">{value}</p>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1.5 truncate">{label}</p>
             </div>
         </div>
     );
@@ -31,7 +36,7 @@ function Stat({ icon: Icon, label, value, tone = 'indigo' }) {
 
 const Pill = ({ children, tone = 'slate' }) => {
     const map = { slate: 'bg-slate-100 text-slate-600', indigo: 'bg-indigo-50 text-[#463a7a]', emerald: 'bg-emerald-50 text-emerald-700', amber: 'bg-amber-50 text-amber-700', rose: 'bg-rose-50 text-rose-700' };
-    return <span className={`text-[10px] font-black uppercase tracking-wide px-2 py-0.5 rounded-md ${map[tone]}`}>{children}</span>;
+    return <span className={`text-[10px] font-black uppercase tracking-wide px-2 py-1 rounded-lg flex items-center gap-1 ${map[tone]}`}>{children}</span>;
 };
 
 export default function EnrollmentManager() {
@@ -133,22 +138,30 @@ export default function EnrollmentManager() {
         <div className="min-h-screen bg-[#f8fafc] p-4 lg:p-8">
             <div className="max-w-[1500px] mx-auto space-y-6">
                 {/* Header */}
-                <div className="flex items-start justify-between gap-4 flex-wrap">
-                    <div>
-                        <h1 className="text-3xl lg:text-4xl font-black text-slate-900 tracking-tighter flex items-center gap-3">
-                            <UserCog className="text-[#463a7a]" /> Enrollments
-                        </h1>
-                        <p className="text-slate-400 font-bold text-sm mt-1">Assign instrument & instructor to unlock packages and class booking in the student portal.</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <button onClick={load} title="Refresh (pulls latest grades from instructors)"
-                            className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-2xl text-sm font-black hover:border-[#463a7a] hover:text-[#463a7a] transition-all">
-                            <RefreshCw size={15} /> Refresh
-                        </button>
-                        <button onClick={exportExcel}
-                            className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-2xl text-sm font-black hover:bg-emerald-700 transition-all shadow-sm">
-                            <Download size={15} /> Export Excel
-                        </button>
+                <div className="relative rounded-[30px] p-7 lg:p-9 overflow-hidden shadow-[0_1px_2px_rgba(15,23,42,0.06),0_20px_44px_-18px_rgba(70,58,122,0.45)]">
+                    <div className="absolute inset-0 bg-gradient-to-br from-[#4c3f87] via-[#3b2f6b] to-[#241a45]" />
+                    <div className="absolute -top-16 -right-10 w-64 h-64 rounded-full bg-white/[0.06] blur-2xl" />
+                    <UserCog className="absolute -bottom-6 -right-4 w-48 h-48 text-white/[0.05]" strokeWidth={1} />
+                    <div className="relative z-10 flex items-start justify-between gap-4 flex-wrap">
+                        <div>
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 text-indigo-200 text-[10px] font-black uppercase tracking-[0.16em] mb-3">
+                                <UserCog size={12} strokeWidth={2.5} /> Students
+                            </span>
+                            <h1 className="text-3xl lg:text-[34px] font-black text-white tracking-tight leading-none">
+                                Enrollments
+                            </h1>
+                            <p className="text-indigo-100/50 font-medium text-sm mt-2.5 max-w-md">Assign instrument &amp; instructor to unlock packages and class booking in the student portal.</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <button onClick={load} title="Refresh (pulls latest grades from instructors)"
+                                className="flex items-center gap-2 px-4 py-2.5 bg-white/10 text-white rounded-xl text-sm font-bold hover:bg-white/20 transition-all">
+                                <RefreshCw size={15} strokeWidth={2.25} /> Refresh
+                            </button>
+                            <button onClick={exportExcel}
+                                className="flex items-center gap-2 px-4 py-2.5 bg-white text-[#3b2f6b] rounded-xl text-sm font-bold shadow-[0_8px_20px_-6px_rgba(0,0,0,0.35)] hover:shadow-[0_10px_24px_-4px_rgba(0,0,0,0.4)] hover:-translate-y-0.5 transition-all">
+                                <Download size={15} strokeWidth={2.25} /> Export
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -161,11 +174,11 @@ export default function EnrollmentManager() {
                 </div>
 
                 {/* Filters */}
-                <div className="bg-white rounded-3xl p-4 shadow-sm border border-slate-100 flex flex-wrap items-center gap-2.5">
+                <div className="bg-white rounded-2xl p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)] border border-slate-100 flex flex-wrap items-center gap-2.5">
                     <div className="relative flex-1 min-w-[200px]">
-                        <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <Search size={15} strokeWidth={2.25} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search students…"
-                            className="w-full pl-10 pr-3 py-2.5 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-[#463a7a]/15" />
+                            className="w-full pl-10 pr-3 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-[#463a7a]/15" />
                     </div>
                     <Select value={fTeacher} onChange={setFTeacher} icon={UserCog} placeholder="All Instructors"
                         options={teachers.map(t => ({ value: String(t.id), label: t.name }))} />
@@ -177,18 +190,18 @@ export default function EnrollmentManager() {
                         options={instruments.map(i => ({ value: i, label: i }))} />
                     <Select value={fExam} onChange={setFExam} icon={Award} placeholder="Exam Status"
                         options={[{ value: 'exam', label: 'Exam Students' }, { value: 'non', label: 'Non-Exam' }]} />
-                    {anyFilter && <button onClick={clearFilters} className="text-xs font-black text-[#463a7a] px-2 hover:underline">Clear</button>}
-                    <button onClick={() => setShowLoad(v => !v)} className="ml-auto text-xs font-black text-slate-500 flex items-center gap-1.5 px-3 py-2 rounded-xl hover:bg-slate-50">
-                        <Users size={14} /> {showLoad ? 'Hide' : 'Show'} Instructor Load
+                    {anyFilter && <button onClick={clearFilters} className="text-xs font-bold text-[#463a7a] px-2 hover:underline">Clear</button>}
+                    <button onClick={() => setShowLoad(v => !v)} className="ml-auto text-xs font-bold text-slate-500 flex items-center gap-1.5 px-3 py-2 rounded-xl hover:bg-slate-50 transition-colors">
+                        <Users size={14} strokeWidth={2.25} /> {showLoad ? 'Hide' : 'Show'} Instructor Load
                     </button>
                 </div>
 
                 <div className="flex gap-6">
                     {/* Student list */}
                     <div className="flex-1 min-w-0 space-y-3">
-                        <p className="text-xs font-black text-slate-400 uppercase tracking-widest px-1">{filtered.length} student{filtered.length === 1 ? '' : 's'}</p>
+                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest px-1">{filtered.length} student{filtered.length === 1 ? '' : 's'}</p>
                         {filtered.map(s => (
-                            <div key={s.id} className="bg-white rounded-3xl p-4 lg:p-5 shadow-sm border border-slate-100 hover:border-[#463a7a]/30 transition-all">
+                            <div key={s.id} className="bg-white rounded-2xl p-4 lg:p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] border border-slate-100 hover:border-[#463a7a]/25 hover:shadow-[0_4px_20px_-8px_rgba(70,58,122,0.18)] transition-all">
                                 <div className="flex items-center gap-4 flex-wrap lg:flex-nowrap">
                                     <Avatar id={s.id} first={s.first_name} last={s.last_name} size={48} />
                                     <div className="min-w-0 flex-1">
@@ -196,14 +209,14 @@ export default function EnrollmentManager() {
                                             <h3 className="font-black text-slate-900 truncate">{s.first_name} {s.last_name}</h3>
                                             <Pill>{s.current_grade}</Pill>
                                             <Pill tone="indigo">{s.syllabus_type}</Pill>
-                                            {s.is_exam_student && <Pill tone="amber"><Award size={9} className="inline mr-0.5" />Exam{s.exam_date ? ` · ${s.exam_date}` : ''}</Pill>}
+                                            {s.is_exam_student && <Pill tone="amber"><Award size={10} strokeWidth={2.5} />Exam{s.exam_date ? ` · ${s.exam_date}` : ''}</Pill>}
                                         </div>
-                                        <p className="text-xs text-slate-400 font-bold truncate">{s.email}</p>
+                                        <p className="text-xs text-slate-400 font-semibold truncate mt-0.5">{s.email}</p>
                                         {/* Classes: one chip per instrument + instructor */}
                                         <div className="flex items-center gap-1.5 flex-wrap mt-2">
                                             {(s.tracks && s.tracks.length) ? s.tracks.map(t => (
-                                                <span key={t.id} className="inline-flex items-center gap-1 bg-indigo-50 text-[#463a7a] rounded-lg px-2 py-1 text-[11px] font-black">
-                                                    <Music size={10} /> {t.instrument || '—'}
+                                                <span key={t.id} className="inline-flex items-center gap-1 bg-indigo-50 text-[#463a7a] rounded-lg px-2 py-1 text-[11px] font-bold">
+                                                    <Music size={11} strokeWidth={2.25} /> {t.instrument || '—'}
                                                     <span className="text-indigo-300 mx-0.5">·</span>
                                                     {t.teacher_name || <span className="text-rose-400">Unassigned</span>}
                                                 </span>
@@ -213,44 +226,52 @@ export default function EnrollmentManager() {
 
                                     {/* Progress */}
                                     <div className="w-32 flex-shrink-0">
-                                        <div className="flex items-center justify-between mb-1">
-                                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Progress</p>
+                                        <div className="flex items-center justify-between mb-1.5">
+                                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Progress</p>
                                             <span className="text-[10px] font-black text-[#463a7a]">{s.progress_pct}%</span>
                                         </div>
-                                        <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                            <div className="h-full bg-gradient-to-r from-[#463a7a] to-purple-500 rounded-full" style={{ width: `${s.progress_pct}%` }} />
+                                        <div className="w-full h-[5px] bg-slate-100 rounded-full overflow-hidden">
+                                            <div className="h-full bg-gradient-to-r from-[#463a7a] to-purple-500 rounded-full transition-all" style={{ width: `${s.progress_pct}%` }} />
                                         </div>
-                                        <p className="text-[9px] text-slate-400 font-bold mt-1">{s.progress_done}/{s.progress_total} done</p>
+                                        <p className="text-[9px] text-slate-400 font-semibold mt-1">{s.progress_done}/{s.progress_total} done</p>
                                     </div>
 
                                     {/* Actions */}
-                                    <div className="flex gap-2 flex-shrink-0">
+                                    <div className="flex gap-1.5 flex-shrink-0">
                                         <button onClick={() => setProgressFor(s)} title="View progress"
-                                            className="p-2.5 bg-slate-50 text-slate-500 rounded-2xl hover:bg-[#463a7a] hover:text-white transition-all"><TrendingUp size={16} /></button>
+                                            className="w-9 h-9 flex items-center justify-center bg-slate-50 text-slate-500 rounded-xl hover:bg-[#463a7a] hover:text-white transition-all"><TrendingUp size={15} strokeWidth={2.25} /></button>
                                         <button onClick={() => navigate(`/students/${s.id}`)} title="Packages & fees"
-                                            className="p-2.5 bg-slate-50 text-slate-500 rounded-2xl hover:bg-emerald-500 hover:text-white transition-all"><CreditCard size={16} /></button>
+                                            className="w-9 h-9 flex items-center justify-center bg-slate-50 text-slate-500 rounded-xl hover:bg-emerald-500 hover:text-white transition-all"><CreditCard size={15} strokeWidth={2.25} /></button>
                                         <button onClick={() => setEditing(s)}
-                                            className="px-4 py-2.5 bg-[#463a7a] text-white rounded-2xl text-xs font-black hover:bg-[#3a2f66] transition-all flex items-center gap-1.5">
-                                            <Sparkles size={14} /> {(s.tracks && s.tracks.length) ? 'Manage' : 'Assign'}
+                                            className="px-4 py-2 bg-[#463a7a] text-white rounded-xl text-xs font-bold hover:bg-[#3a2f66] shadow-[0_4px_12px_-3px_rgba(70,58,122,0.4)] transition-all flex items-center gap-1.5">
+                                            <Sparkles size={14} strokeWidth={2.25} /> {(s.tracks && s.tracks.length) ? 'Manage' : 'Assign'}
                                         </button>
                                     </div>
                                 </div>
                             </div>
                         ))}
-                        {filtered.length === 0 && <div className="bg-white rounded-3xl p-16 text-center text-slate-400 font-bold border border-slate-100">No students match these filters.</div>}
+                        {filtered.length === 0 && (
+                            <div className="bg-white rounded-2xl p-16 text-center border border-dashed border-slate-200">
+                                <Search className="mx-auto text-slate-300 mb-3" size={28} strokeWidth={1.75} />
+                                <p className="text-slate-400 font-semibold">No students match these filters.</p>
+                            </div>
+                        )}
                     </div>
 
                     {/* Instructor load rail */}
                     {showLoad && (
                         <div className="w-72 flex-shrink-0 hidden xl:block">
-                            <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-100 sticky top-6">
-                                <h3 className="font-black text-slate-900 flex items-center gap-2 mb-4"><Users size={18} className="text-[#463a7a]" /> Instructor Load</h3>
-                                <div className="space-y-2 max-h-[70vh] overflow-y-auto">
+                            <div className="bg-white rounded-2xl p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] border border-slate-100 sticky top-6">
+                                <h3 className="font-black text-slate-900 flex items-center gap-2 mb-4 text-[15px]">
+                                    <span className="w-8 h-8 rounded-xl bg-indigo-50 text-[#463a7a] flex items-center justify-center"><Users size={15} strokeWidth={2.25} /></span>
+                                    Instructor Load
+                                </h3>
+                                <div className="space-y-1 max-h-[70vh] overflow-y-auto">
                                     {teacherLoad.map(t => (
                                         <button key={t.id} onClick={() => setFTeacher(String(t.id))}
-                                            className="w-full flex items-center gap-3 p-2.5 rounded-2xl hover:bg-slate-50 text-left transition-all">
+                                            className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-50 text-left transition-all">
                                             <Avatar id={t.id} first={t.name} size={34} />
-                                            <span className="flex-1 text-sm font-black text-slate-700 truncate">{t.name}</span>
+                                            <span className="flex-1 text-sm font-bold text-slate-700 truncate">{t.name}</span>
                                             <span className="text-xs font-black text-white bg-[#463a7a] rounded-lg px-2 py-0.5">{t.students.length}</span>
                                         </button>
                                     ))}
@@ -267,14 +288,14 @@ export default function EnrollmentManager() {
             )}
             {progressFor && (
                 <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
-                    <div className="absolute inset-0 bg-slate-900/80 backdrop-blur-md" onClick={() => setProgressFor(null)} />
-                    <div className="relative bg-white rounded-[40px] w-full max-w-6xl max-h-[90vh] overflow-hidden shadow-2xl flex flex-col">
+                    <div className="absolute inset-0 bg-slate-900/75 backdrop-blur-md" onClick={() => setProgressFor(null)} />
+                    <div className="relative bg-white rounded-[32px] w-full max-w-6xl max-h-[90vh] overflow-hidden shadow-[0_32px_80px_-20px_rgba(0,0,0,0.4)] flex flex-col">
                         <div className="p-6 border-b border-slate-100 flex items-center justify-between">
                             <div>
-                                <h2 className="text-2xl font-black text-slate-900 tracking-tighter">Progress</h2>
+                                <h2 className="text-xl font-black text-slate-900 tracking-tight">Progress</h2>
                                 <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-0.5">{progressFor.first_name} {progressFor.last_name} · {progressFor.instrument} · {progressFor.syllabus_type} {progressFor.current_grade}</p>
                             </div>
-                            <button onClick={() => setProgressFor(null)} className="w-11 h-11 flex items-center justify-center bg-slate-50 rounded-2xl hover:bg-red-50 hover:text-red-500"><X size={20} /></button>
+                            <button onClick={() => setProgressFor(null)} className="w-10 h-10 flex items-center justify-center bg-slate-50 rounded-xl hover:bg-red-50 hover:text-red-500 transition-colors"><X size={18} strokeWidth={2.25} /></button>
                         </div>
                         <div className="flex-1 overflow-y-auto p-4 lg:p-6"><StudentProgressEditor studentIdFromProps={progressFor.id} /></div>
                     </div>
@@ -288,12 +309,12 @@ function Select({ value, onChange, icon: Icon, placeholder, options }) {
     return (
         <div className="relative">
             <select value={value} onChange={e => onChange(e.target.value)}
-                className={`appearance-none pl-9 pr-8 py-2.5 border rounded-2xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-[#463a7a]/15 transition-all ${value ? 'bg-indigo-50 border-[#463a7a]/40 text-[#463a7a]' : 'bg-slate-50 border-slate-100 text-slate-600'}`}>
+                className={`appearance-none pl-9 pr-8 py-2.5 border rounded-xl text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-[#463a7a]/15 transition-all ${value ? 'bg-indigo-50 border-[#463a7a]/40 text-[#463a7a]' : 'bg-slate-50 border-slate-100 text-slate-600'}`}>
                 <option value="">{placeholder}</option>
                 {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
-            <Icon size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-            <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            <Icon size={14} strokeWidth={2.25} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            <ChevronDown size={13} strokeWidth={2.25} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
         </div>
     );
 }
@@ -368,44 +389,45 @@ function AssignDrawer({ student, teachers, subjects, grades, curricula, examSess
     };
 
     const close = () => (dirty ? onSaved() : onClose());
-    const field = "w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-[#463a7a]/15";
-    const smallField = "bg-white border border-slate-200 rounded-xl py-1.5 px-2.5 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-[#463a7a]/20 text-slate-700";
+    const field = "w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-[#463a7a]/15 focus:border-[#463a7a]/30 transition-all";
+    const smallField = "bg-white border border-slate-200 rounded-lg py-1.5 px-2.5 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#463a7a]/20 text-slate-700";
 
     return (
         <div className="fixed inset-0 z-[120] flex justify-end">
-            <div className="absolute inset-0 bg-slate-900/70 backdrop-blur-sm" onClick={close} />
-            <div className="relative w-full max-w-md bg-white h-full overflow-y-auto shadow-2xl animate-in slide-in-from-right duration-200">
-                <div className="p-6 bg-[#463a7a] text-white flex items-center gap-3 sticky top-0 z-10">
+            <div className="absolute inset-0 bg-slate-900/65 backdrop-blur-sm" onClick={close} />
+            <div className="relative w-full max-w-md bg-white h-full overflow-y-auto shadow-[0_0_60px_rgba(0,0,0,0.3)] animate-in slide-in-from-right duration-200">
+                <div className="relative p-6 text-white flex items-center gap-3 sticky top-0 z-10 overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-br from-[#4c3f87] to-[#2d2456]" />
                     <Avatar id={student.id} first={student.first_name} last={student.last_name} size={44} />
-                    <div className="flex-1 min-w-0">
-                        <h2 className="text-lg font-black truncate">{student.first_name} {student.last_name}</h2>
-                        <p className="text-indigo-200/70 text-xs font-bold">Manage classes & instructors</p>
+                    <div className="relative z-10 flex-1 min-w-0">
+                        <h2 className="text-lg font-black truncate tracking-tight">{student.first_name} {student.last_name}</h2>
+                        <p className="text-indigo-200/60 text-xs font-bold">Manage classes &amp; instructors</p>
                     </div>
-                    <button onClick={close} className="w-10 h-10 flex items-center justify-center bg-white/10 rounded-2xl hover:bg-white/20"><X size={18} /></button>
+                    <button onClick={close} className="relative z-10 w-9 h-9 flex items-center justify-center bg-white/10 rounded-xl hover:bg-white/20 transition-colors flex-shrink-0"><X size={16} strokeWidth={2.25} /></button>
                 </div>
 
                 <div className="p-6 space-y-5">
-                    {error && <div className="bg-red-50 border border-red-200 text-red-600 p-3 rounded-2xl text-sm font-bold flex items-center gap-2"><AlertCircle size={16} />{error}</div>}
+                    {error && <div className="bg-red-50 border border-red-200 text-red-600 p-3 rounded-xl text-sm font-bold flex items-center gap-2"><AlertCircle size={16} strokeWidth={2.25} />{error}</div>}
 
                     {/* Classes — each has its own instructor + syllabus + grade */}
                     <div>
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Classes & Instructors</label>
-                        <div className="space-y-2 mt-2">
-                            {tracks.length === 0 && <p className="text-xs text-slate-400 font-bold italic">No classes yet — add one below.</p>}
+                        <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Classes &amp; Instructors</label>
+                        <div className="space-y-2.5 mt-2.5">
+                            {tracks.length === 0 && <p className="text-xs text-slate-400 font-semibold italic">No classes yet — add one below.</p>}
                             {tracks.map(t => (
-                                <div key={t.id} className="bg-slate-50 border border-slate-100 rounded-2xl px-3 py-2.5 space-y-2">
+                                <div key={t.id} className="bg-slate-50/70 border border-slate-100 rounded-2xl px-3.5 py-3 space-y-2.5">
                                     {/* Instrument + Instructor + Remove */}
                                     <div className="flex items-center gap-2">
-                                        <Music size={14} className="text-[#463a7a] flex-shrink-0" />
+                                        <span className="w-7 h-7 rounded-lg bg-indigo-100 text-[#463a7a] flex items-center justify-center flex-shrink-0"><Music size={13} strokeWidth={2.25} /></span>
                                         <span className="text-sm font-black text-slate-800 truncate">{t.instrument || '—'}</span>
                                         <span className="text-slate-300">·</span>
-                                        <UserCog size={13} className="text-slate-400 flex-shrink-0" />
+                                        <UserCog size={13} strokeWidth={2.25} className="text-slate-400 flex-shrink-0" />
                                         <span className="text-sm font-bold text-slate-600 truncate flex-1">{t.teacher_name || teacherName(t.teacher_id) || 'Unassigned'}</span>
                                         <button onClick={() => removeTrack(t.id)} title="Remove class"
-                                            className="w-7 h-7 flex items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-500 transition-all flex-shrink-0"><Trash2 size={14} /></button>
+                                            className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-500 transition-all flex-shrink-0"><Trash2 size={13} strokeWidth={2.25} /></button>
                                     </div>
                                     {/* Per-class curriculum + grade */}
-                                    <div className="flex items-center gap-2 pl-0.5">
+                                    <div className="flex items-center gap-2 pl-9">
                                         <select
                                             className={smallField}
                                             value={t.syllabus_type || curricula[0] || 'Trinity'}
@@ -422,11 +444,11 @@ function AssignDrawer({ student, teachers, subjects, grades, curricula, examSess
                                         </select>
                                     </div>
                                     {/* Per-class exam status */}
-                                    <div className="flex items-center gap-2 pl-0.5">
+                                    <div className="flex items-center gap-2 pl-9">
                                         <button type="button"
                                             onClick={() => updateTrackField(t.id, 'is_exam_student', !t.is_exam_student)}
-                                            className={`flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-xs font-black transition-all ${t.is_exam_student ? 'bg-amber-100 text-amber-700' : 'bg-white border border-slate-200 text-slate-400'}`}>
-                                            <Award size={13} /> Exam
+                                            className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-bold transition-all flex-shrink-0 ${t.is_exam_student ? 'bg-amber-100 text-amber-700' : 'bg-white border border-slate-200 text-slate-400'}`}>
+                                            <Award size={13} strokeWidth={2.25} /> Exam
                                         </button>
                                         {t.is_exam_student && (
                                             <select className={`${smallField} flex-1`}
@@ -442,7 +464,8 @@ function AssignDrawer({ student, teachers, subjects, grades, curricula, examSess
                         </div>
 
                         {/* Add class row */}
-                        <div className="mt-3 bg-indigo-50/50 border border-indigo-100 rounded-2xl p-3 space-y-2">
+                        <div className="mt-3.5 bg-indigo-50/40 border border-indigo-100 rounded-2xl p-4 space-y-2.5">
+                            <p className="text-[10px] font-black text-[#463a7a] uppercase tracking-widest flex items-center gap-1.5 mb-1"><Plus size={12} strokeWidth={2.5} /> Add a class</p>
                             <select className={field} value={newInstrument} onChange={e => setNewInstrument(e.target.value)}>
                                 <option value="">Instrument…</option>
                                 {subjects.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
@@ -461,11 +484,11 @@ function AssignDrawer({ student, teachers, subjects, grades, curricula, examSess
                             </div>
                             <div className="flex items-center gap-2">
                                 <button type="button" onClick={() => setNewExam(!newExam)}
-                                    className={`flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-xs font-black transition-all ${newExam ? 'bg-amber-100 text-amber-700' : 'bg-white border border-slate-200 text-slate-400'}`}>
-                                    <Award size={13} /> Exam Student
+                                    className={`flex items-center gap-1.5 rounded-xl px-3 py-2.5 text-xs font-bold transition-all flex-shrink-0 ${newExam ? 'bg-amber-100 text-amber-700' : 'bg-white border border-slate-200 text-slate-400'}`}>
+                                    <Award size={13} strokeWidth={2.25} /> Exam Student
                                 </button>
                                 {newExam && (
-                                    <select className={`${field} flex-1 py-2`}
+                                    <select className={`${field} flex-1 py-2.5`}
                                         value={newExamSession} onChange={e => setNewExamSession(e.target.value)}>
                                         <option value="">Select exam session…</option>
                                         {examSessions.map(s => <option key={s.id} value={s.id}>{sessionLabel(s)}</option>)}
@@ -473,20 +496,20 @@ function AssignDrawer({ student, teachers, subjects, grades, curricula, examSess
                                 )}
                             </div>
                             <button onClick={addTrack} disabled={busy}
-                                className="w-full bg-[#463a7a] hover:bg-[#3a2f66] text-white rounded-2xl py-2.5 font-black text-xs uppercase tracking-widest flex items-center justify-center gap-1.5 disabled:opacity-50">
-                                {busy ? <Loader2 className="animate-spin" size={15} /> : <><Plus size={15} /> Add Class</>}
+                                className="w-full bg-[#463a7a] hover:bg-[#3a2f66] text-white rounded-xl py-3 font-bold text-sm shadow-[0_4px_14px_-3px_rgba(70,58,122,0.45)] flex items-center justify-center gap-1.5 disabled:opacity-50 transition-all">
+                                {busy ? <Loader2 className="animate-spin" size={15} /> : <><Plus size={15} strokeWidth={2.5} /> Add Class</>}
                             </button>
                         </div>
                     </div>
 
-                    <div className="bg-indigo-50 rounded-2xl p-3 text-[11px] font-bold text-[#463a7a] flex items-start gap-2">
-                        <Sparkles size={14} className="mt-0.5 flex-shrink-0" />
+                    <div className="bg-indigo-50 rounded-xl p-3.5 text-[11px] font-bold text-[#463a7a] flex items-start gap-2">
+                        <Sparkles size={14} strokeWidth={2.25} className="mt-0.5 flex-shrink-0" />
                         Each class has its own syllabus, grade, and exam status. Changes save instantly.
                     </div>
 
                     <button onClick={close}
-                        className="w-full bg-[#463a7a] hover:bg-[#3a2f66] text-white rounded-2xl py-4 font-black text-sm uppercase tracking-widest transition-all flex items-center justify-center gap-2">
-                        <Check size={18} /> Close
+                        className="w-full bg-[#463a7a] hover:bg-[#3a2f66] text-white rounded-xl py-3.5 font-bold text-sm shadow-[0_6px_18px_-4px_rgba(70,58,122,0.45)] transition-all flex items-center justify-center gap-2">
+                        <Check size={17} strokeWidth={2.5} /> Save &amp; Close
                     </button>
                 </div>
             </div>
