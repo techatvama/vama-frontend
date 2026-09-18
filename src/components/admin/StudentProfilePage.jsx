@@ -11,7 +11,7 @@ import {
     TrendingUp, Clock, CheckCircle, XCircle, AlertCircle,
     ArrowLeft, Loader2, GraduationCap, DollarSign,
     Star, ChevronRight, ChevronLeft, Activity, Users, Pencil, Pause, UserX, RotateCcw,
-    CalendarDays, ExternalLink,
+    CalendarDays, ExternalLink, FileText,
 } from 'lucide-react';
 
 const formatDate = (val) => {
@@ -198,6 +198,7 @@ export default function StudentProfilePage() {
     const [activeTab, setActiveTab] = useState('overview');
     const [editOpen, setEditOpen] = useState(false);
     const [statusSaving, setStatusSaving] = useState(false);
+    const [invoiceOpen, setInvoiceOpen] = useState(false);
 
     const load = useCallback(() => {
         setLoading(true);
@@ -323,6 +324,10 @@ export default function StudentProfilePage() {
                             <RotateCcw size={13} /> Reactivate
                         </button>
                     )}
+                    <button onClick={() => setInvoiceOpen(true)}
+                        className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 transition-colors">
+                        <FileText size={13} /> Create Invoice
+                    </button>
                     <button onClick={() => setEditOpen(true)}
                         className="flex items-center gap-1.5 px-3.5 py-2 bg-[#463a7a] text-white rounded-lg text-xs font-bold hover:bg-[#342a5b] transition-colors">
                         <Pencil size={13} /> Edit Details
@@ -716,6 +721,147 @@ export default function StudentProfilePage() {
                 initialData={student}
                 onSubmit={async () => { await load(); }}
             />
+
+            {/* ── Create Invoice Dialog ── */}
+            {invoiceOpen && (
+                <QuickInvoiceDialog
+                    student={student}
+                    onClose={() => setInvoiceOpen(false)}
+                    onSuccess={() => { setInvoiceOpen(false); load(); }}
+                />
+            )}
+        </div>
+    );
+}
+
+function QuickInvoiceDialog({ student, onClose, onSuccess }) {
+    const [amount, setAmount] = useState('');
+    const [dueDate, setDueDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+    const [description, setDescription] = useState('');
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState('');
+
+    const handleCreate = async () => {
+        if (!amount || Number(amount) <= 0) {
+            setError('Please enter a valid amount');
+            return;
+        }
+        if (!dueDate) {
+            setError('Please select a due date');
+            return;
+        }
+
+        setSaving(true);
+        setError('');
+        try {
+            await api.post('/admin/invoices', {
+                student_id: student.id,
+                total_amount: Number(amount),
+                due_date: dueDate,
+                payment_type: description || 'Custom',
+                notes: description,
+            });
+            onSuccess();
+        } catch (err) {
+            setError(err.response?.data?.detail || 'Failed to create invoice');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full">
+                {/* Header */}
+                <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <FileText size={18} className="text-emerald-600" />
+                        <h2 className="text-lg font-bold text-slate-900">Create Invoice</h2>
+                    </div>
+                    <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
+                        <X size={20} />
+                    </button>
+                </div>
+
+                {/* Body */}
+                <div className="px-6 py-5 space-y-4">
+                    {/* Student info */}
+                    <div className="p-3 bg-slate-50 rounded-lg">
+                        <p className="text-xs text-slate-500 mb-0.5">Student</p>
+                        <p className="text-sm font-bold text-slate-900">{student.first_name} {student.last_name}</p>
+                        <p className="text-xs text-slate-400">{student.email}</p>
+                    </div>
+
+                    {/* Amount */}
+                    <div>
+                        <label className="block text-xs font-bold text-slate-600 mb-1.5">Amount (₹)</label>
+                        <input
+                            type="number"
+                            value={amount}
+                            onChange={e => setAmount(e.target.value)}
+                            placeholder="0"
+                            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                        />
+                    </div>
+
+                    {/* Due Date */}
+                    <div>
+                        <label className="block text-xs font-bold text-slate-600 mb-1.5">Due Date</label>
+                        <input
+                            type="date"
+                            value={dueDate}
+                            onChange={e => setDueDate(e.target.value)}
+                            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                        />
+                    </div>
+
+                    {/* Description */}
+                    <div>
+                        <label className="block text-xs font-bold text-slate-600 mb-1.5">Description (Optional)</label>
+                        <input
+                            type="text"
+                            value={description}
+                            onChange={e => setDescription(e.target.value)}
+                            placeholder="e.g., Package Payment, Monthly Fee"
+                            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                        />
+                    </div>
+
+                    {/* Error */}
+                    {error && (
+                        <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+                            <AlertCircle size={14} className="text-red-600 flex-shrink-0" />
+                            <p className="text-xs text-red-600">{error}</p>
+                        </div>
+                    )}
+                </div>
+
+                {/* Footer */}
+                <div className="px-6 py-4 border-t border-slate-200 flex gap-3 justify-end">
+                    <button
+                        onClick={onClose}
+                        className="px-4 py-2 text-sm font-bold text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors"
+                        disabled={saving}
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        onClick={handleCreate}
+                        disabled={saving || !amount}
+                        className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-bold rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50"
+                    >
+                        {saving ? (
+                            <>
+                                <Loader2 size={14} className="animate-spin" /> Creating...
+                            </>
+                        ) : (
+                            <>
+                                <FileText size={14} /> Create
+                            </>
+                        )}
+                    </button>
+                </div>
+            </div>
         </div>
     );
 }

@@ -82,7 +82,8 @@
       "Bash(curl -s -o /dev/null -w \"frontend: %{http_code}\\\\n\" https://app.vamaacademy.in)",
       "Bash(curl -s -o /dev/null -w \"backend  /docs : %{http_code}\\\\n\" https://vama-backend.vercel.app/docs)",
       "Bash(curl -s -o /dev/null -w \"frontend       : %{http_code}\\\\n\" https://app.vamaacademy.in)",
-      "Bash(git clean *)"
+      "Bash(git clean *)",
+      "Bash(git commit -m 'Add quick invoice creation from student profile *)"
     ],
     "additionalDirectories": [
       "/Users/yadavvignesh/vama-backend"
