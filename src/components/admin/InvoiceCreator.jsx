@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate, useLocation } from 'react-router';
 import { api } from '../../lib/api';
 import {
     Plus, Trash2, X, Loader2, FileText, Search, Mail, Calendar, Layers,
@@ -48,9 +48,11 @@ function PackagePicker({ packages, onPick }) {
 
 export default function InvoiceCreator() {
     const navigate = useNavigate();
+    const location = useLocation();
+    const preSelectedStudentId = location.state?.studentId;
     const [students, setStudents] = useState([]);
     const [packages, setPackages] = useState([]);
-    const [studentId, setStudentId] = useState('');
+    const [studentId, setStudentId] = useState(preSelectedStudentId ? String(preSelectedStudentId) : '');
     const [studentSearch, setStudentSearch] = useState('');
     const [showStudentList, setShowStudentList] = useState(false);
     const [issueDate, setIssueDate] = useState(todayISO());
