@@ -264,6 +264,20 @@ export default function StudentProfilePage() {
     const totalEnrollments = student.enrollments?.length ?? 0;
     const outstanding = student.financial?.outstanding ?? 0;
 
+    // ── Admin-focused metrics ──
+    const activePackage = student.active_package;
+    const overallGrade = student.performance?.overall_grade ?? '—';
+    const packageStatus = !activePackage
+      ? 'No Active Package'
+      : activePackage.is_expired
+      ? 'Expired'
+      : activePackage.is_exhausted
+      ? 'Exhausted'
+      : `${activePackage.sessions_remaining} Sessions`;
+    const paymentStatus = outstanding > 0
+      ? outstanding > outstanding * 0.2 ? 'Overdue' : 'Partial'
+      : 'Paid';
+
     const tabs = [
         { id: 'overview', label: 'Overview', icon: Activity },
         { id: 'classes', label: `Classes (${totalEnrollments})`, icon: BookOpen },
@@ -379,19 +393,43 @@ export default function StudentProfilePage() {
                             </div>
                         </div>
 
-                        {/* Stats row */}
-                        <div className="grid grid-cols-4 gap-3 mt-6">
-                            {[
-                                { label: 'Attendance', value: `${attendancePct}%`, color: attendancePct >= 80 ? 'text-emerald-300' : attendancePct >= 60 ? 'text-yellow-300' : 'text-red-300' },
-                                { label: 'Classes', value: totalEnrollments, color: 'text-blue-300' },
-                                { label: 'Upcoming', value: student.upcoming_classes?.length ?? 0, color: 'text-purple-300' },
-                                { label: 'Outstanding', value: outstanding > 0 ? `₹${outstanding.toLocaleString()}` : 'Nil', color: outstanding > 0 ? 'text-orange-300' : 'text-emerald-300' },
-                            ].map(s => (
-                                <div key={s.label} className="bg-white/10 backdrop-blur rounded-xl p-3 text-center border border-white/10">
-                                    <div className={`text-xl font-black ${s.color}`}>{s.value}</div>
-                                    <div className="text-xs text-white/60 mt-0.5">{s.label}</div>
+                        {/* Stats row — Admin metrics */}
+                        <div className="grid grid-cols-5 gap-2 mt-6">
+                            {/* Attendance */}
+                            <div className="bg-white/10 backdrop-blur rounded-xl p-3 text-center border border-white/10">
+                                <div className={`text-xl font-black ${attendancePct >= 80 ? 'text-emerald-300' : attendancePct >= 60 ? 'text-yellow-300' : 'text-red-300'}`}>
+                                    {attendancePct}%
                                 </div>
-                            ))}
+                                <div className="text-xs text-white/60 mt-0.5">Attendance</div>
+                            </div>
+
+                            {/* Active Package */}
+                            <div className="bg-white/10 backdrop-blur rounded-xl p-3 text-center border border-white/10">
+                                <div className={`text-sm font-black truncate ${activePackage?.is_expired || activePackage?.is_exhausted ? 'text-red-300' : activePackage ? 'text-emerald-300' : 'text-slate-300'}`}>
+                                    {packageStatus}
+                                </div>
+                                <div className="text-xs text-white/60 mt-0.5">Package</div>
+                            </div>
+
+                            {/* Payment Status */}
+                            <div className="bg-white/10 backdrop-blur rounded-xl p-3 text-center border border-white/10">
+                                <div className={`text-lg font-black ${paymentStatus === 'Paid' ? 'text-emerald-300' : paymentStatus === 'Partial' ? 'text-yellow-300' : 'text-red-300'}`}>
+                                    {paymentStatus}
+                                </div>
+                                {outstanding > 0 && <div className="text-xs text-orange-200 mt-0.5">₹{outstanding.toLocaleString()}</div>}
+                            </div>
+
+                            {/* Overall Grade */}
+                            <div className="bg-white/10 backdrop-blur rounded-xl p-3 text-center border border-white/10">
+                                <div className="text-xl font-black text-purple-300">{overallGrade}</div>
+                                <div className="text-xs text-white/60 mt-0.5">Grade</div>
+                            </div>
+
+                            {/* Total Classes */}
+                            <div className="bg-white/10 backdrop-blur rounded-xl p-3 text-center border border-white/10">
+                                <div className="text-xl font-black text-blue-300">{totalEnrollments}</div>
+                                <div className="text-xs text-white/60 mt-0.5">Classes</div>
+                            </div>
                         </div>
                     </div>
                 </div>
