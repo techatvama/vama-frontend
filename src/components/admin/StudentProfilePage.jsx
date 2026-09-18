@@ -323,7 +323,7 @@ export default function StudentProfilePage() {
                             <RotateCcw size={13} /> Reactivate
                         </button>
                     )}
-                    <button onClick={() => navigate('/invoices/create', { state: { studentId: student.id, studentName: `${student.first_name} ${student.last_name}` } })}
+                    <button onClick={() => navigate('/admin/invoices/new', { state: { studentId: student.id, studentName: `${student.first_name} ${student.last_name}` } })}
                         className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 transition-colors">
                         <FileText size={13} /> Create Invoice
                     </button>
