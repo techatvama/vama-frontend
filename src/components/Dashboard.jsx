@@ -35,8 +35,6 @@ export default function Dashboard() {
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [sortConfig, setSortConfig] = useState({ key: 'Timestamp', direction: 'desc' }); // Default: newest first
-  const [visibleColumns, setVisibleColumns] = useState(new Set(Object.keys(columnConfig))); // All columns visible by default
-  const [showColumnToggle, setShowColumnToggle] = useState(false);
   const [addaction, setAddAction] = useState(false);
   const [editingStudent, setEditingStudent] = useState(null);
   const [bulkRows, setBulkRows] = useState(null);       // parsed rows awaiting confirmation
@@ -63,6 +61,10 @@ export default function Dashboard() {
     "Teacher": "Teacher",
     "Status": "Status",
   };
+
+  // Column visibility state (initialized after columnConfig)
+  const [visibleColumns, setVisibleColumns] = useState(new Set(Object.keys(columnConfig)));
+  const [showColumnToggle, setShowColumnToggle] = useState(false);
 
   const mapStudent = (s) => ({
     ...s,
