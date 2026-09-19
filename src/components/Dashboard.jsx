@@ -34,7 +34,9 @@ export default function Dashboard() {
   const [subjectFilter, setSubjectFilter] = useState("all");   // all | <subject>
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+  const [sortConfig, setSortConfig] = useState({ key: 'Timestamp', direction: 'desc' }); // Default: newest first
+  const [visibleColumns, setVisibleColumns] = useState(new Set(Object.keys(columnConfig))); // All columns visible by default
+  const [showColumnToggle, setShowColumnToggle] = useState(false);
   const [addaction, setAddAction] = useState(false);
   const [editingStudent, setEditingStudent] = useState(null);
   const [bulkRows, setBulkRows] = useState(null);       // parsed rows awaiting confirmation
@@ -686,6 +688,39 @@ export default function Dashboard() {
             </div>
 
             <div className="flex items-center gap-2 flex-shrink-0">
+              {/* Column Visibility Toggle */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowColumnToggle(!showColumnToggle)}
+                  className="flex items-center justify-center gap-2 px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-sm font-semibold transition-colors"
+                  title="Show/Hide Columns"
+                >
+                  <Users size={15} /> Columns
+                </button>
+                {showColumnToggle && (
+                  <div className="absolute right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-40 min-w-max p-2">
+                    {Object.keys(columnConfig).map(key => (
+                      <label key={key} className="flex items-center gap-2 px-3 py-1.5 hover:bg-slate-50 rounded cursor-pointer text-sm">
+                        <input
+                          type="checkbox"
+                          checked={visibleColumns.has(key)}
+                          onChange={(e) => {
+                            setVisibleColumns(prev => {
+                              const next = new Set(prev);
+                              if (e.target.checked) next.add(key);
+                              else next.delete(key);
+                              return next;
+                            });
+                          }}
+                          className="rounded"
+                        />
+                        <span className="text-slate-700">{columnConfig[key]}</span>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               {selectedIds.size > 0 && (
                 <button
                   onClick={() => setDeleteConfirm(true)}
@@ -737,18 +772,20 @@ export default function Dashboard() {
                   </th>
                   <th className="px-6 py-4 w-12">#</th>
                   {Object.keys(columnConfig).map((key) => (
-                    <th
-                      key={key}
-                      onClick={() => handleSort(key)}
-                      className="px-6 py-4 cursor-pointer hover:text-[#463a7a] transition-colors select-none"
-                    >
-                      <div className="flex items-center gap-1">
-                        {columnConfig[key]}
-                        {sortConfig.key === key && (
-                          <span className="text-[10px]">{sortConfig.direction === 'asc' ? '▲' : '▼'}</span>
-                        )}
-                      </div>
-                    </th>
+                    visibleColumns.has(key) && (
+                      <th
+                        key={key}
+                        onClick={() => handleSort(key)}
+                        className="px-6 py-4 cursor-pointer hover:text-[#463a7a] transition-colors select-none"
+                      >
+                        <div className="flex items-center gap-1">
+                          {columnConfig[key]}
+                          {sortConfig.key === key && (
+                            <span className="text-[10px]">{sortConfig.direction === 'asc' ? '▲' : '▼'}</span>
+                          )}
+                        </div>
+                      </th>
+                    )
                   ))}
                   <th className="px-6 py-4 text-right">Actions</th>
                 </tr>
@@ -773,9 +810,10 @@ export default function Dashboard() {
                   paginatedRecords.map((record, idx) => (
                     <tr
                       key={record.id}
-                      className="group hover:bg-slate-50 transition-colors even:bg-slate-50/30"
+                      onClick={() => navigate(`/students/${record.id}`)}
+                      className="group hover:bg-slate-50 transition-colors even:bg-slate-50/30 cursor-pointer"
                     >
-                      <td className="px-4 py-4">
+                      <td className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
                         <input
                           type="checkbox"
                           checked={selectedIds.has(record.id)}
@@ -786,43 +824,42 @@ export default function Dashboard() {
                         {((currentPage - 1) * rowsPerPage) + idx + 1}
                       </td>
                       {Object.keys(columnConfig).map((key) => (
-                        <td key={key} className="px-6 py-4 text-sm text-slate-700 whitespace-nowrap">
-                          {key === 'First Name' || key === 'Last Name' ? (
-                            <span className="flex items-center gap-1.5">
-                              <button
-                                onClick={() => navigate(`/students/${record.id}`)}
-                                className="font-medium text-[#463a7a] hover:underline text-left"
-                              >
-                                {record[key] || "—"}
-                              </button>
-                              {record.enrollment_status === 'on_break' && (
-                                <span title="On Break" className="w-2 h-2 rounded-full bg-yellow-400 flex-shrink-0" />
-                              )}
-                              {record.enrollment_status === 'dropped' && (
-                                <span title="Dropped" className="w-2 h-2 rounded-full bg-red-400 flex-shrink-0" />
-                              )}
-                            </span>
-                          ) : key === 'Teacher' ? (
-                            teacherName(record.teacher_id)
-                          ) : key === 'Status' ? (
-                            (() => {
-                              const isActive = (record.enrollment_status || 'active') === 'active';
-                              return (
-                                <span
-                                  className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${
-                                    isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'
-                                  }`}
-                                >
-                                  {isActive ? 'Active' : 'Inactive'}
+                        visibleColumns.has(key) && (
+                          <td key={key} className="px-6 py-4 text-sm text-slate-700 whitespace-nowrap">
+                            {key === 'First Name' || key === 'Last Name' ? (
+                              <span className="flex items-center gap-1.5">
+                                <span className="font-medium text-[#463a7a]">
+                                  {record[key] || "—"}
                                 </span>
-                              );
-                            })()
-                          ) : (
-                            record[key] || "—"
-                          )}
-                        </td>
+                                {record.enrollment_status === 'on_break' && (
+                                  <span title="On Break" className="w-2 h-2 rounded-full bg-yellow-400 flex-shrink-0" />
+                                )}
+                                {record.enrollment_status === 'dropped' && (
+                                  <span title="Dropped" className="w-2 h-2 rounded-full bg-red-400 flex-shrink-0" />
+                                )}
+                              </span>
+                            ) : key === 'Teacher' ? (
+                              teacherName(record.teacher_id)
+                            ) : key === 'Status' ? (
+                              (() => {
+                                const isActive = (record.enrollment_status || 'active') === 'active';
+                                return (
+                                  <span
+                                    className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${
+                                      isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'
+                                    }`}
+                                  >
+                                    {isActive ? 'Active' : 'Inactive'}
+                                  </span>
+                                );
+                              })()
+                            ) : (
+                              record[key] || "—"
+                            )}
+                          </td>
+                        )
                       ))}
-                      <td className="px-6 py-4 text-right">
+                      <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
                         <button
                           onClick={() => openEditModal(record)}
                           className="p-2 text-slate-400 hover:text-[#463a7a] hover:bg-[#463a7a]/10 rounded-full transition-all"
