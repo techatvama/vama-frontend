@@ -198,7 +198,6 @@ export default function StudentProfilePage() {
     const [activeTab, setActiveTab] = useState('overview');
     const [editOpen, setEditOpen] = useState(false);
     const [statusSaving, setStatusSaving] = useState(false);
-    const [editingInvoice, setEditingInvoice] = useState(null);
 
     const load = useCallback(() => {
         setLoading(true);
@@ -638,9 +637,9 @@ export default function StudentProfilePage() {
                                             {student.financial.payment_history.map(p => (
                                                 <button
                                                   key={p.id}
-                                                  onClick={() => setEditingInvoice(p)}
+                                                  onClick={() => navigate(`/admin/invoices/${p.id}`)}
                                                   className="w-full flex items-center justify-between p-4 border border-slate-200 rounded-xl hover:border-[#463a7a]/40 hover:bg-slate-50 transition-all cursor-pointer text-left group"
-                                                  title="Click to edit invoice"
+                                                  title="Click to view and edit invoice"
                                                 >
                                                     <div className="flex items-center gap-3">
                                                         <div className={`p-2 rounded-lg ${p.status === 'paid' ? 'bg-emerald-100' : p.status === 'overdue' ? 'bg-red-100' : 'bg-orange-100'}`}>
