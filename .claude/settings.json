@@ -90,7 +90,8 @@
       "Bash(git revert *)",
       "Bash(git stash *)",
       "Bash(git commit -m 'Fix: Move visibleColumns state after columnConfig definition *)",
-      "Bash(git commit -m 'Remove Actions column from Students Dashboard *)"
+      "Bash(git commit -m 'Remove Actions column from Students Dashboard *)",
+      "Bash(git commit -m 'Fix: Active student count fallback logic *)"
     ],
     "additionalDirectories": [
       "/Users/yadavvignesh/vama-backend"

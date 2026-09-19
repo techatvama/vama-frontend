@@ -170,12 +170,16 @@ export default function Dashboard() {
 
   const stats = useMemo(() => {
     const today = new Date().toDateString();
+    // If activePackageCount is null, fall back to enrollment_status count
+    // (activePackageCount is null during loading, 0+ after loading completes)
+    const activeCount = activePackageCount !== null
+      ? activePackageCount
+      : records.filter(r => (r.enrollment_status || 'active') === 'active').length;
     return {
       total: records.length,
-      // Has a currently active package — same definition as the home
-      // dashboard's Active Students KPI (main.py /admin/reports). Falls back
-      // to the enrollment_status count only if that fetch hasn't landed yet.
-      active: activePackageCount ?? records.filter(r => (r.enrollment_status || 'active') === 'active').length,
+      // Active: students with an active package (per backend)
+      // Falls back to enrollment_status count only while data is still loading
+      active: activeCount,
       newToday: records.filter(r => r.created_at && new Date(r.created_at).toDateString() === today).length,
     };
   }, [records, activePackageCount]);
