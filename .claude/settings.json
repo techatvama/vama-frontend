@@ -85,8 +85,7 @@
       "Bash(git clean *)",
       "Bash(git commit -m 'Add quick invoice creation from student profile *)",
       "Bash(git commit -m 'Fix: Use correct route for invoice creator page *)",
-      "Bash(git commit -m 'Improve Students Dashboard: sorting, columns, and row navigation *)",
-      "Bash(git commit -m 'Fix: Use filter instead of && for conditional column rendering *)"
+      "Bash(git commit -m 'Improve Students Dashboard: sorting, columns, and row navigation *)"
     ],
     "additionalDirectories": [
       "/Users/yadavvignesh/vama-backend"

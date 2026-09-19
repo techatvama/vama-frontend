@@ -771,19 +771,21 @@ export default function Dashboard() {
                     />
                   </th>
                   <th className="px-6 py-4 w-12">#</th>
-                  {Object.keys(columnConfig).filter(key => visibleColumns.has(key)).map((key) => (
-                    <th
-                      key={key}
-                      onClick={() => handleSort(key)}
-                      className="px-6 py-4 cursor-pointer hover:text-[#463a7a] transition-colors select-none"
-                    >
-                      <div className="flex items-center gap-1">
-                        {columnConfig[key]}
-                        {sortConfig.key === key && (
-                          <span className="text-[10px]">{sortConfig.direction === 'asc' ? '▲' : '▼'}</span>
-                        )}
-                      </div>
-                    </th>
+                  {Object.keys(columnConfig).map((key) => (
+                    visibleColumns.has(key) && (
+                      <th
+                        key={key}
+                        onClick={() => handleSort(key)}
+                        className="px-6 py-4 cursor-pointer hover:text-[#463a7a] transition-colors select-none"
+                      >
+                        <div className="flex items-center gap-1">
+                          {columnConfig[key]}
+                          {sortConfig.key === key && (
+                            <span className="text-[10px]">{sortConfig.direction === 'asc' ? '▲' : '▼'}</span>
+                          )}
+                        </div>
+                      </th>
+                    )
                   ))}
                   <th className="px-6 py-4 text-right">Actions</th>
                 </tr>
@@ -821,39 +823,41 @@ export default function Dashboard() {
                       <td className="px-6 py-4 text-xs text-slate-400">
                         {((currentPage - 1) * rowsPerPage) + idx + 1}
                       </td>
-                      {Object.keys(columnConfig).filter(key => visibleColumns.has(key)).map((key) => (
-                        <td key={key} className="px-6 py-4 text-sm text-slate-700 whitespace-nowrap">
-                          {key === 'First Name' || key === 'Last Name' ? (
-                            <span className="flex items-center gap-1.5">
-                              <span className="font-medium text-[#463a7a]">
-                                {record[key] || "—"}
-                              </span>
-                              {record.enrollment_status === 'on_break' && (
-                                <span title="On Break" className="w-2 h-2 rounded-full bg-yellow-400 flex-shrink-0" />
-                              )}
-                              {record.enrollment_status === 'dropped' && (
-                                <span title="Dropped" className="w-2 h-2 rounded-full bg-red-400 flex-shrink-0" />
-                              )}
-                            </span>
-                          ) : key === 'Teacher' ? (
-                            teacherName(record.teacher_id)
-                          ) : key === 'Status' ? (
-                            (() => {
-                              const isActive = (record.enrollment_status || 'active') === 'active';
-                              return (
-                                <span
-                                  className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${
-                                    isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'
-                                  }`}
-                                >
-                                  {isActive ? 'Active' : 'Inactive'}
+                      {Object.keys(columnConfig).map((key) => (
+                        visibleColumns.has(key) && (
+                          <td key={key} className="px-6 py-4 text-sm text-slate-700 whitespace-nowrap">
+                            {key === 'First Name' || key === 'Last Name' ? (
+                              <span className="flex items-center gap-1.5">
+                                <span className="font-medium text-[#463a7a]">
+                                  {record[key] || "—"}
                                 </span>
-                              );
-                            })()
-                          ) : (
-                            record[key] || "—"
-                          )}
-                        </td>
+                                {record.enrollment_status === 'on_break' && (
+                                  <span title="On Break" className="w-2 h-2 rounded-full bg-yellow-400 flex-shrink-0" />
+                                )}
+                                {record.enrollment_status === 'dropped' && (
+                                  <span title="Dropped" className="w-2 h-2 rounded-full bg-red-400 flex-shrink-0" />
+                                )}
+                              </span>
+                            ) : key === 'Teacher' ? (
+                              teacherName(record.teacher_id)
+                            ) : key === 'Status' ? (
+                              (() => {
+                                const isActive = (record.enrollment_status || 'active') === 'active';
+                                return (
+                                  <span
+                                    className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${
+                                      isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'
+                                    }`}
+                                  >
+                                    {isActive ? 'Active' : 'Inactive'}
+                                  </span>
+                                );
+                              })()
+                            ) : (
+                              record[key] || "—"
+                            )}
+                          </td>
+                        )
                       ))}
                       <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
                         <button
