@@ -312,11 +312,11 @@ export default function TeacherSessionDetails() {
                                                             {student.enrollment_type === 'single_session' ? 'This class only' : 'Recurring'}
                                                         </span>
                                                         <span className={`text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full ${
-                                                            student.outstanding > 0
+                                                            (student.outstanding ?? 0) > 0
                                                                 ? 'bg-red-100 text-red-600'
                                                                 : 'bg-emerald-100 text-emerald-600'
                                                         }`}>
-                                                            {student.outstanding > 0 ? '💳 Unpaid' : '✓ Paid'}
+                                                            {(student.outstanding ?? 0) > 0 ? '💳 Unpaid' : '✓ Paid'}
                                                         </span>
                                                         {isCancelled && (
                                                             <span className="px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-600 text-[8px] font-black uppercase tracking-widest">
