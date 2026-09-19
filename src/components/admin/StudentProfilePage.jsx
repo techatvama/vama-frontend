@@ -198,6 +198,7 @@ export default function StudentProfilePage() {
     const [activeTab, setActiveTab] = useState('overview');
     const [editOpen, setEditOpen] = useState(false);
     const [statusSaving, setStatusSaving] = useState(false);
+    const [editingInvoice, setEditingInvoice] = useState(null);
 
     const load = useCallback(() => {
         setLoading(true);
@@ -635,7 +636,12 @@ export default function StudentProfilePage() {
                                     ) : (
                                         <div className="space-y-2">
                                             {student.financial.payment_history.map(p => (
-                                                <div key={p.id} className="flex items-center justify-between p-4 border border-slate-200 rounded-xl hover:border-[#463a7a]/40 hover:bg-slate-50 transition-all">
+                                                <button
+                                                  key={p.id}
+                                                  onClick={() => setEditingInvoice(p)}
+                                                  className="w-full flex items-center justify-between p-4 border border-slate-200 rounded-xl hover:border-[#463a7a]/40 hover:bg-slate-50 transition-all cursor-pointer text-left group"
+                                                  title="Click to edit invoice"
+                                                >
                                                     <div className="flex items-center gap-3">
                                                         <div className={`p-2 rounded-lg ${p.status === 'paid' ? 'bg-emerald-100' : p.status === 'overdue' ? 'bg-red-100' : 'bg-orange-100'}`}>
                                                             <CreditCard size={15} className={p.status === 'paid' ? 'text-emerald-600' : p.status === 'overdue' ? 'text-red-600' : 'text-orange-600'} />
@@ -654,7 +660,7 @@ export default function StudentProfilePage() {
                                                             {p.status}
                                                         </span>
                                                     </div>
-                                                </div>
+                                                </button>
                                             ))}
                                         </div>
                                     )}
