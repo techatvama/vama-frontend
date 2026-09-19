@@ -408,20 +408,32 @@ export default function StudentProfilePage() {
                             </div>
 
                             {/* Active Package */}
-                            <div className="bg-white/10 backdrop-blur rounded-xl p-3 text-center border border-white/10">
-                                <div className={`text-sm font-black truncate ${activePackage?.is_expired || activePackage?.is_exhausted ? 'text-red-300' : activePackage ? 'text-emerald-300' : 'text-slate-300'}`}>
+                            <button
+                              onClick={() => setActiveTab('payments')}
+                              className="bg-white/10 backdrop-blur rounded-xl p-3 text-center border border-white/10 hover:bg-white/20 hover:border-white/30 transition-all cursor-pointer group"
+                              title="Click to view payments and invoices"
+                            >
+                                <div className={`text-sm font-black truncate group-hover:scale-110 transition-transform ${activePackage?.is_expired || activePackage?.is_exhausted ? 'text-red-300' : activePackage ? 'text-emerald-300' : 'text-slate-300'}`}>
                                     {packageStatus}
                                 </div>
                                 <div className="text-xs text-white/60 mt-0.5">Package</div>
-                            </div>
+                                {activePackage && (
+                                  <div className="text-xs text-white/50 mt-1">Click to view</div>
+                                )}
+                            </button>
 
                             {/* Payment Status */}
-                            <div className="bg-white/10 backdrop-blur rounded-xl p-3 text-center border border-white/10">
-                                <div className={`text-lg font-black ${paymentStatus === 'Paid' ? 'text-emerald-300' : paymentStatus === 'Partial' ? 'text-yellow-300' : 'text-red-300'}`}>
+                            <button
+                              onClick={() => setActiveTab('payments')}
+                              className="bg-white/10 backdrop-blur rounded-xl p-3 text-center border border-white/10 hover:bg-white/20 hover:border-white/30 transition-all cursor-pointer group"
+                              title="Click to view payments and invoices"
+                            >
+                                <div className={`text-lg font-black group-hover:scale-110 transition-transform ${paymentStatus === 'Paid' ? 'text-emerald-300' : paymentStatus === 'Partial' ? 'text-yellow-300' : 'text-red-300'}`}>
                                     {paymentStatus}
                                 </div>
                                 {outstanding > 0 && <div className="text-xs text-orange-200 mt-0.5">₹{outstanding.toLocaleString()}</div>}
-                            </div>
+                                <div className="text-xs text-white/50 mt-1">Click to view</div>
+                            </button>
 
                             {/* Overall Grade */}
                             <div className="bg-white/10 backdrop-blur rounded-xl p-3 text-center border border-white/10">
