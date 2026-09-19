@@ -89,7 +89,8 @@
       "Bash(git commit -m 'Fix: Use filter instead of && for conditional column rendering *)",
       "Bash(git revert *)",
       "Bash(git stash *)",
-      "Bash(git commit -m 'Fix: Move visibleColumns state after columnConfig definition *)"
+      "Bash(git commit -m 'Fix: Move visibleColumns state after columnConfig definition *)",
+      "Bash(git commit -m 'Remove Actions column from Students Dashboard *)"
     ],
     "additionalDirectories": [
       "/Users/yadavvignesh/vama-backend"

@@ -789,7 +789,6 @@ export default function Dashboard() {
                       </th>
                     )
                   ))}
-                  <th className="px-6 py-4 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -861,15 +860,6 @@ export default function Dashboard() {
                           </td>
                         )
                       ))}
-                      <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
-                        <button
-                          onClick={() => openEditModal(record)}
-                          className="p-2 text-slate-400 hover:text-[#463a7a] hover:bg-[#463a7a]/10 rounded-full transition-all"
-                          title="Edit Student"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </button>
-                      </td>
                     </tr>
                   ))
                 )}
