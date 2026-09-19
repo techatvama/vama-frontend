@@ -297,9 +297,12 @@ export default function TeacherSessionDetails() {
                                                     <div className={`absolute bottom-0 left-0 right-0 h-0.5 lg:h-1 ${isPresent ? 'bg-emerald-500' : isAbsent ? 'bg-red-500' : isCancelled ? 'bg-orange-400' : 'bg-slate-200'}`} />
                                                 </div>
                                                 <div className="flex-1 min-w-0">
-                                                    <h3 className="text-sm lg:text-base font-black text-slate-900 truncate">
+                                                    <button
+                                                        onClick={() => navigate(`/students/${student.id}`)}
+                                                        className="text-sm lg:text-base font-black text-slate-900 truncate hover:text-[#463a7a] transition-colors text-left"
+                                                    >
                                                         {student.first_name} {student.last_name}
-                                                    </h3>
+                                                    </button>
                                                     <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
                                                         <span className={`text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full ${
                                                             student.enrollment_type === 'single_session'
@@ -307,6 +310,13 @@ export default function TeacherSessionDetails() {
                                                                 : 'bg-slate-100 text-slate-500'
                                                         }`}>
                                                             {student.enrollment_type === 'single_session' ? 'This class only' : 'Recurring'}
+                                                        </span>
+                                                        <span className={`text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full ${
+                                                            student.outstanding > 0
+                                                                ? 'bg-red-100 text-red-600'
+                                                                : 'bg-emerald-100 text-emerald-600'
+                                                        }`}>
+                                                            {student.outstanding > 0 ? '💳 Unpaid' : '✓ Paid'}
                                                         </span>
                                                         {isCancelled && (
                                                             <span className="px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-600 text-[8px] font-black uppercase tracking-widest">
