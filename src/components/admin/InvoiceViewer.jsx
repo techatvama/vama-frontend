@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router';
 import { api, API_BASE } from '../../lib/api';
 import {
     ArrowLeft, Loader2, Download, Send, Mail, AlertCircle, Trash2,
-    CheckCircle2, Clock, RefreshCw, Banknote, X
+    CheckCircle2, Clock, RefreshCw, Banknote, X, Pencil, Save
 } from 'lucide-react';
 import { format } from 'date-fns';
 import RecordPaymentDialog from './RecordPaymentDialog';
@@ -122,6 +122,9 @@ export default function InvoiceViewer() {
     const [showPaymentDialog, setShowPaymentDialog] = useState(false);
     const [showSendModal, setShowSendModal] = useState(false);
     const [deleting, setDeleting] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
+    const [editData, setEditData] = useState({});
+    const [saving, setSaving] = useState(false);
 
     useEffect(() => {
         fetchInvoice();
@@ -133,6 +136,13 @@ export default function InvoiceViewer() {
         try {
             const res = await api.get(`/admin/invoices/${invoiceId}`);
             setInvoice(res.data);
+            setEditData({
+                status: res.data.status,
+                issue_date: res.data.issue_date?.split('T')[0],
+                due_date: res.data.due_date?.split('T')[0],
+                paid_amount: res.data.paid_amount || 0,
+                notes: res.data.notes || '',
+            });
         } catch (err) {
             setError(err?.response?.data?.detail || 'Failed to load invoice');
         } finally {
@@ -149,6 +159,19 @@ export default function InvoiceViewer() {
         } catch (err) {
             alert(err?.response?.data?.detail || 'Failed to delete invoice');
             setDeleting(false);
+        }
+    };
+
+    const handleSave = async () => {
+        setSaving(true);
+        try {
+            await api.patch(`/admin/invoices/${invoiceId}`, editData);
+            setIsEditing(false);
+            fetchInvoice();
+        } catch (err) {
+            alert(err?.response?.data?.detail || 'Failed to update invoice');
+        } finally {
+            setSaving(false);
         }
     };
 
@@ -181,38 +204,93 @@ export default function InvoiceViewer() {
     return (
         <div className="min-h-screen bg-slate-50">
             {/* Header */}
-            <div className="bg-white border-b border-slate-200 px-6 py-4 sticky top-0 z-10 shadow-sm">
-                <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-slate-600 hover:text-[#463a7a] font-medium transition-colors mb-4">
+            <div className="bg-white border-b border-slate-200 px-6 py-4 sticky top-0 z-10 shadow-sm flex items-center justify-between">
+                <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-slate-600 hover:text-[#463a7a] font-medium transition-colors">
                     <ArrowLeft size={18} /> Back
                 </button>
+                <div className="flex gap-2">
+                    {isEditing ? (
+                        <>
+                            <button onClick={handleSave} disabled={saving}
+                                className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 transition-colors disabled:opacity-50">
+                                <Save size={16} /> {saving ? 'Saving...' : 'Save Changes'}
+                            </button>
+                            <button onClick={() => { setIsEditing(false); fetchInvoice(); }}
+                                className="flex items-center gap-2 px-4 py-2 bg-slate-200 text-slate-700 rounded-lg font-medium hover:bg-slate-300 transition-colors">
+                                Cancel
+                            </button>
+                        </>
+                    ) : (
+                        <button onClick={() => setIsEditing(true)}
+                            className="flex items-center gap-2 px-4 py-2 bg-[#463a7a] text-white rounded-lg font-medium hover:bg-[#342a5b] transition-colors">
+                            <Pencil size={16} /> Edit
+                        </button>
+                    )}
+                </div>
             </div>
 
             <div className="max-w-3xl mx-auto px-5 py-8">
                 {/* Invoice Header */}
-                <div className="bg-gradient-to-br from-[#463a7a] to-[#2d2550] rounded-2xl p-8 text-white mb-8 shadow-lg">
+                <div className={`rounded-2xl p-8 mb-8 shadow-lg ${isEditing ? 'bg-white border border-slate-200' : 'bg-gradient-to-br from-[#463a7a] to-[#2d2550] text-white'}`}>
                     <div className="flex items-start justify-between mb-6">
                         <div>
                             <div className="flex items-center gap-3 mb-2">
-                                <h1 className="text-3xl font-black">{invoice.invoice_number}</h1>
-                                <StatusBadge status={invoice.status} />
+                                <h1 className={`text-3xl font-black ${isEditing ? 'text-slate-900' : ''}`}>{invoice.invoice_number}</h1>
+                                {!isEditing && <StatusBadge status={invoice.status} />}
                             </div>
-                            <p className="text-white/75 text-sm">{invoice.student_name} · {invoice.student_email}</p>
+                            <p className={`text-sm ${isEditing ? 'text-slate-600' : 'text-white/75'}`}>{invoice.student_name} · {invoice.student_email}</p>
                         </div>
                     </div>
-                    <div className="grid grid-cols-3 gap-4 text-sm">
-                        <div>
-                            <p className="text-white/60 text-xs uppercase tracking-wider mb-1">Issue Date</p>
-                            <p className="font-semibold">{formattedIssueDate}</p>
+                    {isEditing ? (
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2 block">Status</label>
+                                <select value={editData.status} onChange={e => setEditData({...editData, status: e.target.value})}
+                                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-[#463a7a]/15">
+                                    <option value="pending">Pending</option>
+                                    <option value="partial">Partial</option>
+                                    <option value="overdue">Overdue</option>
+                                    <option value="paid">Paid</option>
+                                    <option value="cancelled">Cancelled</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2 block">Paid Amount</label>
+                                <input type="number" value={editData.paid_amount} onChange={e => setEditData({...editData, paid_amount: Number(e.target.value)})}
+                                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-[#463a7a]/15" step="0.01" />
+                            </div>
+                            <div>
+                                <label className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2 block">Issue Date</label>
+                                <input type="date" value={editData.issue_date} onChange={e => setEditData({...editData, issue_date: e.target.value})}
+                                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-[#463a7a]/15" />
+                            </div>
+                            <div>
+                                <label className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2 block">Due Date</label>
+                                <input type="date" value={editData.due_date} onChange={e => setEditData({...editData, due_date: e.target.value})}
+                                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-[#463a7a]/15" />
+                            </div>
+                            <div className="col-span-2">
+                                <label className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2 block">Notes</label>
+                                <textarea value={editData.notes} onChange={e => setEditData({...editData, notes: e.target.value})}
+                                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-[#463a7a]/15" rows="3" />
+                            </div>
                         </div>
-                        <div>
-                            <p className="text-white/60 text-xs uppercase tracking-wider mb-1">Due Date</p>
-                            <p className="font-semibold">{formattedDueDate}</p>
+                    ) : (
+                        <div className="grid grid-cols-3 gap-4 text-sm">
+                            <div>
+                                <p className="text-white/60 text-xs uppercase tracking-wider mb-1">Issue Date</p>
+                                <p className="font-semibold">{formattedIssueDate}</p>
+                            </div>
+                            <div>
+                                <p className="text-white/60 text-xs uppercase tracking-wider mb-1">Due Date</p>
+                                <p className="font-semibold">{formattedDueDate}</p>
+                            </div>
+                            <div>
+                                <p className="text-white/60 text-xs uppercase tracking-wider mb-1">Status</p>
+                                <p className="font-semibold capitalize">{invoice.status}</p>
+                            </div>
                         </div>
-                        <div>
-                            <p className="text-white/60 text-xs uppercase tracking-wider mb-1">Status</p>
-                            <p className="font-semibold capitalize">{invoice.status}</p>
-                        </div>
-                    </div>
+                    )}
                 </div>
 
                 {/* Invoice Items */}
@@ -267,20 +345,22 @@ export default function InvoiceViewer() {
                 )}
 
                 {/* Actions */}
-                <div className="bg-white rounded-2xl p-8 border border-slate-200 shadow-sm space-y-3">
-                    <button onClick={() => window.open(`${API_BASE}/admin/invoices/${invoiceId}/html`, '_blank')}
-                        className="w-full flex items-center justify-center gap-2 py-3 bg-slate-100 text-slate-700 rounded-2xl font-bold hover:bg-slate-200 transition-colors">
-                        <Download size={16} /> Download PDF
-                    </button>
-                    <button onClick={() => setShowSendModal(true)}
-                        className="w-full flex items-center justify-center gap-2 py-3 bg-[#463a7a] text-white rounded-2xl font-bold hover:bg-[#342a5b] transition-colors">
-                        <Send size={16} /> Send Invoice
-                    </button>
-                    <button onClick={handleDelete} disabled={deleting}
-                        className="w-full flex items-center justify-center gap-2 py-3 bg-red-50 text-red-600 rounded-2xl font-bold hover:bg-red-100 transition-colors disabled:opacity-50">
-                        <Trash2 size={16} /> Delete Invoice
-                    </button>
-                </div>
+                {!isEditing && (
+                    <div className="bg-white rounded-2xl p-8 border border-slate-200 shadow-sm space-y-3">
+                        <button onClick={() => window.open(`${API_BASE}/admin/invoices/${invoiceId}/html`, '_blank')}
+                            className="w-full flex items-center justify-center gap-2 py-3 bg-slate-100 text-slate-700 rounded-2xl font-bold hover:bg-slate-200 transition-colors">
+                            <Download size={16} /> Download PDF
+                        </button>
+                        <button onClick={() => setShowSendModal(true)}
+                            className="w-full flex items-center justify-center gap-2 py-3 bg-[#463a7a] text-white rounded-2xl font-bold hover:bg-[#342a5b] transition-colors">
+                            <Send size={16} /> Send Invoice
+                        </button>
+                        <button onClick={handleDelete} disabled={deleting}
+                            className="w-full flex items-center justify-center gap-2 py-3 bg-red-50 text-red-600 rounded-2xl font-bold hover:bg-red-100 transition-colors disabled:opacity-50">
+                            <Trash2 size={16} /> Delete Invoice
+                        </button>
+                    </div>
+                )}
             </div>
 
             {showPaymentDialog && (
