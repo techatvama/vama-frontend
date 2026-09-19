@@ -37,6 +37,7 @@ import StudentAttendance from './components/student/StudentAttendance';
 import EnrollmentManager from './components/admin/EnrollmentManager';
 import StudentsProgressTable from './components/admin/StudentsProgressTable';
 import InvoiceCreator from './components/admin/InvoiceCreator';
+import InvoiceViewer from './components/admin/InvoiceViewer';
 import BillingSettings from './components/admin/BillingSettings';
 import DashboardAlerts from './components/admin/DashboardAlerts';
 import PublicInvoicePay from './components/PublicInvoicePay';
@@ -121,8 +122,9 @@ export default function App() {
           <Route path="/admin/payments/legacy" element={<PaymentManager />} />
           <Route path="/admin/analytics" element={<PaymentAnalytics />} />
           <Route path="/admin/packages" element={<PackageManager />} />
-          <Route path="/admin/invoices" element={<InvoiceManager />} />
           <Route path="/admin/invoices/new" element={<InvoiceCreator />} />
+          <Route path="/admin/invoices/:invoiceId" element={<InvoiceViewer />} />
+          <Route path="/admin/invoices" element={<InvoiceManager />} />
           <Route path="/admin/billing-settings" element={<BillingSettings />} />
           <Route path="/admin/alerts" element={<DashboardAlerts />} />
           <Route path="/admin/subscriptions" element={<SubscriptionManager />} />
