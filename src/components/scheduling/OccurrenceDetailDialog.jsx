@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '../../lib/api';
 import { format, parse } from 'date-fns';
+import { useNavigate } from 'react-router';
 import {
     X, Clock, Calendar, Users, Loader2, CheckCircle2, XCircle,
     Pencil, Ban, Plus, Search, AlertCircle, Trash2, UserPlus, UserMinus,
@@ -23,6 +24,7 @@ import EditClassDialog from './EditClassDialog';
 import ScopePopover from './ScopePopover';
 
 export default function OccurrenceDetailDialog({ session, onClose, onUpdate }) {
+    const navigate = useNavigate();
     const occ = session;
     const [roster, setRoster] = useState([]);
     const [allStudents, setAllStudents] = useState([]);
@@ -277,10 +279,15 @@ export default function OccurrenceDetailDialog({ session, onClose, onUpdate }) {
                         <div key={s.student_id} className="border border-slate-100 rounded-2xl p-3.5 group hover:border-slate-200 hover:shadow-[0_2px_10px_-4px_rgba(15,23,42,0.08)] transition-all">
                             <div className="flex items-center gap-3 mb-2">
                                 <Avatar id={s.student_id} first={s.first_name} last={s.last_name} size={36} />
-                                <span className="flex-1 font-black text-slate-900 text-sm truncate">{s.first_name} {s.last_name}</span>
+                                <button onClick={() => navigate(`/students/${s.student_id}`)} className="flex-1 text-left font-black text-slate-900 text-sm truncate hover:text-[#463a7a] transition-colors">
+                                    {s.first_name} {s.last_name}
+                                </button>
                                 <div className="flex items-center gap-2 flex-shrink-0">
                                     {s.status === 'present' && <span className="text-[9px] font-black uppercase bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full flex items-center gap-1"><CheckCircle2 size={10} strokeWidth={2.5} /> Present</span>}
                                     {s.status === 'absent' && <span className="text-[9px] font-black uppercase bg-red-100 text-red-700 px-2 py-1 rounded-full flex items-center gap-1"><XCircle size={10} strokeWidth={2.5} /> Absent</span>}
+                                    <span className={`text-[9px] font-black uppercase px-2 py-1 rounded-full flex items-center gap-1 ${(s.outstanding ?? 0) > 0 ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                                        {(s.outstanding ?? 0) > 0 ? '💳 Unpaid' : '✓ Paid'}
+                                    </span>
                                     <button onClick={(e) => onRemoveClick(s.student_id, e)} title="Remove student"
                                         className="flex items-center gap-1 px-2 py-1 rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-500 transition-all text-[10px] font-bold">
                                         <UserMinus size={14} strokeWidth={2.25} /> <span className="hidden group-hover:inline">Remove</span>
