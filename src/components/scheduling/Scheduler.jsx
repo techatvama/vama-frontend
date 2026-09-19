@@ -409,10 +409,11 @@ export default function Scheduler() {
     };
 
     const filteredSessions = sessions.filter(s => {
+        const count = s.enrollment_count || 0;
+        if (count === 0) return false;
         if (selectedTeachers.size > 0 && !selectedTeachers.has(s.batch?.teacher_id)) return false;
         if (selectedSubject && s.batch?.subject !== selectedSubject) return false;
         if (enrollmentFilter) {
-            const count = s.enrollment_count || 0;
             const cap = s.batch?.capacity || s.capacity || 0;
             if (enrollmentFilter === 'fully_booked') { if (!(cap > 0 && count >= cap)) return false; }
             else if (count !== Number(enrollmentFilter)) return false;
