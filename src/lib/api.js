@@ -31,6 +31,18 @@ function ttlFor(url) {
     return 60 * 1000;  // 1 min default
 }
 
+// Never cached, regardless of TTL bucket — these decide which classes are
+// safe to book/reschedule a student into. Every write that can change the
+// answer (cancel/delete an occurrence, change a roster, ...) would need to
+// remember to bust this, and missing even one path means a deleted or
+// already-booked class could still be offered and successfully double-booked.
+// Not worth the risk for an endpoint that's already fast (<2s) — always hit
+// the network fresh instead.
+const NEVER_CACHE_PATHS = ['available-slots', 'instructor-slots'];
+function isNeverCached(url) {
+    return NEVER_CACHE_PATHS.some(p => url.includes(p));
+}
+
 function cacheKey(url, params) {
     const p = params && Object.keys(params).length
         ? '?' + new URLSearchParams(params).toString()
@@ -49,10 +61,19 @@ function bustCache(urlPrefixes) {
 const BUST_MAP = [
     { match: /\/students/,              busts: ['/students'] },
     { match: /\/staff/,                 busts: ['/staff'] },
-    { match: /\/batches|\/sessions/,    busts: ['/scheduling/calendar', '/calendar/filtered', '/batches', '/sessions'] },
+    { match: /\/batches|\/sessions/,    busts: ['/scheduling/calendar', '/calendar/filtered', '/batches', '/sessions', '/student'] },
     { match: /\/scheduling\/calendar/,  busts: ['/scheduling/calendar'] },
     { match: /\/attendances/,           busts: ['/attendances', '/scheduling/calendar', '/calendar/filtered'] },
-    { match: /\/scheduling\/occurrences/, busts: ['/scheduling/occurrences', '/scheduling/calendar', '/calendar/filtered'] },
+    // A cancelled/deleted occurrence (or a roster add/remove) changes which
+    // slots a student can be booked or rescheduled into — without this, the
+    // reschedule picker's /student/*/available-slots stayed cached for up to
+    // a minute after the class it's offering was removed elsewhere.
+    { match: /\/scheduling\/occurrences/, busts: ['/scheduling/occurrences', '/scheduling/calendar', '/calendar/filtered', '/student'] },
+    // Creating/editing/splitting a class template (Scheduler's "Create
+    // Class" and series-edit flows) generates brand new occurrences that
+    // the calendar cache doesn't know about yet — same staleness bug as
+    // the occurrences one above, just on the other write path.
+    { match: /\/scheduling\/templates/,   busts: ['/scheduling/templates', '/scheduling/calendar', '/calendar/filtered', '/student'] },
     { match: /\/admin\/invoices/,       busts: ['/admin/invoices'] },
     { match: /\/admin\/subscriptions/,  busts: ['/admin/subscriptions', '/students'] },
     { match: /\/admin\/packages/,       busts: ['/admin/packages'] },
@@ -95,6 +116,8 @@ api.interceptors.response.use(
 // Patched GET that serves from cache when fresh
 const _originalGet = api.get.bind(api);
 api.get = (url, config = {}) => {
+    if (isNeverCached(url)) return _originalGet(url, config);
+
     const key = cacheKey(url, config.params);
     const now = Date.now();
 

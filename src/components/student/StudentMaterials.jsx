@@ -68,41 +68,41 @@ export default function StudentMaterials() {
     );
 
     return (
-        <div className="p-4 lg:p-12 max-w-7xl mx-auto space-y-12 pb-24">
+        <div className="p-4 sm:p-6 lg:p-12 max-w-7xl mx-auto space-y-8 lg:space-y-12 pb-24">
             {/* Header Profile */}
-            <div className="relative bg-[#463a7a] rounded-[50px] p-8 lg:p-16 overflow-hidden shadow-2xl shadow-indigo-900/40">
-                <div className="absolute top-0 right-0 p-12 opacity-5 scale-125">
+            <div className="relative bg-[#463a7a] rounded-[28px] sm:rounded-[36px] lg:rounded-[50px] p-5 sm:p-8 lg:p-16 overflow-hidden shadow-2xl shadow-indigo-900/40">
+                <div className="absolute top-0 right-0 p-12 opacity-5 scale-125 hidden sm:block">
                     <Music className="w-96 h-96 text-white fill-current" />
                 </div>
 
-                <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-12">
+                <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6 lg:gap-12">
                     <div>
-                        <h1 className="text-5xl lg:text-7xl font-black text-white tracking-tighter leading-[0.85] mb-6">
+                        <h1 className="text-3xl sm:text-5xl lg:text-7xl font-black text-white tracking-tight lg:tracking-tighter leading-[0.95] lg:leading-[0.85] mb-2 lg:mb-6">
                             Learning<br />
                             <span className="text-indigo-300">Resources.</span>
                         </h1>
-                        <p className="text-indigo-100/60 font-medium text-lg max-w-sm">
+                        <p className="text-indigo-100/60 font-medium text-sm sm:text-lg max-w-sm">
                             Access sheet music, recordings, and lessons shared by your teachers.
                         </p>
                     </div>
 
-                    <div className="flex flex-col sm:flex-row items-center gap-4 bg-white/10 backdrop-blur-md rounded-[32px] p-2 border border-white/5 shadow-xl w-full lg:w-auto">
-                        <div className="relative w-full sm:w-80 group">
-                            <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-white/30 group-focus-within:text-white transition-colors" size={20} />
+                    <div className="flex flex-col items-stretch gap-2 sm:gap-3 bg-white/10 backdrop-blur-md rounded-[24px] sm:rounded-[32px] p-2 border border-white/5 shadow-xl w-full lg:w-auto">
+                        <div className="relative w-full lg:w-80 group">
+                            <Search className="absolute left-4 sm:left-6 top-1/2 -translate-y-1/2 text-white/30 group-focus-within:text-white transition-colors" size={18} />
                             <input
                                 type="text"
-                                placeholder="Search resources..."
+                                placeholder="Search resources…"
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
-                                className="w-full bg-white/5 border border-white/5 rounded-2xl py-4 pl-14 pr-6 text-white font-bold placeholder:text-white/20 focus:outline-none focus:bg-white/10 transition-all shadow-inner"
+                                className="w-full bg-white/5 border border-white/5 rounded-2xl py-3 sm:py-4 pl-11 sm:pl-14 pr-4 text-white text-sm sm:text-base font-bold placeholder:text-white/20 focus:outline-none focus:bg-white/10 transition-all shadow-inner"
                             />
                         </div>
-                        <div className="flex items-center gap-2 p-1 bg-white/5 rounded-2xl border border-white/5">
+                        <div className="grid grid-cols-4 gap-1 p-1 bg-white/5 rounded-2xl border border-white/5">
                             {['all', 'pdf', 'video', 'audio'].map(t => (
                                 <button
                                     key={t}
                                     onClick={() => setFilter(t)}
-                                    className={`px-5 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${filter === t ? 'bg-white text-[#463a7a] shadow-lg' : 'text-white/40 hover:text-white'}`}
+                                    className={`px-2 py-2.5 rounded-xl font-black text-[9px] sm:text-[10px] uppercase tracking-wide sm:tracking-widest transition-all whitespace-nowrap ${filter === t ? 'bg-white text-[#463a7a] shadow-lg' : 'text-white/40 hover:text-white'}`}
                                 >
                                     {t}
                                 </button>

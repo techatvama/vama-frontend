@@ -1,18 +1,21 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import {
-    format, startOfMonth, endOfMonth, startOfWeek, endOfWeek,
-    eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths,
+    format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, startOfYear,
+    eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, addDays, subDays,
 } from 'date-fns';
 import { api } from '../../lib/api';
+import { parseSubject } from '../../lib/utils';
 import AddStudentDialog from '../AddStudentDialog';
 import {
     Mail, Phone, MapPin, Calendar, CreditCard, BookOpen,
-    TrendingUp, Clock, CheckCircle, XCircle, AlertCircle,
+    TrendingUp, Clock, AlertCircle,
     ArrowLeft, Loader2, GraduationCap, DollarSign,
     Star, ChevronRight, ChevronLeft, Activity, Users, Pencil, Pause, UserX, RotateCcw,
-    CalendarDays, ExternalLink, FileText,
+    CalendarDays, ExternalLink, FileText, Repeat, X, CheckCircle2, Filter,
 } from 'lucide-react';
+import Toast from './shared/Toast';
+import RecordPaymentDialog from './RecordPaymentDialog';
 
 const formatDate = (val) => {
     if (!val) return null;
@@ -21,6 +24,18 @@ const formatDate = (val) => {
         return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
     } catch { return val; }
 };
+
+// "16:00" / "16:00:00" → "4:00 PM"
+const formatTime12h = (val) => {
+    if (!val) return '';
+    const [h, m] = val.split(':');
+    const hour = parseInt(h, 10);
+    if (Number.isNaN(hour)) return val;
+    const period = hour >= 12 ? 'PM' : 'AM';
+    const hour12 = hour % 12 === 0 ? 12 : hour % 12;
+    return `${hour12}:${m} ${period}`;
+};
+const formatRange12h = (start, end) => `${formatTime12h(start)} – ${formatTime12h(end)}`;
 
 const StatCard = ({ label, value, sub, color = 'purple' }) => {
     const colors = {
@@ -58,22 +73,189 @@ const AttendanceBar = ({ rate }) => {
     );
 };
 
-const MiniScheduleCalendar = ({ studentId }) => {
+const ATTENDANCE_PERIODS = [
+    { id: 'this_month', label: 'This Month' },
+    { id: 'last_month', label: 'Last Month' },
+    { id: 'last_30', label: 'Last 30 Days' },
+    { id: 'this_year', label: 'This Year' },
+    { id: 'all', label: 'All Time' },
+    { id: 'custom', label: 'Custom Range' },
+];
+const ATTENDANCE_STATUSES = [
+    { id: 'all', label: 'All Statuses' },
+    { id: 'present', label: 'Present' },
+    { id: 'absent', label: 'Absent' },
+    { id: 'late', label: 'Late' },
+];
+const ATTENDANCE_STATUS_STYLE = {
+    present: 'bg-emerald-100 text-emerald-700',
+    absent: 'bg-red-100 text-red-700',
+    late: 'bg-orange-100 text-orange-700',
+};
+
+// Filterable attendance log — subject, date range (with month/year presets or
+// a custom range) and status, all combinable, with a live summary for
+// whatever the current filter combination matches.
+const AttendanceLogModule = ({ studentId }) => {
+    const [records, setRecords] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [subject, setSubject] = useState('all');
+    const [period, setPeriod] = useState('this_month');
+    const [status, setStatus] = useState('all');
+    const [customStart, setCustomStart] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
+    const [customEnd, setCustomEnd] = useState(format(new Date(), 'yyyy-MM-dd'));
+
+    useEffect(() => {
+        setLoading(true);
+        api.get(`/student/${studentId}/attendance`)
+            .then(res => setRecords(res.data || []))
+            .catch(() => setRecords([]))
+            .finally(() => setLoading(false));
+    }, [studentId]);
+
+    const withSession = records.filter(r => r.session);
+    const subjects = [...new Set(withSession.map(r => r.session.batch?.subject).filter(Boolean))].sort();
+
+    const today = new Date();
+    let rangeStart = null, rangeEnd = null;
+    if (period === 'this_month') { rangeStart = startOfMonth(today); rangeEnd = endOfMonth(today); }
+    else if (period === 'last_month') { const lm = subMonths(today, 1); rangeStart = startOfMonth(lm); rangeEnd = endOfMonth(lm); }
+    else if (period === 'last_30') { rangeStart = subDays(today, 30); rangeEnd = today; }
+    else if (period === 'this_year') { rangeStart = startOfYear(today); rangeEnd = today; }
+    else if (period === 'custom') {
+        rangeStart = customStart ? new Date(customStart + 'T00:00:00') : null;
+        rangeEnd = customEnd ? new Date(customEnd + 'T23:59:59') : null;
+    }
+
+    const filtered = withSession
+        .filter(r => subject === 'all' || r.session.batch?.subject === subject)
+        .filter(r => status === 'all' || r.status === status)
+        .filter(r => {
+            if (!rangeStart || !rangeEnd) return true;
+            const d = new Date(r.session.date + 'T00:00:00');
+            return d >= rangeStart && d <= rangeEnd;
+        })
+        .sort((a, b) => (b.session.date || '').localeCompare(a.session.date || ''));
+
+    const presentCount = filtered.filter(r => r.status === 'present').length;
+    const absentCount = filtered.filter(r => r.status === 'absent').length;
+    const lateCount = filtered.filter(r => r.status === 'late').length;
+    const rate = filtered.length ? Math.round((presentCount / filtered.length) * 100) : 0;
+
+    const selectCls = "px-3 py-2 text-xs font-semibold text-slate-600 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#463a7a]/20 focus:border-[#463a7a]/40 cursor-pointer";
+
+    return (
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="px-4 py-3.5 border-b border-slate-100 flex items-center gap-2 bg-gradient-to-br from-[#463a7a]/5 to-transparent">
+                <Filter size={15} className="text-[#463a7a]" />
+                <h3 className="text-sm font-bold text-slate-700">Attendance Log</h3>
+            </div>
+
+            <div className="p-4 space-y-4">
+                {/* Filter bar */}
+                <div className="flex flex-wrap gap-2">
+                    <select value={subject} onChange={e => setSubject(e.target.value)} className={selectCls}>
+                        <option value="all">All Subjects</option>
+                        {subjects.map(s => <option key={s} value={s}>{parseSubject(s)}</option>)}
+                    </select>
+                    <select value={period} onChange={e => setPeriod(e.target.value)} className={selectCls}>
+                        {ATTENDANCE_PERIODS.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
+                    </select>
+                    {period === 'custom' && (
+                        <>
+                            <input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)} className={selectCls} />
+                            <span className="self-center text-xs text-slate-400">to</span>
+                            <input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)} className={selectCls} />
+                        </>
+                    )}
+                    <select value={status} onChange={e => setStatus(e.target.value)} className={selectCls}>
+                        {ATTENDANCE_STATUSES.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
+                    </select>
+                </div>
+
+                {/* Summary for the current filter combination */}
+                <div className="grid grid-cols-4 gap-2">
+                    {[
+                        { label: 'Classes', value: filtered.length, color: 'text-slate-800' },
+                        { label: 'Present', value: presentCount, color: 'text-emerald-600' },
+                        { label: 'Absent', value: absentCount, color: 'text-red-600' },
+                        { label: 'Rate', value: `${rate}%`, color: rate >= 80 ? 'text-emerald-600' : rate >= 60 ? 'text-orange-500' : 'text-red-500' },
+                    ].map(s => (
+                        <div key={s.label} className="p-3 bg-slate-50 rounded-xl border border-slate-100 text-center">
+                            <div className={`text-lg font-black ${s.color}`}>{s.value}</div>
+                            <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mt-0.5">{s.label}</div>
+                        </div>
+                    ))}
+                </div>
+
+                {/* Filtered record list */}
+                {loading ? (
+                    <div className="flex justify-center py-8"><Loader2 className="animate-spin text-[#463a7a]" size={22} /></div>
+                ) : filtered.length === 0 ? (
+                    <div className="text-center py-8 text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                        <Calendar size={26} className="mx-auto mb-2 opacity-30" />
+                        <p className="text-sm">No attendance records match these filters</p>
+                    </div>
+                ) : (
+                    <div className="space-y-1.5 max-h-80 overflow-y-auto">
+                        {filtered.map(r => (
+                            <div key={r.id} className="p-3 rounded-xl border border-slate-100 hover:border-slate-200 transition-colors">
+                                <div className="flex items-center justify-between">
+                                    <div className="min-w-0">
+                                        <div className="text-sm font-semibold text-slate-800 truncate">
+                                            {parseSubject(r.session.batch?.subject) || r.session.batch?.name || 'Class'}
+                                        </div>
+                                        <div className="text-xs text-slate-400 truncate">
+                                            {format(new Date(r.session.date + 'T00:00:00'), 'EEE, MMM d yyyy')}
+                                            {r.session.start_time && ` · ${r.session.start_time}–${r.session.end_time}`}
+                                            {r.session.teacher_name && ` · ${r.session.teacher_name}`}
+                                        </div>
+                                    </div>
+                                    <span className={`px-2.5 py-1 rounded-full text-xs font-semibold flex-shrink-0 ml-3 ${ATTENDANCE_STATUS_STYLE[r.status] || 'bg-slate-100 text-slate-500'}`}>
+                                        {r.status || 'unknown'}
+                                    </span>
+                                </div>
+                                {r.notes && (
+                                    <div className="mt-2 pt-2 border-t border-slate-100 text-xs text-slate-500 italic">
+                                        “{r.notes}”
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
+
+const MiniScheduleCalendar = ({ studentId, onRescheduled }) => {
     const navigate = useNavigate();
     const [month, setMonth] = useState(startOfMonth(new Date()));
     const [selectedDay, setSelectedDay] = useState(new Date());
     const [sessions, setSessions] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [reschedulingSession, setReschedulingSession] = useState(null);
+    const [toast, setToast] = useState(null);
 
-    useEffect(() => {
+    const fetchSessions = useCallback(() => {
         setLoading(true);
         const start = format(startOfWeek(month, { weekStartsOn: 1 }), 'yyyy-MM-dd');
         const end = format(endOfWeek(endOfMonth(month), { weekStartsOn: 1 }), 'yyyy-MM-dd');
-        api.get('/scheduling/calendar', { params: { student_id: studentId, start, end } })
+        return api.get('/scheduling/calendar', { params: { student_id: studentId, start, end } })
             .then(res => setSessions(res.data?.occurrences || []))
             .catch(() => setSessions([]))
             .finally(() => setLoading(false));
     }, [studentId, month]);
+
+    useEffect(() => { fetchSessions(); }, [fetchSessions]);
+
+    const handleRescheduled = () => {
+        setReschedulingSession(null);
+        setToast({ message: 'Class rescheduled.', type: 'success' });
+        fetchSessions();
+        onRescheduled?.();
+    };
 
     const byDate = sessions.reduce((acc, s) => {
         (acc[s.date] = acc[s.date] || []).push(s);
@@ -167,8 +349,10 @@ const MiniScheduleCalendar = ({ studentId }) => {
                         <div className="space-y-2">
                             {dayClasses.map(cls => (
                                 <div key={cls.id}
-                                    className={`flex items-center justify-between p-2.5 rounded-lg border text-xs
-                                        ${cls.status === 'cancelled' ? 'bg-red-50 border-red-100' : 'bg-slate-50 border-slate-100'}`}>
+                                    onClick={() => navigate(`/schedule?date=${cls.date}&occurrence=${cls.id}`)}
+                                    title="View this class on the calendar — full roster"
+                                    className={`flex items-center justify-between gap-2 p-2.5 rounded-lg border text-xs cursor-pointer transition-colors
+                                        ${cls.status === 'cancelled' ? 'bg-red-50 border-red-100 hover:border-red-200' : 'bg-slate-50 border-slate-100 hover:border-[#463a7a]/30 hover:bg-[#463a7a]/5'}`}>
                                     <div className="min-w-0">
                                         <div className={`font-semibold truncate ${cls.status === 'cancelled' ? 'text-red-500 line-through' : 'text-slate-800'}`}>
                                             {cls.name || cls.course || 'Class'}
@@ -176,18 +360,252 @@ const MiniScheduleCalendar = ({ studentId }) => {
                                         <div className="text-slate-500 truncate">{cls.teacher_name || '—'}</div>
                                     </div>
                                     <div className="text-right flex-shrink-0 ml-2">
-                                        <div className="font-semibold text-slate-700">{cls.start_time}–{cls.end_time}</div>
+                                        <div className="font-semibold text-slate-700">{formatRange12h(cls.start_time, cls.end_time)}</div>
                                         {cls.is_makeup && <div className="text-[10px] text-orange-500 font-bold uppercase">Makeup</div>}
                                     </div>
+                                    {cls.status !== 'cancelled' && (
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); setReschedulingSession(cls); }}
+                                            title="Reschedule this class"
+                                            className="flex-shrink-0 flex items-center gap-1 px-2 py-1.5 rounded-md bg-white border border-slate-200 text-[#463a7a] font-semibold hover:bg-[#463a7a]/5 hover:border-[#463a7a]/30 transition-colors"
+                                        >
+                                            <Repeat size={12} /> Reschedule
+                                        </button>
+                                    )}
                                 </div>
                             ))}
                         </div>
                     )}
                 </div>
             </div>
+
+            {reschedulingSession && (
+                <AdminRescheduleModal
+                    studentId={studentId}
+                    session={reschedulingSession}
+                    onClose={() => setReschedulingSession(null)}
+                    onRescheduled={handleRescheduled}
+                />
+            )}
+            {toast && <Toast message={toast.message} type={toast.type} onDone={() => setToast(null)} />}
         </div>
     );
 };
+
+// Compact in-page reschedule flow for admins — pick a date on a calendar
+// (same visual language as the Class Schedule widget above it on this page),
+// then a time on that date, optional reason, confirm. Scoped to the same
+// teacher as the class being moved (not "any teacher who teaches this
+// subject") so what's on offer actually matches what's being rescheduled,
+// and slots the student is already booked into never appear.
+function AdminRescheduleModal({ studentId, session, onClose, onRescheduled }) {
+    const [slots, setSlots] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [selectedDate, setSelectedDate] = useState(null);
+    const [selectedSlot, setSelectedSlot] = useState(null);
+    const [reason, setReason] = useState('');
+    const [submitting, setSubmitting] = useState(false);
+    const [error, setError] = useState('');
+    const [viewMonth, setViewMonth] = useState(startOfMonth(new Date()));
+
+    const today = new Date();
+    const todayKey = format(today, 'yyyy-MM-dd');
+    const currentMonthKey = format(startOfMonth(today), 'yyyy-MM');
+    const isCurrentMonth = format(viewMonth, 'yyyy-MM') === currentMonthKey;
+
+    useEffect(() => {
+        const rangeStart = isCurrentMonth ? today : startOfMonth(viewMonth);
+        const start = format(rangeStart, 'yyyy-MM-dd');
+        const end = format(endOfMonth(viewMonth), 'yyyy-MM-dd');
+        setLoading(true);
+        api.get(`/student/${studentId}/available-slots`, {
+            params: {
+                start, end,
+                subject: session.course || session.batch?.subject,
+                teacher_id: session.teacher_id,
+                template_id: session.template_id || session.batch?.id,
+            },
+        })
+            .then(res => {
+                const data = res.data || [];
+                setSlots(data);
+                setSelectedDate(data.length > 0 ? data[0].date : null);
+                setSelectedSlot(null);
+            })
+            .catch(() => setSlots([]))
+            .finally(() => setLoading(false));
+    }, [studentId, session, viewMonth]);
+
+    const slotsByDate = slots.reduce((acc, s) => {
+        (acc[s.date] = acc[s.date] || []).push(s);
+        return acc;
+    }, {});
+
+    const gridStart = startOfWeek(startOfMonth(viewMonth), { weekStartsOn: 1 });
+    const gridEnd   = endOfWeek(endOfMonth(viewMonth), { weekStartsOn: 1 });
+    const gridDays = eachDayOfInterval({ start: gridStart, end: gridEnd });
+    const daySlots = selectedDate ? (slotsByDate[selectedDate] || []) : [];
+
+    const handleConfirm = async () => {
+        if (!selectedSlot) return;
+        setSubmitting(true);
+        setError('');
+        try {
+            await api.post(`/admin/students/${studentId}/reschedule`, {
+                old_session_id: session.id,
+                new_session_id: selectedSlot.id,
+                reason,
+            });
+            onRescheduled();
+        } catch (err) {
+            setError(err.response?.data?.detail || 'Failed to reschedule. Please try again.');
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
+            <div
+                className="bg-white rounded-3xl shadow-2xl w-full max-w-lg max-h-[85vh] flex flex-col overflow-hidden"
+                onClick={(e) => e.stopPropagation()}
+            >
+                <div className="p-6 bg-gradient-to-br from-[#463a7a] to-[#2d2550] text-white flex items-start justify-between flex-shrink-0">
+                    <div>
+                        <h3 className="text-lg font-bold flex items-center gap-2"><Repeat size={18} /> Reschedule Class</h3>
+                        <p className="text-indigo-100/70 text-xs mt-1">
+                            {session.name || session.course} with {session.teacher_name || '—'} · {format(new Date(session.date + 'T00:00:00'), 'MMM d')} · {formatRange12h(session.start_time, session.end_time)}
+                        </p>
+                    </div>
+                    <button onClick={onClose} className="p-1.5 hover:bg-white/10 rounded-lg transition-colors flex-shrink-0">
+                        <X size={18} />
+                    </button>
+                </div>
+
+                <div className="p-5 overflow-y-auto flex-1">
+                        <div className="space-y-5">
+                            {/* Step 1: pick a date */}
+                            <div>
+                                <div className="flex items-center justify-between mb-2">
+                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wide">1. Choose a date</p>
+                                    <div className="flex items-center gap-1">
+                                        <button
+                                            onClick={() => setViewMonth(m => subMonths(m, 1))}
+                                            disabled={isCurrentMonth}
+                                            className="p-1 rounded-md hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                                        >
+                                            <ChevronLeft size={14} className="text-slate-500" />
+                                        </button>
+                                        <span className="text-xs font-bold text-slate-700 w-20 text-center">{format(viewMonth, 'MMMM yyyy')}</span>
+                                        <button
+                                            onClick={() => setViewMonth(m => addMonths(m, 1))}
+                                            className="p-1 rounded-md hover:bg-slate-100 transition-colors"
+                                        >
+                                            <ChevronRight size={14} className="text-slate-500" />
+                                        </button>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-7 mb-1">
+                                    {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
+                                        <div key={i} className="text-center text-[10px] font-bold text-slate-400 py-1">{d}</div>
+                                    ))}
+                                </div>
+                                {loading ? (
+                                    <div className="flex justify-center py-8"><Loader2 className="animate-spin text-[#463a7a]" size={22} /></div>
+                                ) : (
+                                <div className="grid grid-cols-7 gap-y-1">
+                                    {gridDays.map(day => {
+                                        const key = format(day, 'yyyy-MM-dd');
+                                        const inMonth = isSameMonth(day, viewMonth);
+                                        const hasSlots = inMonth && (slotsByDate[key] || []).length > 0;
+                                        const isPast = key < todayKey;
+                                        const isSel = key === selectedDate;
+                                        return (
+                                            <button
+                                                key={key}
+                                                disabled={!hasSlots}
+                                                onClick={() => { setSelectedDate(key); setSelectedSlot(null); }}
+                                                className={`mx-auto w-8 h-8 relative flex items-center justify-center rounded-full text-xs font-semibold transition-colors
+                                                    ${!inMonth ? 'text-slate-200' : isPast || !hasSlots ? 'text-slate-300' : 'text-slate-700'}
+                                                    ${isSel ? 'bg-[#463a7a] text-white shadow-sm' : hasSlots ? 'hover:bg-[#463a7a]/10' : ''}`}
+                                            >
+                                                {format(day, 'd')}
+                                                {hasSlots && (
+                                                    <span className={`absolute bottom-0.5 w-1 h-1 rounded-full ${isSel ? 'bg-white' : 'bg-emerald-500'}`} />
+                                                )}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                                )}
+                            </div>
+
+                            {/* Step 2: pick a time on that date */}
+                            <div>
+                                <p className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">
+                                    2. {selectedDate ? `Available on ${format(new Date(selectedDate + 'T00:00:00'), 'EEEE, MMM d')}` : 'Available times'}
+                                </p>
+                                {loading ? null : daySlots.length === 0 ? (
+                                    <div className="text-xs text-slate-400 py-4 text-center bg-slate-50 rounded-lg border border-dashed border-slate-200">
+                                        {slots.length === 0
+                                            ? `No available slots with ${session.teacher_name || 'this teacher'} in ${format(viewMonth, 'MMMM')}. Try another month.`
+                                            : 'No slots this day'}
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-2 gap-2">
+                                        {daySlots.map(slot => {
+                                            const isFull = slot.capacity > 0 && slot.enrolled >= slot.capacity;
+                                            const isSel = selectedSlot?.id === slot.id;
+                                            return (
+                                                <button
+                                                    key={slot.id}
+                                                    disabled={isFull}
+                                                    onClick={() => setSelectedSlot(slot)}
+                                                    className={`relative text-left p-3 rounded-xl border-2 text-xs transition-all
+                                                        ${isFull ? 'bg-slate-50 border-slate-100 opacity-50 cursor-not-allowed'
+                                                            : isSel ? 'bg-[#463a7a]/5 border-[#463a7a] shadow-sm'
+                                                            : 'bg-white border-slate-200 hover:border-[#463a7a]/40'}`}
+                                                >
+                                                    {isSel && <CheckCircle2 size={14} className="absolute top-2 right-2 text-[#463a7a]" />}
+                                                    <div className="font-bold text-slate-800">{formatRange12h(slot.start_time, slot.end_time)}</div>
+                                                    <div className={`mt-1 font-semibold ${isFull ? 'text-red-500' : 'text-emerald-600'}`}>
+                                                        {isFull ? 'Full' : `${slot.enrolled}/${slot.capacity || '∞'}`}
+                                                    </div>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                </div>
+
+                {selectedSlot && (
+                    <div className="p-5 border-t border-slate-100 flex-shrink-0 space-y-3">
+                        {error && (
+                            <div className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{error}</div>
+                        )}
+                        <textarea
+                            value={reason}
+                            onChange={(e) => setReason(e.target.value)}
+                            placeholder="Reason (optional) — e.g. teacher request, student conflict…"
+                            rows={2}
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs resize-none focus:outline-none focus:ring-2 focus:ring-[#463a7a]/15"
+                        />
+                        <button
+                            onClick={handleConfirm}
+                            disabled={submitting}
+                            className="w-full py-3 bg-[#463a7a] text-white rounded-xl font-bold text-sm shadow-lg hover:bg-[#342a5b] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        >
+                            {submitting ? <Loader2 className="animate-spin" size={16} /> : <CheckCircle2 size={16} />}
+                            {submitting ? 'Rescheduling…' : `Confirm — new time ${formatTime12h(selectedSlot.start_time)}`}
+                        </button>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
 
 export default function StudentProfilePage() {
     const { studentId } = useParams();
@@ -198,6 +616,7 @@ export default function StudentProfilePage() {
     const [activeTab, setActiveTab] = useState('overview');
     const [editOpen, setEditOpen] = useState(false);
     const [statusSaving, setStatusSaving] = useState(false);
+    const [paymentTarget, setPaymentTarget] = useState(null);
 
     const load = useCallback(() => {
         setLoading(true);
@@ -262,18 +681,11 @@ export default function StudentProfilePage() {
     const fullName = `${student.first_name || ''} ${student.last_name || ''}`.trim();
     const attendancePct = student.performance?.attendance_percentage ?? 0;
     const totalEnrollments = student.enrollments?.length ?? 0;
+    const classesThisMonth = student.classes_this_month ?? 0;
     const outstanding = student.financial?.outstanding ?? 0;
 
     // ── Admin-focused metrics ──
-    const activePackage = student.active_package;
     const overallGrade = student.performance?.overall_grade ?? '—';
-    const packageStatus = !activePackage
-      ? 'No Active Package'
-      : activePackage.is_expired
-      ? 'Expired'
-      : activePackage.is_exhausted
-      ? 'Exhausted'
-      : `${activePackage.sessions_remaining} Sessions`;
     const paymentStatus = outstanding > 0
       ? outstanding > outstanding * 0.2 ? 'Overdue' : 'Partial'
       : 'Paid';
@@ -398,7 +810,7 @@ export default function StudentProfilePage() {
                         </div>
 
                         {/* Stats row — Admin metrics */}
-                        <div className="grid grid-cols-5 gap-2 mt-6">
+                        <div className="grid grid-cols-4 gap-2 mt-6">
                             {/* Attendance */}
                             <div className="bg-white/10 backdrop-blur rounded-xl p-3 text-center border border-white/10">
                                 <div className={`text-xl font-black ${attendancePct >= 80 ? 'text-emerald-300' : attendancePct >= 60 ? 'text-yellow-300' : 'text-red-300'}`}>
@@ -406,21 +818,6 @@ export default function StudentProfilePage() {
                                 </div>
                                 <div className="text-xs text-white/60 mt-0.5">Attendance</div>
                             </div>
-
-                            {/* Active Package */}
-                            <button
-                              onClick={() => setActiveTab('payments')}
-                              className="bg-white/10 backdrop-blur rounded-xl p-3 text-center border border-white/10 hover:bg-white/20 hover:border-white/30 transition-all cursor-pointer group"
-                              title="Click to view payments and invoices"
-                            >
-                                <div className={`text-sm font-black truncate group-hover:scale-110 transition-transform ${activePackage?.is_expired || activePackage?.is_exhausted ? 'text-red-300' : activePackage ? 'text-emerald-300' : 'text-slate-300'}`}>
-                                    {packageStatus}
-                                </div>
-                                <div className="text-xs text-white/60 mt-0.5">Package</div>
-                                {activePackage && (
-                                  <div className="text-xs text-white/50 mt-1">Click to view</div>
-                                )}
-                            </button>
 
                             {/* Payment Status */}
                             <button
@@ -441,10 +838,10 @@ export default function StudentProfilePage() {
                                 <div className="text-xs text-white/60 mt-0.5">Grade</div>
                             </div>
 
-                            {/* Total Classes */}
-                            <div className="bg-white/10 backdrop-blur rounded-xl p-3 text-center border border-white/10">
-                                <div className="text-xl font-black text-blue-300">{totalEnrollments}</div>
-                                <div className="text-xs text-white/60 mt-0.5">Classes</div>
+                            {/* Classes already held this calendar month */}
+                            <div className="bg-white/10 backdrop-blur rounded-xl p-3 text-center border border-white/10" title="Classes completed this month">
+                                <div className="text-xl font-black text-blue-300">{classesThisMonth}</div>
+                                <div className="text-xs text-white/60 mt-0.5">Done This Month</div>
                             </div>
                         </div>
                     </div>
@@ -459,8 +856,7 @@ export default function StudentProfilePage() {
                     <div className="p-6">
                         {/* ─ Overview ─ */}
                         {activeTab === 'overview' && (
-                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                            <div className="lg:col-span-2 space-y-6">
+                            <div className="space-y-6">
                                 {/* Personal details grid */}
                                 <div>
                                     <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-3">Personal Details</h3>
@@ -515,6 +911,8 @@ export default function StudentProfilePage() {
                                     </div>
                                 </div>
 
+                                <AttendanceLogModule studentId={studentId} />
+
                                 {/* Upcoming classes */}
                                 {student.upcoming_classes?.length > 0 ? (
                                     <div>
@@ -546,63 +944,14 @@ export default function StudentProfilePage() {
                                     </div>
                                 )}
                             </div>
-
-                            {/* Sidebar: mini schedule calendar */}
-                            <div className="lg:col-span-1">
-                                <MiniScheduleCalendar studentId={studentId} />
-                            </div>
-                            </div>
                         )}
 
                         {/* ─ Classes ─ */}
                         {activeTab === 'classes' && (
-                            <div className="space-y-4">
-                                {student.enrollments?.length === 0 ? (
-                                    <div className="text-center py-12 text-slate-400">
-                                        <BookOpen size={40} className="mx-auto mb-3 opacity-30" />
-                                        <p>No class enrollments yet</p>
-                                    </div>
-                                ) : (
-                                    student.enrollments.map((en, idx) => (
-                                        <div key={idx} className="border border-slate-200 rounded-xl overflow-hidden hover:border-[#463a7a]/30 transition-colors">
-                                            <div className="flex items-center justify-between p-5 bg-slate-50 border-b border-slate-200">
-                                                <div>
-                                                    <h3 className="font-bold text-slate-900">{en.subject}</h3>
-                                                    <p className="text-sm text-slate-500 mt-0.5">{en.teacher} · {en.batch}</p>
-                                                </div>
-                                                <div className="text-right">
-                                                    <span className={`px-3 py-1 rounded-full text-xs font-semibold
-                                                        ${en.attendance_rate >= 80 ? 'bg-emerald-100 text-emerald-700' :
-                                                          en.attendance_rate >= 60 ? 'bg-yellow-100 text-yellow-700' :
-                                                          'bg-red-100 text-red-700'}`}>
-                                                        {en.attendance_rate}% attendance
-                                                    </span>
-                                                </div>
-                                            </div>
-                                            <div className="p-5">
-                                                <div className="grid grid-cols-3 gap-4 mb-4">
-                                                    <div className="text-center p-3 bg-slate-50 rounded-lg">
-                                                        <div className="text-xl font-black text-slate-800">{en.total_classes}</div>
-                                                        <div className="text-xs text-slate-500 mt-0.5">Total</div>
-                                                    </div>
-                                                    <div className="text-center p-3 bg-emerald-50 rounded-lg">
-                                                        <div className="text-xl font-black text-emerald-600 flex items-center justify-center gap-1">
-                                                            <CheckCircle size={16} />{en.attended}
-                                                        </div>
-                                                        <div className="text-xs text-emerald-600 mt-0.5">Attended</div>
-                                                    </div>
-                                                    <div className="text-center p-3 bg-red-50 rounded-lg">
-                                                        <div className="text-xl font-black text-red-500 flex items-center justify-center gap-1">
-                                                            <XCircle size={16} />{en.missed}
-                                                        </div>
-                                                        <div className="text-xs text-red-500 mt-0.5">Missed</div>
-                                                    </div>
-                                                </div>
-                                                <AttendanceBar rate={en.attendance_rate} />
-                                            </div>
-                                        </div>
-                                    ))
-                                )}
+                            <div className="space-y-6">
+                                <MiniScheduleCalendar studentId={studentId} onRescheduled={load} />
+
+                                <AttendanceLogModule studentId={studentId} />
                             </div>
                         )}
 
@@ -637,9 +986,9 @@ export default function StudentProfilePage() {
                                             {student.financial.payment_history.map(p => (
                                                 <button
                                                   key={p.id}
-                                                  onClick={() => navigate(`/admin/invoices/${p.id}`)}
+                                                  onClick={() => setPaymentTarget(p)}
                                                   className="w-full flex items-center justify-between p-4 border border-slate-200 rounded-xl hover:border-[#463a7a]/40 hover:bg-slate-50 transition-all cursor-pointer text-left group"
-                                                  title="Click to view and edit invoice"
+                                                  title="View & record payment"
                                                 >
                                                     <div className="flex items-center gap-3">
                                                         <div className={`p-2 rounded-lg ${p.status === 'paid' ? 'bg-emerald-100' : p.status === 'overdue' ? 'bg-red-100' : 'bg-orange-100'}`}>
@@ -737,6 +1086,14 @@ export default function StudentProfilePage() {
                 initialData={student}
                 onSubmit={async () => { await load(); }}
             />
+
+            {paymentTarget && (
+                <RecordPaymentDialog
+                    invoiceId={paymentTarget.id}
+                    onClose={() => setPaymentTarget(null)}
+                    onRecorded={load}
+                />
+            )}
         </div>
     );
 }

@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { api } from '../../lib/api';
 import {
-    TrendingUp,
     CheckCircle2,
     BookOpen,
     Award,
@@ -63,10 +62,29 @@ function CircularProgress({ value, size = 80, strokeWidth = 8 }) {
                     className="transition-all duration-1000 ease-out"
                 />
             </svg>
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-base font-black text-white leading-none">{Math.round(value)}%</span>
-                <span className="text-[8px] font-black text-white/60 uppercase tracking-widest mt-0.5">Done</span>
+            <div className="absolute inset-0 flex flex-col items-center justify-center px-1">
+                <span className="font-black text-white leading-none whitespace-nowrap" style={{ fontSize: size * 0.24 }}>{Math.round(value)}%</span>
+                <span className="font-black text-white/60 uppercase tracking-widest mt-0.5 whitespace-nowrap" style={{ fontSize: Math.max(6, size * 0.11) }}>Done</span>
             </div>
+        </div>
+    );
+}
+
+// Only rendered when a student has more than one enrolled subject — each
+// tab loads that subject's own syllabus/modules/progress independently.
+function SubjectTabs({ subjects, current, onSwitch }) {
+    return (
+        <div className="flex gap-2 overflow-x-auto -mx-1 px-1" style={{ scrollbarWidth: 'none' }}>
+            {subjects.map(s => (
+                <button key={s.subject} onClick={() => onSwitch(s.subject)}
+                    className={`flex-shrink-0 px-3.5 py-1.5 rounded-xl text-xs font-black uppercase tracking-wide transition-all whitespace-nowrap ${
+                        s.subject === current
+                            ? 'bg-white text-[#463a7a] shadow-lg'
+                            : 'bg-white/10 text-white/60 hover:bg-white/20 hover:text-white'
+                    }`}>
+                    {s.subject}
+                </button>
+            ))}
         </div>
     );
 }
@@ -74,13 +92,16 @@ function CircularProgress({ value, size = 80, strokeWidth = 8 }) {
 export default function StudentProgress() {
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [switching, setSwitching] = useState(false);
     const [expandedModules, setExpandedModules] = useState({});
     const [gradeHistory, setGradeHistory] = useState([]);
+    const [studentId, setStudentId] = useState(null);
     const navigate = useNavigate();
 
     useEffect(() => {
         const student = JSON.parse(localStorage.getItem('student'));
         if (student) {
+            setStudentId(student.id);
             fetchProgress(student.id);
             fetchGradeHistory(student.id);
         } else {
@@ -88,18 +109,30 @@ export default function StudentProgress() {
         }
     }, [navigate]);
 
-    const fetchProgress = async (studentId) => {
+    // subject omitted → backend picks the student's first enrolled subject
+    // (or falls back to the legacy single-instrument field). Passed
+    // explicitly when switching tabs.
+    const fetchProgress = async (studentId, subject) => {
         try {
-            const res = await api.get(`/students/${studentId}/progress`);
+            const res = await api.get(`/students/${studentId}/progress`, { params: subject ? { subject } : {} });
             setData(res.data);
             if (res.data.syllabus?.modules?.length > 0) {
                 setExpandedModules({ [res.data.syllabus.modules[0].id]: true });
+            } else {
+                setExpandedModules({});
             }
         } catch (err) {
             console.error(err);
         } finally {
             setLoading(false);
+            setSwitching(false);
         }
+    };
+
+    const switchSubject = (subject) => {
+        if (subject === data?.student?.instrument) return;
+        setSwitching(true);
+        fetchProgress(studentId, subject);
     };
 
     const fetchGradeHistory = async (studentId) => {
@@ -139,11 +172,20 @@ export default function StudentProgress() {
         </div>
     );
 
+    const enrolledSubjects = data?.student?.enrolled_subjects || [];
+
     if (!data?.syllabus) return (
-        <div className="p-10 sm:p-20 text-center">
-            <Music size={48} className="mx-auto text-slate-200 mb-6" />
-            <h2 className="text-xl sm:text-2xl font-black text-slate-300 tracking-tighter uppercase">No Curriculum Assigned</h2>
-            <p className="text-slate-400 font-bold uppercase text-xs tracking-widest mt-2">Talk to your teacher to start your syllabus journey!</p>
+        <div className="min-h-screen bg-[#f8fafc]">
+            {enrolledSubjects.length > 1 && (
+                <div className="bg-gradient-to-br from-[#463a7a] to-[#2d2550] px-5 pt-6 pb-4">
+                    <SubjectTabs subjects={enrolledSubjects} current={data.student.instrument} onSwitch={switchSubject} />
+                </div>
+            )}
+            <div className="p-10 sm:p-20 text-center">
+                <Music size={48} className="mx-auto text-slate-200 mb-6" />
+                <h2 className="text-xl sm:text-2xl font-black text-slate-300 tracking-tighter uppercase">No Curriculum Assigned</h2>
+                <p className="text-slate-400 font-bold uppercase text-xs tracking-widest mt-2">Talk to your teacher to start your syllabus journey!</p>
+            </div>
         </div>
     );
 
@@ -165,60 +207,59 @@ export default function StudentProgress() {
         <div className="pb-24 bg-[#f8fafc] min-h-screen">
 
             {/* ── Hero ── */}
-            <div className="relative bg-[#463a7a] px-5 pt-8 pb-6 overflow-hidden">
-                <div className="absolute top-0 right-0 p-6 opacity-5">
-                    <TrendingUp className="w-64 h-64 text-white fill-current" />
-                </div>
-
+            <div className="relative bg-gradient-to-br from-[#463a7a] to-[#2d2550] px-5 pt-8 pb-6 overflow-hidden">
                 <div className="relative z-10">
-                    {/* Instrument badge */}
-                    <div className="flex items-center gap-2 mb-3">
-                        <div className="w-9 h-9 bg-white/10 border border-white/10 rounded-xl flex items-center justify-center flex-shrink-0">
-                            <Target className="text-orange-400" size={16} />
+                    {enrolledSubjects.length > 1 ? (
+                        <div className="mb-3">
+                            <SubjectTabs subjects={enrolledSubjects} current={data.student.instrument} onSwitch={switchSubject} />
                         </div>
-                        <div>
-                            <p className="text-indigo-200/40 text-[9px] font-black uppercase tracking-widest leading-none">Curriculum Focus</p>
-                            <p className="text-sm font-black text-white leading-tight">{data.student.instrument}</p>
+                    ) : (
+                        /* Instrument badge */
+                        <div className="flex items-center gap-2 mb-3">
+                            <div className="w-8 h-8 bg-white/10 border border-white/10 rounded-xl flex items-center justify-center flex-shrink-0">
+                                <Target className="text-orange-400" size={14} />
+                            </div>
+                            <div>
+                                <p className="text-indigo-200/40 text-[9px] font-black uppercase tracking-widest leading-none">Curriculum Focus</p>
+                                <p className="text-sm font-black text-white leading-tight">{data.student.instrument}</p>
+                            </div>
                         </div>
-                    </div>
+                    )}
 
-                    <h1 className="text-3xl font-black text-white tracking-tighter leading-tight mb-1">
-                        Your Musical<br /><span className="text-indigo-300">Milestones.</span>
+                    <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight leading-tight mb-1">
+                        Your Musical Milestones
                     </h1>
-                    <p className="text-indigo-100/40 text-xs font-medium mb-5">{data.syllabus.name}</p>
+                    <p className="text-indigo-100/50 text-xs sm:text-sm font-medium mb-5">{data.syllabus.name}</p>
 
-                    {/* Inline hero stats */}
-                    <div className="grid grid-cols-3 gap-2">
-                        <div className="bg-white/10 border border-white/10 rounded-2xl p-3 flex flex-col items-center justify-center">
-                            <CircularProgress value={overallProgress} size={52} strokeWidth={5} />
-                            <p className="text-white/40 text-[9px] font-black uppercase tracking-widest mt-1.5 text-center">Overall</p>
+                    {/* Overall + grade */}
+                    <div className={`flex items-center gap-4 bg-white/10 border border-white/10 rounded-2xl p-4 transition-opacity ${switching ? 'opacity-50' : ''}`}>
+                        <CircularProgress value={overallProgress} size={56} strokeWidth={5} />
+                        <div className="flex-1 min-w-0">
+                            <p className="text-white/40 text-[9px] font-black uppercase tracking-widest">Overall Mastery</p>
+                            <p className="text-white text-lg font-black leading-tight">{data.student.grade} Grade</p>
                         </div>
-                        <div className="bg-white rounded-2xl p-3 shadow-xl flex flex-col items-center justify-center">
-                            <Award className="text-yellow-400 fill-current mb-1" size={18} />
-                            <p className="text-lg font-black text-slate-900 leading-none">{data.student.grade}</p>
-                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-0.5">Grade</p>
-                        </div>
-                        <div className="bg-white/10 border border-white/10 rounded-2xl p-3 flex flex-col items-center justify-center">
-                            <CheckCircle2 className="text-emerald-400 mb-1" size={18} />
-                            <p className="text-lg font-black text-white leading-none">{completedItems}</p>
-                            <p className="text-indigo-200/40 text-[9px] font-black uppercase tracking-widest mt-0.5">Done</p>
+                        <div className="flex items-center gap-1.5 bg-white rounded-xl px-3 py-2 flex-shrink-0">
+                            <Award className="text-yellow-400 fill-current" size={14} />
+                            <span className="text-slate-900 text-sm font-black">{data.student.grade}</span>
                         </div>
                     </div>
                 </div>
             </div>
 
-            {/* ── Stats strip ── */}
-            <div className="grid grid-cols-3 bg-white border-b border-slate-100 shadow-sm">
-                {[
-                    { label: 'Complete',    value: completedItems,  color: 'text-emerald-600' },
-                    { label: 'In Progress', value: inProgressItems, color: 'text-amber-500'   },
-                    { label: 'Total',       value: totalItems,      color: 'text-slate-900'   },
-                ].map(({ label, value, color }) => (
-                    <div key={label} className="text-center py-3 border-r border-slate-50 last:border-0">
-                        <p className={`text-xl font-black leading-none ${color}`}>{value}</p>
-                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-0.5">{label}</p>
-                    </div>
-                ))}
+            {/* ── Stats tiles ── */}
+            <div className="px-4 pt-4">
+                <div className="grid grid-cols-3 gap-2 max-w-2xl mx-auto lg:max-w-4xl">
+                    {[
+                        { label: 'Complete',    value: completedItems,  color: 'text-emerald-600' },
+                        { label: 'In Progress', value: inProgressItems, color: 'text-amber-500'   },
+                        { label: 'Total',       value: totalItems,      color: 'text-[#463a7a]'   },
+                    ].map(({ label, value, color }) => (
+                        <div key={label} className="bg-white border border-slate-100 rounded-xl p-3 text-center shadow-sm">
+                            <p className={`text-lg font-black leading-none ${color}`}>{value}</p>
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">{label}</p>
+                        </div>
+                    ))}
+                </div>
             </div>
 
             {/* ── Modules List ── */}
@@ -233,30 +274,46 @@ export default function StudentProgress() {
                         const moduleDone = module.contents.filter(c => c.progress?.status === 'done').length;
                         const moduleInProgress = module.contents.filter(c => c.progress?.status === 'in-progress').length;
 
+                        const isComplete = progressPct === 100;
+                        const hasStarted = moduleDone > 0 || moduleInProgress > 0;
+                        const iconCls = isComplete
+                            ? 'bg-emerald-500 text-white shadow-sm shadow-emerald-500/30'
+                            : isOpen
+                            ? 'bg-[#463a7a] text-white shadow-sm shadow-indigo-900/30'
+                            : hasStarted
+                            ? 'bg-amber-50 text-amber-500'
+                            : 'bg-slate-50 text-slate-300 group-hover:bg-indigo-50 group-hover:text-[#463a7a]';
+                        const barCls = isComplete ? 'from-emerald-400 to-emerald-500' : 'from-indigo-500 to-purple-500';
+
                         return (
-                            <div key={module.id} className={`bg-white rounded-2xl border overflow-hidden transition-all ${isOpen ? 'border-[#463a7a]/30 shadow-md' : 'border-slate-100 shadow-sm'}`}>
+                            <div key={module.id} className={`bg-white rounded-2xl border overflow-hidden transition-all duration-300 hover:shadow-md ${isOpen ? 'border-[#463a7a]/25 shadow-lg shadow-indigo-900/5' : isComplete ? 'border-emerald-100 shadow-sm' : 'border-slate-100 shadow-sm'}`}>
                                 <button onClick={() => toggleModule(module.id)}
-                                    className="w-full text-left p-4 flex items-center gap-3 group">
-                                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-all ${isOpen ? 'bg-[#463a7a] text-white' : 'bg-slate-50 text-slate-400 group-hover:bg-indigo-50 group-hover:text-[#463a7a]'}`}>
-                                        <Zap size={16} className={isOpen ? 'fill-current' : ''} />
+                                    className="w-full text-left p-4 flex items-center gap-3.5 group">
+                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-all ${iconCls}`}>
+                                        {isComplete ? <CheckCircle2 size={18} /> : <Zap size={16} className={isOpen ? 'fill-current' : ''} />}
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Module {module.order}</p>
-                                        <p className="text-sm font-black text-slate-900 group-hover:text-[#463a7a] transition-colors truncate">{module.name}</p>
+                                        <div className="flex items-center gap-1.5">
+                                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Module {module.order}</p>
+                                            {isComplete && (
+                                                <span className="text-[8px] font-black text-emerald-600 bg-emerald-50 px-1.5 py-[1px] rounded-full uppercase tracking-wide">Complete</span>
+                                            )}
+                                        </div>
+                                        <p className="text-[15px] font-black text-slate-900 group-hover:text-[#463a7a] transition-colors truncate leading-snug">{module.name}</p>
                                         <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                                             <span className="text-[9px] font-black text-emerald-600">{moduleDone} done</span>
                                             {moduleInProgress > 0 && <span className="text-[9px] font-black text-amber-500">{moduleInProgress} in progress</span>}
-                                            <span className="text-[9px] font-black text-slate-400">{module.contents.length} total</span>
+                                            <span className="text-[9px] font-black text-slate-300">/ {module.contents.length} total</span>
                                         </div>
                                     </div>
-                                    <div className="flex-shrink-0 flex flex-col items-end gap-1.5 mr-2">
-                                        <span className="text-xs font-black text-[#463a7a]">{progressPct}%</span>
-                                        <div className="w-20 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                            <div className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full transition-all duration-700"
+                                    <div className="flex-shrink-0 flex flex-col items-end gap-1.5 mr-1">
+                                        <span className={`text-sm font-black ${isComplete ? 'text-emerald-600' : 'text-[#463a7a]'}`}>{progressPct}%</span>
+                                        <div className="w-16 sm:w-20 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                            <div className={`h-full bg-gradient-to-r ${barCls} rounded-full transition-all duration-700`}
                                                 style={{ width: `${progressPct}%` }} />
                                         </div>
                                     </div>
-                                    <div className={`w-7 h-7 rounded-lg bg-slate-50 flex items-center justify-center text-slate-300 flex-shrink-0 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}>
+                                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 transition-all duration-300 ${isOpen ? 'rotate-180 bg-[#463a7a]/10 text-[#463a7a]' : 'bg-slate-50 text-slate-300'}`}>
                                         <ChevronDown size={15} />
                                     </div>
                                 </button>

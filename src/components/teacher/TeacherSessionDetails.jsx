@@ -312,11 +312,12 @@ export default function TeacherSessionDetails() {
                                                             {student.enrollment_type === 'single_session' ? 'This class only' : 'Recurring'}
                                                         </span>
                                                         <span className={`text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full ${
-                                                            (student.outstanding ?? 0) > 0
-                                                                ? 'bg-red-100 text-red-600'
-                                                                : 'bg-emerald-100 text-emerald-600'
-                                                        }`}>
-                                                            {(student.outstanding ?? 0) > 0 ? '💳 Unpaid' : '✓ Paid'}
+                                                            student.has_invoice !== false && (student.outstanding ?? 0) <= 0
+                                                                ? 'bg-emerald-100 text-emerald-600'
+                                                                : 'bg-red-100 text-red-600'
+                                                        }`}
+                                                            title={student.has_invoice === false ? 'No invoice on file for this class' : undefined}>
+                                                            {student.has_invoice !== false && (student.outstanding ?? 0) <= 0 ? '✓ Paid' : '💳 Unpaid'}
                                                         </span>
                                                         {isCancelled && (
                                                             <span className="px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-600 text-[8px] font-black uppercase tracking-widest">

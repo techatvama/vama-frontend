@@ -129,9 +129,9 @@ export default function StudentDashboard() {
                                     <circle cx="48" cy="48" r="42" stroke="#f1f5f9" strokeWidth="8" fill="none" className="hidden sm:block" />
                                     <circle cx="48" cy="48" r="42" stroke="#463a7a" strokeWidth="8" fill="none" strokeDasharray={264} strokeDashoffset={264 - (264 * overallProgress) / 100} strokeLinecap="round" className="transition-all duration-1000 ease-out hidden sm:block" />
                                 </svg>
-                                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                    <span className="text-base sm:text-xl font-black text-slate-900 leading-none">{overallProgress}%</span>
-                                    <span className="text-[7px] sm:text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Syllabus</span>
+                                <div className="absolute inset-0 flex flex-col items-center justify-center px-1">
+                                    <span className="font-black text-slate-900 leading-none whitespace-nowrap text-[13px] sm:text-lg">{overallProgress}%</span>
+                                    <span className="font-bold text-slate-400 uppercase tracking-widest mt-0.5 whitespace-nowrap text-[6px] sm:text-[8px]">Syllabus</span>
                                 </div>
                             </div>
                             <div className="space-y-1">

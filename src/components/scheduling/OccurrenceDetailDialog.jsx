@@ -285,8 +285,9 @@ export default function OccurrenceDetailDialog({ session, onClose, onUpdate }) {
                                 <div className="flex items-center gap-2 flex-shrink-0">
                                     {s.status === 'present' && <span className="text-[9px] font-black uppercase bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full flex items-center gap-1"><CheckCircle2 size={10} strokeWidth={2.5} /> Present</span>}
                                     {s.status === 'absent' && <span className="text-[9px] font-black uppercase bg-red-100 text-red-700 px-2 py-1 rounded-full flex items-center gap-1"><XCircle size={10} strokeWidth={2.5} /> Absent</span>}
-                                    <span className={`text-[9px] font-black uppercase px-2 py-1 rounded-full flex items-center gap-1 ${(s.outstanding ?? 0) > 0 ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}`}>
-                                        {(s.outstanding ?? 0) > 0 ? '💳 Unpaid' : '✓ Paid'}
+                                    <span className={`text-[9px] font-black uppercase px-2 py-1 rounded-full flex items-center gap-1 ${s.has_invoice !== false && (s.outstanding ?? 0) <= 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}
+                                        title={s.has_invoice === false ? 'No invoice on file for this class' : undefined}>
+                                        {s.has_invoice !== false && (s.outstanding ?? 0) <= 0 ? '✓ Paid' : '💳 Unpaid'}
                                     </span>
                                     <button onClick={(e) => onRemoveClick(s.student_id, e)} title="Remove student"
                                         className="flex items-center gap-1 px-2 py-1 rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-500 transition-all text-[10px] font-bold">

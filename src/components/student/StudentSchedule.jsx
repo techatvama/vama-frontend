@@ -4,7 +4,7 @@ import {
     eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, parse,
 } from 'date-fns';
 import {
-    ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, Users,
+    ChevronLeft, ChevronRight, Calendar as CalendarIcon, CalendarPlus, Clock, Users,
     MessageSquare, Music, X, CheckCircle2, AlertCircle, ArrowRight,
     RefreshCw, Zap, Ban, RotateCcw, Check,
 } from 'lucide-react';
@@ -29,12 +29,14 @@ const subjectColor = (s) => SUBJECT_COLORS[s] || '#463a7a';
 // ─── Live badge ───────────────────────────────────────────────────────────────
 function LiveBadge({ lastRefresh, syncing }) {
     return (
-        <div className="flex items-center gap-2 text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-full">
-            <span className={`w-2 h-2 rounded-full bg-emerald-500 ${syncing ? 'animate-ping' : 'animate-pulse'}`} />
+        <div className="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full whitespace-nowrap flex-shrink-0">
+            <span className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-emerald-500 flex-shrink-0 ${syncing ? 'animate-ping' : 'animate-pulse'}`} />
             <span>LIVE</span>
-            <span className="text-emerald-400 font-medium">
-                {lastRefresh ? `· ${format(lastRefresh, 'h:mm a')}` : ''}
-            </span>
+            {lastRefresh && (
+                <span className="text-emerald-400 font-medium hidden sm:inline">
+                    · {format(lastRefresh, 'h:mm a')}
+                </span>
+            )}
         </div>
     );
 }
@@ -404,6 +406,260 @@ function RescheduleModal({ session, studentId, onDone, onClose }) {
     );
 }
 
+// ─── Book a Class Modal (self-service — no existing class being swapped) ──────
+function BookClassModal({ studentId, onDone, onClose }) {
+    const [loadingSubjects, setLoadingSubjects] = useState(true);
+    const [subjects, setSubjects] = useState([]);
+    const [selectedSubject, setSelectedSubject] = useState(null);
+    const [step, setStep] = useState('subject'); // 'subject' | 'slots' | 'preview'
+    const [slotDate, setSlotDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+    const [slots, setSlots] = useState([]);
+    const [slotsLoading, setSlotsLoading] = useState(false);
+    const [selectedSlot, setSelectedSlot] = useState(null);
+    const [confirming, setConfirming] = useState(false);
+    const [error, setError] = useState('');
+
+    const todayStr = format(new Date(), 'yyyy-MM-dd');
+
+    // Derive the student's enrolled subjects from their own upcoming schedule
+    // (next 90 days, wider than the calendar's current month so a subject
+    // that just doesn't happen to have a class this particular month still
+    // shows up) — there's no dedicated "my subjects" endpoint, and this
+    // mirrors what the class list already contains.
+    useEffect(() => {
+        (async () => {
+            setLoadingSubjects(true);
+            try {
+                const start = todayStr;
+                const end = format(addMonths(new Date(), 3), 'yyyy-MM-dd');
+                const res = await api.get(`/student/${studentId}/sessions`, { params: { start, end } });
+                const subs = [...new Set((res.data || []).map(s => s.batch?.subject).filter(Boolean))];
+                setSubjects(subs);
+                if (subs.length === 1) { setSelectedSubject(subs[0]); setStep('slots'); }
+            } catch {
+                setError('Failed to load your subjects.');
+            } finally {
+                setLoadingSubjects(false);
+            }
+        })();
+    }, [studentId]);
+
+    const fetchSlots = useCallback(async (subject, d) => {
+        if (!subject) return;
+        setSlotsLoading(true);
+        setError('');
+        try {
+            const res = await api.get(`/student/${studentId}/available-slots`, {
+                params: { start: d, end: d, subject },
+            });
+            setSlots(res.data || []);
+        } catch {
+            setError('Failed to load available slots.');
+        } finally {
+            setSlotsLoading(false);
+        }
+    }, [studentId]);
+
+    useEffect(() => {
+        if (step === 'slots' && selectedSubject) fetchSlots(selectedSubject, slotDate);
+    }, [step, selectedSubject, slotDate]);
+
+    const handleConfirm = async () => {
+        if (!selectedSlot) return;
+        setConfirming(true);
+        setError('');
+        try {
+            await api.post(`/student/${studentId}/book`, {
+                session_id: selectedSlot.id,
+                reason: 'Booked by student',
+            });
+            onDone();
+        } catch (e) {
+            setError(e.response?.data?.detail || 'Failed to book. Please try again.');
+            setConfirming(false);
+        }
+    };
+
+    const isFull = (s) => s.capacity > 0 && s.enrolled >= s.capacity;
+    const availableCount = slots.filter(s => !isFull(s)).length;
+    const sc = subjectColor(selectedSubject);
+
+    return (
+        <div className="fixed inset-0 z-[90] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
+            <div className="bg-white rounded-t-[32px] sm:rounded-[32px] shadow-2xl w-full sm:max-w-md h-[92dvh] sm:max-h-[88dvh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+
+                {/* Header */}
+                <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
+                    <div>
+                        <div className="text-xs font-black uppercase tracking-widest text-gray-400">
+                            {step === 'subject' ? 'Choose a subject' : step === 'slots' ? 'Choose a slot' : 'Confirm booking'}
+                        </div>
+                        <h3 className="text-lg font-black text-gray-900 mt-0.5">Book a Class</h3>
+                    </div>
+                    <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors flex-shrink-0">
+                        <X size={18} className="text-gray-500" />
+                    </button>
+                </div>
+
+                {/* ── Step: Subject ── */}
+                {step === 'subject' && (
+                    <div className="flex-1 overflow-y-auto p-4 space-y-2">
+                        {loadingSubjects ? (
+                            <div className="flex items-center justify-center py-10 text-gray-400">
+                                <RefreshCw size={22} className="animate-spin mr-2" />
+                                <span className="text-sm font-bold">Loading…</span>
+                            </div>
+                        ) : subjects.length === 0 ? (
+                            <div className="text-center py-12 text-gray-400">
+                                <Music size={36} className="mx-auto mb-3 opacity-30" />
+                                <p className="text-sm font-black">No enrolled subjects found</p>
+                            </div>
+                        ) : subjects.map(subj => (
+                            <button key={subj}
+                                onClick={() => { setSelectedSubject(subj); setStep('slots'); }}
+                                className="w-full flex items-center gap-3 p-4 rounded-2xl border-2 border-gray-100 hover:border-[#463a7a]/40 hover:shadow-md transition-all text-left">
+                                <div className="w-10 h-10 rounded-2xl flex items-center justify-center text-white text-xs font-black flex-shrink-0" style={{ backgroundColor: subjectColor(subj) }}>
+                                    {(subj || 'C')[0]}
+                                </div>
+                                <span className="font-black text-sm text-gray-900">{parseSubject(subj)}</span>
+                                <ArrowRight size={16} className="ml-auto text-gray-300" />
+                            </button>
+                        ))}
+                    </div>
+                )}
+
+                {/* ── Step: Slots ── */}
+                {step === 'slots' && (
+                    <div className="flex-1 overflow-y-auto">
+                        <div className="mx-4 mt-4 p-4 rounded-2xl" style={{ backgroundColor: sc + '15', border: `1.5px solid ${sc}30` }}>
+                            <div className="text-xs font-black uppercase tracking-widest mb-1" style={{ color: sc }}>Booking</div>
+                            <div className="font-black text-gray-900">{parseSubject(selectedSubject)}</div>
+                        </div>
+
+                        <div className="px-4 mt-4">
+                            <label className="block text-xs font-black uppercase tracking-widest text-gray-400 mb-2">
+                                <CalendarIcon size={11} className="inline mr-1" /> Select Date
+                            </label>
+                            <input
+                                type="date"
+                                value={slotDate}
+                                min={todayStr}
+                                onChange={e => setSlotDate(e.target.value)}
+                                className="w-full px-4 py-3 border-2 border-gray-100 rounded-2xl text-sm font-semibold focus:border-[#463a7a] focus:outline-none focus:ring-2 focus:ring-[#463a7a]/15 transition-all"
+                            />
+                            {!slotsLoading && slots.length > 0 && (
+                                <p className="text-xs font-bold text-gray-400 mt-2">
+                                    {availableCount} of {slots.length} slot{slots.length !== 1 ? 's' : ''} available on this day
+                                </p>
+                            )}
+                        </div>
+
+                        <div className="px-4 py-4 space-y-3">
+                            {slotsLoading ? (
+                                <div className="flex items-center justify-center py-10 text-gray-400">
+                                    <RefreshCw size={22} className="animate-spin mr-2" />
+                                    <span className="text-sm font-bold">Loading slots…</span>
+                                </div>
+                            ) : error ? (
+                                <div className="text-center py-8 text-red-500 text-sm font-bold">{error}</div>
+                            ) : slots.length === 0 ? (
+                                <div className="text-center py-12 text-gray-400">
+                                    <CalendarIcon size={36} className="mx-auto mb-3 opacity-30" />
+                                    <p className="text-sm font-black">No slots available on this day</p>
+                                    <p className="text-xs font-medium opacity-60 mt-1">Try a different date</p>
+                                </div>
+                            ) : slots.map(slot => {
+                                const full = isFull(slot);
+                                return (
+                                    <div key={slot.id}
+                                        className={`flex items-center gap-4 p-4 rounded-2xl border-2 transition-all ${full ? 'bg-gray-50 border-gray-100 opacity-60' : 'bg-white border-gray-100 hover:border-[#463a7a]/40 hover:shadow-md cursor-pointer'}`}>
+                                        <div className="flex-shrink-0">
+                                            <div className="w-10 h-10 rounded-2xl flex items-center justify-center text-white text-xs font-black" style={{ backgroundColor: sc }}>
+                                                {(slot.subject || 'C')[0]}
+                                            </div>
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="font-black text-sm text-gray-900">{fmtTime(slot.start_time)} – {fmtTime(slot.end_time)}</div>
+                                            <div className="text-xs text-gray-500 font-medium truncate">{slot.teacher_name}</div>
+                                            <div className="flex items-center gap-1.5 mt-1">
+                                                <Users size={11} className={full ? 'text-red-400' : 'text-emerald-500'} />
+                                                <span className={`text-[10px] font-black ${full ? 'text-red-500' : 'text-emerald-600'}`}>
+                                                    {full ? 'Fully Booked' : `${Math.max(0, slot.capacity - slot.enrolled)} spot${Math.max(0, slot.capacity - slot.enrolled) !== 1 ? 's' : ''} left`}
+                                                </span>
+                                                <span className="text-[10px] text-gray-300 font-medium">({slot.enrolled}/{slot.capacity})</span>
+                                            </div>
+                                        </div>
+                                        {full ? (
+                                            <span className="text-[10px] font-black text-red-400 bg-red-50 px-2.5 py-1 rounded-full flex-shrink-0">Full</span>
+                                        ) : (
+                                            <button
+                                                onClick={() => { setSelectedSlot(slot); setStep('preview'); }}
+                                                className="px-4 py-2 bg-[#463a7a] text-white text-xs font-black rounded-xl hover:bg-[#342a5b] transition-all active:scale-95 flex-shrink-0 shadow-sm shadow-indigo-900/20"
+                                            >
+                                                Book
+                                            </button>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
+
+                {/* ── Step: Preview ── */}
+                {step === 'preview' && selectedSlot && (
+                    <div className="flex-1 overflow-y-auto p-6 space-y-5">
+                        <p className="text-sm text-gray-500 font-medium">Review your booking details before confirming.</p>
+
+                        <div className="p-5 bg-emerald-50 border-2 border-emerald-100 rounded-2xl">
+                            <div className="text-[10px] font-black uppercase tracking-widest text-emerald-500 mb-2 flex items-center gap-1.5">
+                                <Check size={11} /> New Booking
+                            </div>
+                            <div className="font-black text-gray-900">{parseSubject(selectedSubject)}</div>
+                            <div className="text-sm text-gray-600 font-medium mt-0.5">{fmtTime(selectedSlot.start_time)} – {fmtTime(selectedSlot.end_time)}</div>
+                            <div className="text-xs text-gray-400 font-medium mt-0.5">{format(new Date(selectedSlot.date + 'T00:00:00'), 'EEEE, MMMM d, yyyy')}</div>
+                            <div className="text-xs text-gray-400 font-medium mt-0.5">with {selectedSlot.teacher_name}</div>
+                        </div>
+
+                        {error && (
+                            <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-600 font-semibold">
+                                <AlertCircle size={15} /> {error}
+                            </div>
+                        )}
+
+                        <p className="text-xs text-gray-400 font-medium text-center">
+                            This uses one of your makeup sessions and will reflect immediately in admin and teacher portals.
+                        </p>
+                    </div>
+                )}
+
+                {/* Footer */}
+                <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 flex gap-3 flex-shrink-0">
+                    {step === 'subject' ? (
+                        <button onClick={onClose} className="flex-1 py-3 bg-white border border-gray-200 text-gray-700 rounded-2xl font-black text-sm hover:bg-gray-50 transition-colors">
+                            Cancel
+                        </button>
+                    ) : step === 'slots' ? (
+                        <button onClick={onClose} className="flex-1 py-3 bg-white border border-gray-200 text-gray-700 rounded-2xl font-black text-sm hover:bg-gray-50 transition-colors">
+                            Cancel
+                        </button>
+                    ) : (
+                        <>
+                            <button onClick={() => setStep('slots')} className="flex-1 py-3 bg-white border border-gray-200 text-gray-700 rounded-2xl font-black text-sm hover:bg-gray-50 transition-colors">
+                                Back
+                            </button>
+                            <button onClick={handleConfirm} disabled={confirming}
+                                className="flex-2 px-6 py-3 bg-[#463a7a] text-white rounded-2xl font-black text-sm hover:bg-[#342a5b] disabled:opacity-50 transition-all active:scale-95 shadow-lg shadow-indigo-900/20 whitespace-nowrap">
+                                {confirming ? 'Booking…' : 'Confirm Booking'}
+                            </button>
+                        </>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+}
+
 // ─── Success Toast ─────────────────────────────────────────────────────────────
 function Toast({ message, onDone }) {
     useEffect(() => {
@@ -419,7 +675,7 @@ function Toast({ message, onDone }) {
 }
 
 // ─── Package Status Banner ────────────────────────────────────────────────────
-function PackageStatusBanner({ pkg }) {
+function PackageStatusBanner({ pkg, onBook }) {
     if (!pkg) return null;
 
     const { can_book, block_reason, package_name, sessions_remaining, sessions_total,
@@ -501,6 +757,18 @@ function PackageStatusBanner({ pkg }) {
                 </div>
             </div>
 
+            {/* Book a class — right where the makeup balance it spends is shown */}
+            {onBook && makeup_remaining > 0 && (
+                <div className="px-5 pb-4">
+                    <button onClick={onBook}
+                        title={`${makeup_remaining} makeup${makeup_remaining !== 1 ? 's' : ''} left`}
+                        className="w-full flex items-center justify-center gap-2 py-3.5 bg-[#463a7a] hover:bg-[#342a5b] text-white text-[11px] font-black uppercase tracking-widest rounded-2xl shadow-lg shadow-indigo-900/20 transition-all active:scale-[0.97]">
+                        <CalendarPlus size={14} />
+                        Book a Class
+                    </button>
+                </div>
+            )}
+
             {/* Footer */}
             <div className={`px-5 py-3 border-t flex items-center justify-between ${warn ? 'border-amber-200 bg-amber-100/40' : 'border-slate-50 bg-slate-50/60'}`}>
                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
@@ -535,6 +803,7 @@ export default function StudentSchedule() {
     // Modal state
     const [optionsSession, setOptionsSession] = useState(null);
     const [rescheduleSession, setRescheduleSession] = useState(null);
+    const [showBookModal, setShowBookModal] = useState(false);
     const [cancelling, setCancelling] = useState(false);
     const [toast, setToast] = useState('');
 
@@ -622,6 +891,12 @@ export default function StudentSchedule() {
         refreshNow();
     };
 
+    const handleBookDone = () => {
+        setShowBookModal(false);
+        setToast('Class booked! All portals updated in real time.');
+        refreshNow();
+    };
+
     // ── Render ──
     if (loading) return (
         <div className="flex items-center justify-center min-h-screen">
@@ -636,35 +911,35 @@ export default function StudentSchedule() {
         <div className="p-4 lg:p-10 max-w-7xl mx-auto space-y-8 pb-24">
 
             {/* ── Header ── */}
-            <div className="relative bg-[#463a7a] rounded-[36px] p-8 lg:p-12 overflow-hidden shadow-2xl shadow-indigo-900/40">
-                <div className="absolute top-0 right-0 p-10 opacity-5">
+            <div className="relative bg-[#463a7a] rounded-[28px] sm:rounded-[36px] p-5 sm:p-8 lg:p-12 overflow-hidden shadow-2xl shadow-indigo-900/40">
+                <div className="absolute top-0 right-0 p-10 opacity-5 hidden sm:block">
                     <CalendarIcon className="w-64 h-64 text-white fill-current" />
                 </div>
 
-                <div className="relative z-10 flex flex-col lg:flex-row lg:items-end justify-between gap-6">
-                    <div>
-                        <div className="flex items-center gap-3 mb-3">
-                            <h1 className="text-4xl font-black text-white tracking-tight">Academic Calendar</h1>
+                <div className="relative z-10 flex flex-col lg:flex-row lg:items-end justify-between gap-4 sm:gap-6">
+                    <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
+                            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white tracking-tight">Academic Calendar</h1>
                             <LiveBadge lastRefresh={lastRefresh} syncing={syncing} />
                         </div>
-                        <p className="text-indigo-200/60 font-medium">Real-time sync · changes reflect instantly across all portals</p>
+                        <p className="text-indigo-200/60 font-medium text-xs sm:text-base">Real-time sync · changes reflect instantly across all portals</p>
                     </div>
 
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 sm:gap-3">
                         <button onClick={refreshNow}
-                            className="p-3 bg-white/10 hover:bg-white/20 border border-white/10 rounded-2xl transition-all text-white"
+                            className="p-2.5 sm:p-3 bg-white/10 hover:bg-white/20 border border-white/10 rounded-xl sm:rounded-2xl transition-all text-white flex-shrink-0"
                             title="Refresh now">
-                            <RefreshCw size={18} className={syncing ? 'animate-spin' : ''} />
+                            <RefreshCw size={16} className={`sm:w-[18px] sm:h-[18px] ${syncing ? 'animate-spin' : ''}`} />
                         </button>
-                        <div className="flex items-center bg-white/10 backdrop-blur-md rounded-[24px] p-1.5 border border-white/5">
-                            <button onClick={() => setCurrentDate(subMonths(currentDate, 1))} className="p-3 hover:bg-white/10 rounded-xl transition-all text-white active:scale-90">
-                                <ChevronLeft size={20} />
+                        <div className="flex items-center bg-white/10 backdrop-blur-md rounded-2xl sm:rounded-[24px] p-1 sm:p-1.5 border border-white/5 min-w-0">
+                            <button onClick={() => setCurrentDate(subMonths(currentDate, 1))} className="p-2 sm:p-3 hover:bg-white/10 rounded-lg sm:rounded-xl transition-all text-white active:scale-90 flex-shrink-0">
+                                <ChevronLeft size={16} className="sm:w-5 sm:h-5" />
                             </button>
-                            <div className="px-6 font-black text-white min-w-[160px] text-center text-lg">
-                                {format(currentDate, 'MMMM yyyy')}
+                            <div className="px-2 sm:px-6 font-black text-white text-center text-xs sm:text-lg whitespace-nowrap">
+                                {format(currentDate, 'MMM yyyy')}
                             </div>
-                            <button onClick={() => setCurrentDate(addMonths(currentDate, 1))} className="p-3 hover:bg-white/10 rounded-xl transition-all text-white active:scale-90">
-                                <ChevronRight size={20} />
+                            <button onClick={() => setCurrentDate(addMonths(currentDate, 1))} className="p-2 sm:p-3 hover:bg-white/10 rounded-lg sm:rounded-xl transition-all text-white active:scale-90 flex-shrink-0">
+                                <ChevronRight size={16} className="sm:w-5 sm:h-5" />
                             </button>
                         </div>
                     </div>
@@ -727,7 +1002,7 @@ export default function StudentSchedule() {
                                 <h2 className="text-3xl font-black text-slate-900 tracking-tight leading-none">{format(selectedDate, 'EEEE')}</h2>
                                 <p className="text-[#463a7a] text-[11px] font-black uppercase tracking-widest mt-1.5">{format(selectedDate, 'MMMM d, yyyy')}</p>
                             </div>
-                            <div className="w-11 h-11 bg-indigo-50 rounded-2xl flex items-center justify-center text-[#463a7a]">
+                            <div className="w-11 h-11 bg-indigo-50 rounded-2xl flex items-center justify-center text-[#463a7a] flex-shrink-0">
                                 <CalendarIcon size={20} />
                             </div>
                         </div>
@@ -746,13 +1021,13 @@ export default function StudentSchedule() {
                                     return (
                                         <div key={session.id}
                                             onClick={() => setOptionsSession(session)}
-                                            className={`p-5 rounded-[28px] border-2 cursor-pointer transition-all group
+                                            className={`p-3.5 rounded-2xl border-2 cursor-pointer transition-all group
                                                 ${cancelled ? 'border-red-100 bg-red-50/30 opacity-60' : 'border-slate-100 hover:border-[#463a7a]/30 hover:shadow-xl hover:shadow-indigo-100/50 hover:-translate-y-0.5'}`}
                                         >
                                             {/* Top row */}
-                                            <div className="flex items-start justify-between mb-3">
+                                            <div className="flex items-start justify-between mb-2">
                                                 <div className="flex items-center gap-2">
-                                                    <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white text-xs font-black" style={{ backgroundColor: color }}>
+                                                    <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white text-xs font-black" style={{ backgroundColor: color }}>
                                                         {(parseSubjectList(session.batch?.subject)[0] || 'C')[0]}
                                                     </div>
                                                     <div>
@@ -769,12 +1044,12 @@ export default function StudentSchedule() {
                                                 </div>
                                             </div>
 
-                                            <h3 className={`text-base font-black text-slate-900 mb-2 group-hover:text-[#463a7a] transition-colors ${cancelled ? 'line-through' : ''}`}>
+                                            <h3 className={`text-sm font-black text-slate-900 mb-1 group-hover:text-[#463a7a] transition-colors ${cancelled ? 'line-through' : ''}`}>
                                                 {session.batch?.name || `${parseSubject(session.batch?.subject)} Session`}
                                             </h3>
 
                                             {session.batch?.teacher?.name && (
-                                                <p className="text-xs text-slate-500 font-medium mb-3">with {session.batch.teacher.name}</p>
+                                                <p className="text-xs text-slate-500 font-medium mb-1.5">with {session.batch.teacher.name}</p>
                                             )}
 
                                             {/* Attendance badge — prefer embedded my_attendance, fallback to separate att record */}
@@ -788,7 +1063,7 @@ export default function StudentSchedule() {
                                                 const m = map[st];
                                                 if (!m) return null;
                                                 return (
-                                                    <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black mb-3 ${m.cls}`}>
+                                                    <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black mb-2 ${m.cls}`}>
                                                         {m.icon} {m.label}
                                                     </div>
                                                 );
@@ -796,7 +1071,7 @@ export default function StudentSchedule() {
 
                                             {/* Teacher feedback */}
                                             {att?.notes && (
-                                                <div className="p-3 bg-indigo-50 rounded-2xl border border-indigo-100 mb-3">
+                                                <div className="p-3 bg-indigo-50 rounded-2xl border border-indigo-100 mb-2">
                                                     <div className="flex items-center gap-1.5 mb-1">
                                                         <MessageSquare size={11} className="text-indigo-500" />
                                                         <span className="text-[9px] font-black text-indigo-500 uppercase tracking-widest">Teacher Feedback</span>
@@ -828,7 +1103,7 @@ export default function StudentSchedule() {
                     </div>
 
                     {/* ── Package Status (SECOND) ── */}
-                    <PackageStatusBanner pkg={packageStatus} />
+                    <PackageStatusBanner pkg={packageStatus} onBook={() => setShowBookModal(true)} />
 
                     {/* ── Latest feedback widget ── */}
                     <div className="bg-[#463a7a] rounded-[40px] p-8 text-white relative overflow-hidden shadow-2xl shadow-indigo-900/40">
@@ -880,6 +1155,14 @@ export default function StudentSchedule() {
                     studentId={student?.id}
                     onDone={handleRescheduleDone}
                     onClose={() => setRescheduleSession(null)}
+                />
+            )}
+
+            {showBookModal && (
+                <BookClassModal
+                    studentId={student?.id}
+                    onDone={handleBookDone}
+                    onClose={() => setShowBookModal(false)}
                 />
             )}
 

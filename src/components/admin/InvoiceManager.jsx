@@ -242,8 +242,12 @@ export default function InvoiceManager() {
     const SortIcon = ({ col }) => sortBy === col ? (sortDir === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />) : null;
 
     const handleMarkPaid = async (id) => {
-        try { await api.patch(`/admin/invoices/${id}`, { status: 'paid', paid_date: new Date().toISOString() }); }
-        catch { }
+        try {
+            await api.patch(`/admin/invoices/${id}`, { status: 'paid', paid_date: new Date().toISOString() });
+        } catch (e) {
+            alert(e.response?.data?.detail || 'Failed to mark invoice as paid. Please try again.');
+            return; // don't touch local state — the write never landed, so showing "paid" would be a lie that reverts on refresh
+        }
         setInvoices(prev => prev.map(inv => inv.id === id
             ? { ...inv, status: 'paid', paid_date: new Date().toISOString(), paid_amount: inv.total_amount }
             : inv));
@@ -387,16 +391,16 @@ export default function InvoiceManager() {
                     <button onClick={() => navigate('/admin/payments')} className="mb-4 text-white/50 hover:text-white text-xs font-bold uppercase tracking-widest flex items-center gap-1.5 transition-colors">
                         ← Payment Hub
                     </button>
-                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-                        <div>
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 flex-wrap">
+                        <div className="min-w-0">
                             <h1 className="text-4xl lg:text-5xl font-bold text-white tracking-tighter leading-none mb-2">Invoices</h1>
                             <p className="text-white/50 text-sm">Track, create, and manage all student invoices</p>
                         </div>
-                        <div className="flex items-center gap-3">
-                            <button onClick={() => navigate('/admin/billing-settings')} className="px-5 py-3 bg-white/10 hover:bg-white/20 text-white rounded-2xl font-bold text-xs uppercase tracking-widest flex items-center gap-2 transition-all border border-white/10">
+                        <div className="flex items-center gap-3 flex-wrap shrink-0">
+                            <button onClick={() => navigate('/admin/billing-settings')} className="shrink-0 px-5 py-3 bg-white/10 hover:bg-white/20 text-white rounded-2xl font-bold text-xs uppercase tracking-widest flex items-center gap-2 transition-all border border-white/10">
                                 <Info size={15} /> Settings
                             </button>
-                            <button onClick={() => navigate('/admin/invoices/new')} className="px-5 py-3 bg-white text-[#463a7a] rounded-2xl font-bold text-xs uppercase tracking-widest shadow-xl hover:scale-105 transition-all flex items-center gap-2">
+                            <button onClick={() => navigate('/admin/invoices/new')} className="shrink-0 px-5 py-3 bg-white text-[#463a7a] rounded-2xl font-bold text-xs uppercase tracking-widest shadow-xl hover:scale-105 transition-all flex items-center gap-2 whitespace-nowrap">
                                 <Plus size={15} /> New Invoice
                             </button>
                         </div>
@@ -513,7 +517,7 @@ export default function InvoiceManager() {
                                     return (
                                         <tr key={inv.id}
                                             className={`border-b border-slate-50 transition-colors group cursor-pointer ${isSelected ? 'bg-violet-50/50' : idx % 2 === 0 ? 'bg-white hover:bg-slate-50/50' : 'bg-slate-50/20 hover:bg-slate-50/60'}`}
-                                            onClick={() => setSelectedInvoice(inv)}>
+                                            onClick={() => inv.student_id && navigate(`/students/${inv.student_id}`)}>
                                             <td className="px-5 py-4" onClick={e => { e.stopPropagation(); toggleSelect(inv.id); }}>
                                                 <input type="checkbox" checked={isSelected} onChange={() => { }} className="w-4 h-4 rounded-lg accent-[#463a7a] cursor-pointer" />
                                             </td>
@@ -566,7 +570,7 @@ export default function InvoiceManager() {
                                                 </p>
                                             </td>
                                             <td className="px-5 py-4" onClick={e => e.stopPropagation()}>
-                                                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <div className="flex items-center gap-1">
                                                     <button onClick={() => setPaymentTarget(inv)} className="p-1.5 hover:bg-slate-100 rounded-xl text-slate-400 hover:text-[#463a7a] transition-all" title="View & Record Payment"><Eye size={14} /></button>
                                                     {inv.status !== 'paid' && (
                                                         <button onClick={() => handleMarkPaid(inv.id)} className="p-1.5 hover:bg-emerald-50 rounded-xl text-slate-400 hover:text-emerald-600 transition-all" title="Mark Paid"><CheckCircle2 size={14} /></button>
@@ -854,14 +858,13 @@ export default function InvoiceManager() {
                 </div>
             )}
 
-            {/* FAB */}
+            {/* Always-visible floating action button — stays reachable while scrolling
+                 the invoice list, and labels itself instead of relying on hover, so the
+                 primary "create invoice" action is never lost off-screen. */}
             <div className="fixed bottom-6 right-6 z-50">
                 <button onClick={openCreateForm}
-                    className="w-14 h-14 bg-gradient-to-br from-[#463a7a] to-[#2d2550] text-white rounded-full shadow-2xl hover:scale-110 active:scale-95 transition-all flex items-center justify-center group">
-                    <Plus size={24} />
-                    <span className="absolute right-full mr-3 bg-slate-900 text-white text-xs font-bold px-3 py-1.5 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                        Create Invoice
-                    </span>
+                    className="pl-5 pr-6 py-4 bg-gradient-to-br from-[#463a7a] to-[#2d2550] text-white rounded-full shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center gap-2 font-bold text-sm">
+                    <Plus size={20} /> New Invoice
                 </button>
             </div>
         </div>

@@ -53,6 +53,21 @@ export default function ClassSessionCard({ session, onClick, compact = false, vi
     const enrollmentCount  = session.enrollment_count || 0;
     const capacity         = session.batch?.capacity || session.capacity || 10;
     const enrolledStudents = session.enrolled_students || [];
+    // No invoice on file is not the same as paid — a student who was never
+    // billed for this subject also nets to ₹0 outstanding, which used to
+    // look identical to "paid in full" here.
+    const isPaid           = (s) => s.has_invoice !== false && (s.outstanding ?? 0) <= 0;
+    const paymentTooltip    = (s) => {
+        if (s.outstanding === undefined) return undefined;
+        if (s.has_invoice === false) return 'No invoice on file for this class';
+        return isPaid(s) ? 'Fees paid' : `₹${s.outstanding} outstanding`;
+    };
+    const paidCount        = typeof session.paid_count === 'number'
+        ? session.paid_count
+        : enrolledStudents.filter(isPaid).length;
+    const hasPaymentData   = enrolledStudents.length > 0 && enrolledStudents.some(s => s.outstanding !== undefined);
+    const allPaid          = hasPaymentData && paidCount === enrollmentCount;
+    const somePaid         = hasPaymentData && paidCount > 0 && paidCount < enrollmentCount;
     const teacher          = session.batch?.teacher?.name || '';
     const batchName        = session.batch?.name || '';
     const status           = session.status || 'scheduled';
@@ -102,14 +117,30 @@ export default function ClassSessionCard({ session, onClick, compact = false, vi
                         ? fmtTime(session.start_time)
                         : `${fmtTime(session.start_time)} – ${fmtTime(session.end_time)}`}
                 </span>
-                <span className={cn(
-                    "text-[9px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0",
-                    isFullyBooked ? "bg-orange-100 text-orange-700"
-                        : isEmpty ? "bg-yellow-100 text-yellow-700"
-                        : "bg-white/70 text-slate-600"
-                )}>
-                    {enrollmentCount}/{capacity}
-                </span>
+                <div className="flex items-center gap-1 flex-shrink-0">
+                    {hasPaymentData && !compact && (
+                        <span
+                            className={cn(
+                                "text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5",
+                                allPaid ? "bg-emerald-100 text-emerald-700"
+                                    : somePaid ? "bg-amber-100 text-amber-700"
+                                    : "bg-red-100 text-red-700"
+                            )}
+                            title={`${paidCount} of ${enrollmentCount} enrolled students have paid`}>
+                            <span className="w-1 h-1 rounded-full flex-shrink-0"
+                                style={{ backgroundColor: allPaid ? '#059669' : somePaid ? '#d97706' : '#dc2626' }} />
+                            {paidCount}/{enrollmentCount} paid
+                        </span>
+                    )}
+                    <span className={cn(
+                        "text-[9px] font-bold px-1.5 py-0.5 rounded-full",
+                        isFullyBooked ? "bg-orange-100 text-orange-700"
+                            : isEmpty ? "bg-yellow-100 text-yellow-700"
+                            : "bg-white/70 text-slate-600"
+                    )}>
+                        {enrollmentCount}/{capacity}
+                    </span>
+                </div>
             </div>
 
             {/* ── SUBJECT + BADGES ── */}
@@ -141,20 +172,27 @@ export default function ClassSessionCard({ session, onClick, compact = false, vi
                 </div>
             )}
 
-            {/* ── STUDENTS: Day view — prominent chips (all students) ── */}
+            {/* ── STUDENTS: Day view — horizontal chip row (all students, wraps outward instead of clipping vertically) ── */}
             {isDayView && !compact && enrolledStudents.length > 0 && (
-                <div className="px-2 flex-1 overflow-y-auto min-h-0 mt-0.5 pb-0.5"
-                    style={{ scrollbarWidth: 'none' }}>
-                    <div className="space-y-0.5">
+                <div className="px-2 flex-1 overflow-x-auto overflow-y-hidden min-h-0 mt-0.5 pb-0.5"
+                    style={{ scrollbarWidth: 'thin' }}>
+                    <div className="flex flex-row flex-nowrap items-center gap-1 h-full">
                         {enrolledStudents.map((s, i) => (
                             <div key={s.id}
-                                className="flex items-center gap-1.5 rounded-md px-1.5 py-0.5"
-                                style={{ backgroundColor: borderColor + '1a' }}>
-                                <div className="w-4 h-4 rounded-full flex items-center justify-center text-[7px] font-black text-white flex-shrink-0"
-                                    style={{ backgroundColor: borderColor + (i < 3 ? 'dd' : 'aa') }}>
-                                    {s.first_name?.[0]}{s.last_name?.[0]}
+                                className="flex items-center gap-1 rounded-full pl-0.5 pr-1.5 py-0.5 flex-shrink-0"
+                                style={{ backgroundColor: borderColor + '1a' }}
+                                title={paymentTooltip(s)}>
+                                <div className="relative w-4 h-4 flex-shrink-0">
+                                    <div className="w-4 h-4 rounded-full flex items-center justify-center text-[7px] font-black text-white"
+                                        style={{ backgroundColor: borderColor + (i < 3 ? 'dd' : 'aa') }}>
+                                        {s.first_name?.[0]}{s.last_name?.[0]}
+                                    </div>
+                                    {s.outstanding !== undefined && (
+                                        <span className="absolute -bottom-0.5 -right-0.5 w-1.5 h-1.5 rounded-full border border-white"
+                                            style={{ backgroundColor: isPaid(s) ? '#059669' : '#dc2626' }} />
+                                    )}
                                 </div>
-                                <span className="text-[10px] font-semibold truncate leading-none" style={{ color: textColor }}>
+                                <span className="text-[10px] font-semibold whitespace-nowrap leading-none" style={{ color: textColor }}>
                                     {s.first_name} {s.last_name}
                                 </span>
                             </div>

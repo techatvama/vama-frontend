@@ -3,9 +3,9 @@ import { useAutoRefresh } from '../../hooks/useAutoRefresh';
 import { api } from '../../lib/api';
 import {
     CreditCard, CheckCircle2, Clock, AlertCircle, Download,
-    ArrowRight, Zap, Bell, Package, Activity, RefreshCw,
+    ArrowRight, Bell, Package,
     Shield, Lock, X,
-    BadgeCheck, CalendarDays, Layers, Music
+    BadgeCheck, Layers, Music
 } from 'lucide-react';
 import { format, differenceInDays } from 'date-fns';
 
@@ -23,28 +23,6 @@ function useRazorpay() {
     return ready;
 }
 
-
-// ─── Ring chart ───────────────────────────────────────────────────────────────
-function Ring({ pct, size = 96, stroke = 9, color = '#463a7a' }) {
-    const r = (size - stroke) / 2;
-    const circ = 2 * Math.PI * r;
-    const dash = (Math.min(pct, 100) / 100) * circ;
-    const c = pct >= 90 ? '#ef4444' : pct >= 70 ? '#f59e0b' : color;
-    return (
-        <div className="relative flex-shrink-0" style={{ width: size, height: size }}>
-            <svg width={size} height={size} className="-rotate-90 absolute inset-0">
-                <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#e2e8f0" strokeWidth={stroke} />
-                <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={c} strokeWidth={stroke}
-                    strokeDasharray={`${dash} ${circ}`} strokeLinecap="round"
-                    style={{ transition: 'stroke-dasharray 0.7s ease' }} />
-            </svg>
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-xl font-black text-slate-900 leading-none">{pct}%</span>
-                <span className="text-[9px] font-bold text-slate-400 mt-0.5">used</span>
-            </div>
-        </div>
-    );
-}
 
 // ─── Status badge ─────────────────────────────────────────────────────────────
 function StatusBadge({ status }) {
@@ -70,7 +48,7 @@ function PackageCard({ pkg, isActive, onSelect, highlight }) {
     return (
         <button
             onClick={() => onSelect(pkg)}
-            className={`w-full text-left rounded-[28px] border-2 p-5 transition-all group relative overflow-hidden
+            className={`w-full text-left rounded-2xl border-2 p-5 transition-all group relative overflow-hidden
                 ${isActive
                     ? 'border-[#463a7a] bg-gradient-to-br from-[#463a7a]/5 to-violet-50 shadow-xl shadow-[#463a7a]/10'
                     : 'border-slate-100 bg-white hover:border-[#463a7a]/40 hover:shadow-lg shadow-sm'
@@ -108,12 +86,12 @@ function PackageCard({ pkg, isActive, onSelect, highlight }) {
             {/* Stats pills */}
             <div className="flex flex-wrap gap-2 mb-4">
                 {[
-                    { icon: <Activity size={11} />, label: `${pkg.total_sessions} sessions` },
-                    { icon: <CalendarDays size={11} />, label: months === 1 ? '1 month' : `${months} months` },
-                    { icon: <RefreshCw size={11} />, label: `${pkg.makeup_sessions} makeup` },
-                ].map((s, i) => (
-                    <span key={i} className={`flex items-center gap-1 px-2.5 py-1 rounded-xl text-[11px] font-bold ${isActive ? 'bg-[#463a7a]/10 text-[#463a7a]' : 'bg-slate-100 text-slate-600'}`}>
-                        {s.icon}{s.label}
+                    `${pkg.total_sessions} sessions`,
+                    months === 1 ? '1 month' : `${months} months`,
+                    `${pkg.makeup_sessions} makeup`,
+                ].map((label, i) => (
+                    <span key={i} className={`px-2.5 py-1 rounded-xl text-[11px] font-bold ${isActive ? 'bg-[#463a7a]/10 text-[#463a7a]' : 'bg-slate-100 text-slate-600'}`}>
+                        {label}
                     </span>
                 ))}
             </div>
@@ -400,7 +378,7 @@ export default function StudentPayments() {
     );
 
     return (
-        <div className="px-4 py-6 lg:px-8 lg:py-8 max-w-lg mx-auto space-y-5 pb-32">
+        <div className="px-4 py-5 lg:px-8 lg:py-8 max-w-lg mx-auto space-y-4 pb-24">
 
             {/* ── Page title ──────────────────────────────────────── */}
             <div>
@@ -414,7 +392,7 @@ export default function StudentPayments() {
 
             {/* ── Alert banners ────────────────────────────────────── */}
             {needsRenewal && (
-                <div className="bg-red-50 border border-red-100 rounded-[24px] p-4 flex items-center gap-3">
+                <div className="bg-red-50 border border-red-100 rounded-2xl p-4 flex items-center gap-3">
                     <AlertCircle size={18} className="text-red-500 flex-shrink-0" />
                     <div className="flex-1 min-w-0">
                         <p className="text-sm font-black text-red-700">Package expired</p>
@@ -426,7 +404,7 @@ export default function StudentPayments() {
                 </div>
             )}
             {!needsRenewal && (isExpiring || isLow) && (
-                <div className="bg-amber-50 border border-amber-100 rounded-[24px] p-4 flex items-center gap-3">
+                <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 flex items-center gap-3">
                     <Bell size={18} className="text-amber-500 flex-shrink-0" />
                     <div className="flex-1 min-w-0">
                         <p className="text-sm font-black text-amber-700">
@@ -441,14 +419,14 @@ export default function StudentPayments() {
             )}
 
             {/* ── Tab bar ──────────────────────────────────────────── */}
-            <div className="flex gap-2 overflow-x-auto scrollbar-hide">
+            <div className="grid grid-cols-3 gap-1.5">
                 {[
                     { key: 'overview', label: 'My Package' },
-                    { key: 'browse', label: '✦ Browse & Pay' },
+                    { key: 'browse', label: 'Browse & Pay' },
                     { key: 'history', label: 'History' },
                 ].map(t => (
                     <button key={t.key} onClick={() => setTab(t.key)}
-                        className={`flex-shrink-0 px-4 py-2.5 rounded-2xl text-xs font-black uppercase tracking-widest transition-all ${tab === t.key ? 'bg-[#463a7a] text-white shadow-lg' : 'bg-white text-slate-500 border border-slate-200 hover:border-[#463a7a]/30 shadow-sm'}`}>
+                        className={`px-2 py-2.5 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-wide sm:tracking-widest transition-all whitespace-nowrap ${tab === t.key ? 'bg-[#463a7a] text-white shadow-lg' : 'bg-white text-slate-500 border border-slate-200 hover:border-[#463a7a]/30 shadow-sm'}`}>
                         {t.label}
                     </button>
                 ))}
@@ -462,28 +440,27 @@ export default function StudentPayments() {
                     {pkg ? (
                         <>
                             {/* Hero package card */}
-                            <div className="bg-gradient-to-br from-[#463a7a] to-[#2d2550] rounded-[32px] p-6 text-white relative overflow-hidden">
-                                <div className="absolute -top-8 -right-8 w-40 h-40 bg-white/5 rounded-full pointer-events-none" />
+                            <div className="bg-gradient-to-br from-[#463a7a] to-[#2d2550] rounded-3xl p-5 text-white relative overflow-hidden">
                                 <div className="relative z-10">
                                     <p className="text-white/50 text-[10px] font-black uppercase tracking-widest mb-1">Active Package</p>
-                                    <div className="flex items-start justify-between gap-3 mb-5">
-                                        <div>
-                                            <h2 className="text-xl font-black leading-tight">{pkg.name}</h2>
+                                    <div className="flex items-start justify-between gap-3 mb-4">
+                                        <div className="min-w-0">
+                                            <h2 className="text-[15px] font-black leading-snug">{pkg.name}</h2>
                                             <p className="text-white/60 text-xs mt-0.5">Since {format(new Date(pkg.start_date), 'MMM d, yyyy')}</p>
                                         </div>
-                                        <div className="bg-white/10 rounded-2xl px-3 py-2 text-center flex-shrink-0">
-                                            <p className="text-2xl font-black leading-none">{sessionsRemaining}</p>
+                                        <div className="bg-white/10 rounded-xl px-3 py-1.5 text-center flex-shrink-0">
+                                            <p className="text-xl font-black leading-none">{sessionsRemaining}</p>
                                             <p className="text-white/60 text-[9px] font-black uppercase tracking-wider mt-0.5">left</p>
                                         </div>
                                     </div>
 
                                     {/* Progress bar */}
-                                    <div className="mb-4">
+                                    <div className="mb-3">
                                         <div className="flex justify-between mb-1.5 text-[11px]">
                                             <span className="text-white/60 font-bold">Sessions used</span>
                                             <span className="text-white font-black">{pkg.sessions_used}/{pkg.sessions_total}</span>
                                         </div>
-                                        <div className="h-2.5 bg-white/20 rounded-full overflow-hidden">
+                                        <div className="h-2 bg-white/20 rounded-full overflow-hidden">
                                             <div className={`h-full rounded-full transition-all duration-700 ${sessionsPct >= 90 ? 'bg-red-400' : sessionsPct >= 70 ? 'bg-amber-400' : 'bg-white'}`}
                                                 style={{ width: `${sessionsPct}%` }} />
                                         </div>
@@ -496,68 +473,43 @@ export default function StudentPayments() {
                                             { label: 'Makeup', val: makeupLeft },
                                             { label: 'Valid', val: `${Math.max(0, daysLeft)}d`, warn: daysLeft <= 7 },
                                         ].map((s, i) => (
-                                            <div key={i} className={`rounded-2xl p-3 text-center ${s.warn ? 'bg-red-500/30' : 'bg-white/10'}`}>
-                                                <p className="text-lg font-black leading-none">{s.val}</p>
+                                            <div key={i} className={`rounded-xl p-2.5 text-center ${s.warn ? 'bg-red-500/30' : 'bg-white/10'}`}>
+                                                <p className="text-base font-black leading-none">{s.val}</p>
                                                 <p className="text-white/60 text-[9px] font-black uppercase tracking-wider mt-0.5">{s.label}</p>
                                             </div>
                                         ))}
                                     </div>
 
-                                    <div className="flex items-center justify-between mt-4 pt-4 border-t border-white/10">
+                                    <div className="flex items-center justify-between mt-3 pt-3 border-t border-white/10">
                                         <p className="text-xs text-white/60">
                                             Expires <span className="text-white font-black">{format(new Date(pkg.validity_until), 'MMM d, yyyy')}</span>
                                         </p>
                                         <button onClick={() => setTab('browse')}
-                                            className="px-4 py-2 bg-white text-[#463a7a] rounded-2xl text-xs font-black uppercase tracking-widest hover:scale-105 transition-all flex items-center gap-1.5">
+                                            className="px-4 py-2 bg-white text-[#463a7a] rounded-xl text-xs font-black uppercase tracking-widest hover:scale-105 transition-all flex items-center gap-1.5 flex-shrink-0">
                                             Renew <ArrowRight size={12} />
                                         </button>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Session utilization card */}
-                            <div className="bg-white rounded-[28px] p-5 border border-slate-100 shadow-lg">
-                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Session Utilization</p>
-                                <div className="flex items-center gap-5">
-                                    <Ring pct={sessionsPct} />
-                                    <div className="flex-1 space-y-3">
-                                        {[
-                                            { label: 'Sessions used', val: pkg.sessions_used, total: pkg.sessions_total, color: 'bg-[#463a7a]' },
-                                            { label: 'Makeup used', val: pkg.makeup_used, total: pkg.makeup_sessions, color: 'bg-violet-400' },
-                                        ].map((s, i) => (
-                                            <div key={i}>
-                                                <div className="flex justify-between mb-1 text-xs">
-                                                    <span className="font-bold text-slate-600">{s.label}</span>
-                                                    <span className="font-black text-slate-900">{s.val}/{s.total}</span>
-                                                </div>
-                                                <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                                    <div className={`h-full ${s.color} rounded-full`}
-                                                        style={{ width: `${s.total > 0 ? Math.round((s.val / s.total) * 100) : 0}%` }} />
-                                                </div>
-                                            </div>
-                                        ))}
                                     </div>
                                 </div>
                             </div>
                         </>
                     ) : (
                         /* No active package */
-                        <div className="bg-white rounded-[32px] p-10 text-center border-2 border-dashed border-slate-200">
-                            <div className="w-16 h-16 bg-slate-100 rounded-3xl flex items-center justify-center mx-auto mb-4">
-                                <Package size={28} className="text-slate-400" />
+                        <div className="bg-white rounded-3xl p-8 text-center border-2 border-dashed border-slate-200">
+                            <div className="w-14 h-14 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                                <Package size={24} className="text-slate-400" />
                             </div>
-                            <h3 className="text-lg font-black text-slate-500 mb-1">No Active Package</h3>
-                            <p className="text-sm text-slate-400 mb-5">Subscribe to start tracking sessions</p>
+                            <h3 className="text-base font-black text-slate-500 mb-1">No Active Package</h3>
+                            <p className="text-sm text-slate-400 mb-4">Subscribe to start tracking sessions</p>
                             <button onClick={() => setTab('browse')}
-                                className="px-6 py-3 bg-[#463a7a] text-white rounded-3xl font-black text-sm uppercase tracking-widest hover:scale-105 transition-all inline-flex items-center gap-2">
-                                <Zap size={16} /> Browse Packages
+                                className="px-5 py-2.5 bg-[#463a7a] text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:scale-105 transition-all">
+                                Browse Packages
                             </button>
                         </div>
                     )}
 
                     {/* Queued package (starts after current is exhausted) */}
                     {payData?.queued_package && (
-                        <div className="bg-white rounded-[28px] border-2 border-dashed border-violet-200 shadow-md p-5">
+                        <div className="bg-white rounded-2xl border-2 border-dashed border-violet-200 shadow-md p-5">
                             <div className="flex items-center gap-3 mb-3">
                                 <div className="w-9 h-9 rounded-2xl bg-violet-100 flex items-center justify-center flex-shrink-0">
                                     <Clock size={16} className="text-violet-600" />
@@ -578,7 +530,7 @@ export default function StudentPayments() {
 
                     {/* Enrollment-based fee packages (grade/subject matched) */}
                     {payData?.enrollment_packages?.filter(ep => ep.fee_package_name).length > 0 && (
-                        <div className="bg-white rounded-[28px] border border-slate-100 shadow-lg overflow-hidden">
+                        <div className="bg-white rounded-2xl border border-slate-100 shadow-lg overflow-hidden">
                             <div className="px-5 py-4 border-b border-slate-100">
                                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Fee Package by Enrollment</p>
                                 <p className="text-xs text-slate-400 mt-0.5">Assigned based on your grade & subject</p>
@@ -609,7 +561,7 @@ export default function StudentPayments() {
 
                     {/* Attendance timeline */}
                     {payData?.attendance_timeline?.length > 0 && (
-                        <div className="bg-white rounded-[28px] border border-slate-100 shadow-lg overflow-hidden">
+                        <div className="bg-white rounded-2xl border border-slate-100 shadow-lg overflow-hidden">
                             <div className="px-5 py-4 border-b border-slate-100">
                                 <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-0.5">Recent Sessions</p>
                                 <div className="flex gap-3 mt-2">
@@ -643,8 +595,7 @@ export default function StudentPayments() {
                 <div className="space-y-4">
                     {/* Eligibility pill */}
                     {student && (
-                        <div className="flex items-center gap-2 px-4 py-2.5 bg-violet-50 rounded-2xl border border-violet-100 w-fit">
-                            <Music size={14} className="text-[#463a7a]" />
+                        <div className="px-4 py-2.5 bg-violet-50 rounded-2xl border border-violet-100 w-fit">
                             <span className="text-xs font-black text-[#463a7a]">
                                 Showing packages for <span className="uppercase">{student.current_grade}</span> · {student.desired_course || student.instrument}
                             </span>
@@ -656,7 +607,7 @@ export default function StudentPayments() {
                             <div className="w-8 h-8 border-4 border-[#463a7a]/20 border-t-[#463a7a] rounded-full animate-spin" />
                         </div>
                     ) : packages.length === 0 ? (
-                        <div className="bg-white rounded-[28px] p-10 text-center border border-slate-100 shadow-lg">
+                        <div className="bg-white rounded-2xl p-10 text-center border border-slate-100 shadow-lg">
                             <Layers size={32} className="mx-auto text-slate-200 mb-3" />
                             <p className="font-black text-slate-400">No packages available for your grade & course</p>
                             <p className="text-xs text-slate-300 mt-1">Contact your academy to get enrolled</p>
@@ -689,7 +640,7 @@ export default function StudentPayments() {
             {tab === 'history' && (
                 <div className="space-y-3">
                     {payData?.upcoming_installments?.length > 0 && (
-                        <div className="bg-white rounded-[24px] border border-slate-100 shadow-md overflow-hidden">
+                        <div className="bg-white rounded-2xl border border-slate-100 shadow-md overflow-hidden">
                             <div className="px-5 py-3 border-b border-slate-50 flex items-center gap-2">
                                 <Clock size={15} className="text-amber-500" />
                                 <h3 className="font-black text-slate-900 text-sm">Upcoming Installments</h3>
@@ -705,12 +656,12 @@ export default function StudentPayments() {
                         </div>
                     )}
                     {!payData?.invoices?.length ? (
-                        <div className="bg-white rounded-[28px] p-10 text-center border border-slate-100 shadow-lg">
+                        <div className="bg-white rounded-2xl p-10 text-center border border-slate-100 shadow-lg">
                             <CreditCard size={32} className="mx-auto text-slate-200 mb-3" />
                             <p className="font-black text-slate-400">No payment history yet</p>
                         </div>
                     ) : payData.invoices.map((inv, i) => (
-                        <div key={i} className="bg-white rounded-[24px] border border-slate-100 shadow-md overflow-hidden">
+                        <div key={i} className="bg-white rounded-2xl border border-slate-100 shadow-md overflow-hidden">
                             <div className="p-4 flex items-center gap-3">
                                 <div className={`w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 ${inv.status === 'paid' ? 'bg-emerald-50' : 'bg-blue-50'}`}>
                                     {inv.status === 'paid' ? <CheckCircle2 size={18} className="text-emerald-600" /> : <Clock size={18} className="text-blue-600" />}
@@ -755,19 +706,6 @@ export default function StudentPayments() {
                             </div>
                         </div>
                     ))}
-                </div>
-            )}
-
-            {/* ── Floating CTA ──────────────────────────────────────── */}
-            {tab !== 'browse' && (
-                <div className="fixed bottom-20 lg:bottom-6 left-1/2 -translate-x-1/2 z-40 px-4 w-full max-w-sm pointer-events-none">
-                    <button
-                        onClick={() => setTab('browse')}
-                        className={`pointer-events-auto w-full py-4 rounded-3xl font-black text-sm uppercase tracking-widest shadow-2xl flex items-center justify-center gap-2.5 transition-all hover:scale-[1.02] active:scale-[0.98]
-                            ${needsRenewal ? 'bg-red-600 text-white' : 'bg-gradient-to-r from-[#463a7a] to-violet-600 text-white'}`}>
-                        <Zap size={18} />
-                        {needsRenewal ? 'Package Expired — Renew Now' : isLow ? `Renew — ${sessionsRemaining} Session${sessionsRemaining !== 1 ? 's' : ''} Left` : pkg ? 'Renew Package' : 'Browse Packages'}
-                    </button>
                 </div>
             )}
 

@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router';
 import {
     format, addDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth,
     eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, addWeeks, parse,
 } from 'date-fns';
 import {
     ChevronLeft, ChevronRight, Plus, ChevronDown,
-    Briefcase, Users, Filter, Check, X, LayoutGrid,
+    Briefcase, Users, Filter, Check, X, LayoutGrid, CreditCard,
 } from 'lucide-react';
 import SegmentView from './SegmentView';
 import { api } from '../../lib/api';
@@ -248,6 +249,7 @@ function MonthPill({ session, onClick }) {
     );
 }
 
+
 // ── Mini date-picker popup ─────────────────────────────────────────────────
 function DatePickerPopup({ currentDate, onSelect, onClose }) {
     const [pickerMonth, setPickerMonth] = useState(startOfMonth(currentDate));
@@ -336,8 +338,13 @@ function DatePickerPopup({ currentDate, onSelect, onClose }) {
 }
 
 export default function Scheduler() {
-    const [currentDate, setCurrentDate]         = useState(new Date());
-    const [viewMode, setViewMode]               = useState('week');
+    const [searchParams, setSearchParams] = useSearchParams();
+    const deepLinkDate = searchParams.get('date');
+    const deepLinkOccurrence = searchParams.get('occurrence');
+
+    const [currentDate, setCurrentDate]         = useState(() =>
+        deepLinkDate ? parse(deepLinkDate, 'yyyy-MM-dd', new Date()) : new Date());
+    const [viewMode, setViewMode]               = useState(() => deepLinkDate ? 'day' : 'week');
     const [sessions, setSessions]               = useState([]);
     const [loading, setLoading]                 = useState(false);
     const [teachers, setTeachers]               = useState([]);
@@ -345,6 +352,7 @@ export default function Scheduler() {
     const [selectedTeachers, setSelectedTeachers] = useState(new Set());
     const [selectedSubject, setSelectedSubject]   = useState('');
     const [enrollmentFilter, setEnrollmentFilter] = useState('');
+    const [paymentFilter, setPaymentFilter] = useState('');
     const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
     const [selectedSession, setSelectedSession] = useState(null);
     const [showDatePicker, setShowDatePicker] = useState(false);
@@ -394,6 +402,15 @@ export default function Scheduler() {
             setSessions(occ);
             const uniq = [...new Set(occ.map(s => s.batch?.subject).filter(Boolean))].sort();
             setSubjects(uniq.map(s => ({ raw: s, label: parseSubject(s) })));
+
+            // Deep-linked from elsewhere (e.g. a student's profile page) with a
+            // specific occurrence to jump straight to — open its detail dialog
+            // once, then drop the params so navigating away/back doesn't reopen it.
+            if (deepLinkOccurrence) {
+                const target = occ.find(s => String(s.id) === deepLinkOccurrence);
+                if (target) setSelectedSession(target);
+                setSearchParams(params => { params.delete('date'); params.delete('occurrence'); return params; }, { replace: true });
+            }
         } catch (e) {
             console.error(e);
         } finally {
@@ -408,18 +425,42 @@ export default function Scheduler() {
         if (viewMode === 'month') setCurrentDate(addMonths(currentDate, d));
     };
 
-    const filteredSessions = sessions.filter(s => {
-        const count = s.enrollment_count || 0;
-        if (count === 0) return false;
-        if (selectedTeachers.size > 0 && !selectedTeachers.has(s.batch?.teacher_id)) return false;
-        if (selectedSubject && s.batch?.subject !== selectedSubject) return false;
-        if (enrollmentFilter) {
-            const cap = s.batch?.capacity || s.capacity || 0;
-            if (enrollmentFilter === 'fully_booked') { if (!(cap > 0 && count >= cap)) return false; }
-            else if (count !== Number(enrollmentFilter)) return false;
-        }
-        return true;
-    });
+    const filteredSessions = sessions
+        .filter(s => {
+            const count = s.enrollment_count || 0;
+            if (selectedTeachers.size > 0 && !selectedTeachers.has(s.batch?.teacher_id)) return false;
+            if (selectedSubject && s.batch?.subject !== selectedSubject) return false;
+            if (enrollmentFilter) {
+                const cap = s.batch?.capacity || s.capacity || 0;
+                if (enrollmentFilter === 'fully_booked') { if (!(cap > 0 && count >= cap)) return false; }
+                else if (count !== Number(enrollmentFilter)) return false;
+            }
+            return true;
+        })
+        // Payment filter: keep the slot visible (time/subject/teacher context
+        // stays intact) but narrow its shown roster down to just the students
+        // matching the filter, so "Unpaid" surfaces exactly who owes money
+        // and on which class, without hiding the class itself.
+        .map(s => {
+            if (!paymentFilter) return s;
+            // No invoice on file counts as unpaid, not paid — a student never
+            // billed for this class also nets to ₹0 outstanding.
+            const matched = (s.enrolled_students || []).filter(st => {
+                const paid = st.has_invoice !== false && (st.outstanding ?? 0) <= 0;
+                return paymentFilter === 'unpaid' ? !paid : paid;
+            });
+            // Recompute the card's own numbers from the filtered roster too —
+            // otherwise the "X/Y paid" badge and enrolled count kept showing
+            // the class's real totals while the list below only showed a
+            // subset, which read as contradictory.
+            return {
+                ...s,
+                enrolled_students: matched,
+                enrollment_count: matched.length,
+                paid_count: paymentFilter === 'paid' ? matched.length : 0,
+            };
+        })
+        .filter(s => !paymentFilter || (s.enrolled_students && s.enrolled_students.length > 0));
 
     // ── Constants ──────────────────────────────────────────────────────────
     const START_HOUR  = 8;
@@ -508,6 +549,7 @@ export default function Scheduler() {
                                         const endMins   = toMins(session.end_time);
                                         const top    = ((startMins - START_HOUR * 60) / 60) * PX_PER_HOUR;
                                         const height = Math.max(((endMins - startMins) / 60) * PX_PER_HOUR, 52);
+                                        const isCompact = totalCols > 1;
 
                                         const GAP   = 2; // px between parallel sessions
                                         const pctW  = 100 / totalCols;
@@ -521,7 +563,7 @@ export default function Scheduler() {
                                                 <ClassSessionCard
                                                     session={session}
                                                     onClick={handleSessionClick}
-                                                    compact={totalCols > 1}
+                                                    compact={isCompact}
                                                     viewMode={viewMode}
                                                 />
                                             </div>
@@ -669,6 +711,17 @@ export default function Scheduler() {
                                 { value: 'fully_booked', label: 'Fully booked' },
                             ]}
                             minWidth={170}
+                        />
+                        <FilterSelect
+                            value={paymentFilter}
+                            onChange={setPaymentFilter}
+                            icon={CreditCard}
+                            placeholder="All Payments"
+                            options={[
+                                { value: 'paid', label: 'Paid' },
+                                { value: 'unpaid', label: 'Unpaid' },
+                            ]}
+                            minWidth={140}
                         />
                     </div>
 
