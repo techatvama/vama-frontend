@@ -13,8 +13,12 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import Toast from './shared/Toast';
+import { useAdmin } from '../../context/AdminContext';
 
 export default function GradeManager() {
+    const { isSuperAdmin, centerId: myCenterId } = useAdmin();
+    const [centers, setCenters] = useState([]);
+    const [selectedCenter, setSelectedCenter] = useState(myCenterId || '');
     const [grades, setGrades] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
@@ -31,13 +35,26 @@ export default function GradeManager() {
     const navigate = useNavigate();
 
     useEffect(() => {
-        fetchGrades();
+        if (isSuperAdmin) {
+            api.get('/centers').then(res => {
+                setCenters(res.data || []);
+                if (!selectedCenter && res.data?.length) setSelectedCenter(res.data[0].id);
+            }).catch(() => setCenters([]));
+        } else {
+            fetchGrades();
+        }
     }, []);
+
+    useEffect(() => {
+        if (isSuperAdmin && selectedCenter) fetchGrades();
+    }, [selectedCenter]);
 
     const fetchGrades = async () => {
         setLoading(true);
         try {
-            const res = await api.get('/admin/grades');
+            const res = await api.get('/admin/grades', {
+                params: isSuperAdmin && selectedCenter ? { center_id: selectedCenter } : {},
+            });
             setGrades(res.data);
         } catch (err) {
             console.error(err);
@@ -55,7 +72,10 @@ export default function GradeManager() {
                 await api.put(`/admin/grades/${editingGrade.id}`, formData);
                 setToast({ message: `"${formData.name}" updated.`, type: 'success' });
             } else {
-                await api.post('/admin/grades', formData);
+                await api.post('/admin/grades', {
+                    ...formData,
+                    ...(isSuperAdmin && selectedCenter ? { center_id: parseInt(selectedCenter) } : {}),
+                });
                 setToast({ message: `"${formData.name}" created.`, type: 'success' });
             }
 
@@ -146,16 +166,27 @@ export default function GradeManager() {
                 </div>
             </div>
 
-            {/* Search */}
-            <div className="relative group">
-                <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-600 transition-colors" size={20} />
-                <input
-                    type="text"
-                    placeholder="Search grades..."
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    className="w-full bg-white border border-slate-100 rounded-3xl py-4 pl-14 pr-6 text-slate-900 font-medium placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-600/10 transition-all shadow-sm"
-                />
+            {/* Center selector (super_admin only) + Search */}
+            <div className={`grid gap-4 ${isSuperAdmin ? 'md:grid-cols-3' : ''}`}>
+                {isSuperAdmin && (
+                    <select
+                        value={selectedCenter}
+                        onChange={(e) => setSelectedCenter(e.target.value)}
+                        className="bg-white border border-slate-100 rounded-3xl px-6 py-4 text-slate-900 font-black shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-600/10"
+                    >
+                        {centers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                )}
+                <div className={`relative group ${isSuperAdmin ? 'md:col-span-2' : ''}`}>
+                    <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-600 transition-colors" size={20} />
+                    <input
+                        type="text"
+                        placeholder="Search grades..."
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        className="w-full bg-white border border-slate-100 rounded-3xl py-4 pl-14 pr-6 text-slate-900 font-medium placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-600/10 transition-all shadow-sm"
+                    />
+                </div>
             </div>
 
             {/* Grades List */}

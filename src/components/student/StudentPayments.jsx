@@ -687,7 +687,21 @@ export default function StudentPayments() {
                                 {inv.paid_date && <p className="text-xs font-bold text-emerald-600 flex items-center gap-1.5 mb-3"><CheckCircle2 size={11} />Paid {format(new Date(inv.paid_date), 'MMMM d, yyyy')}</p>}
                                 <div className="flex gap-2">
                                     <button
-                                        onClick={() => window.open(`${import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'}/student/invoices/${inv.id}/html`, '_blank')}
+                                        onClick={async () => {
+                                            // window.open(url) can't attach the auth header this
+                                            // endpoint now requires — fetch it authenticated, then
+                                            // hand the tab a blob URL. Opened synchronously so it
+                                            // isn't popup-blocked.
+                                            const win = window.open('', '_blank');
+                                            if (!win) { alert('Allow pop-ups for this site to open the receipt.'); return; }
+                                            try {
+                                                const res = await api.get(`/student/invoices/${inv.id}/html`, { responseType: 'text' });
+                                                win.location.href = URL.createObjectURL(new Blob([res.data], { type: 'text/html' }));
+                                            } catch (err) {
+                                                win.close();
+                                                alert('Failed to load the receipt.');
+                                            }
+                                        }}
                                         className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-2xl text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-1.5">
                                         <Download size={12} /> Receipt / PDF
                                     </button>

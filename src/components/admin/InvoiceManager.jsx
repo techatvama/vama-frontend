@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
-import { api, API_BASE } from '../../lib/api';
+import { api } from '../../lib/api';
 import {
     FileText, Plus, Search, X, Loader2, Download,
     CheckCircle2, Clock, AlertCircle, ChevronLeft, ChevronRight,
@@ -27,9 +27,22 @@ function generateInvoiceNumber(existingInvoices = []) {
     return `INV-${yyyymm}-${seq}`;
 }
 
-function downloadInvoicePDF(invoice) {
-    const win = window.open(`${API_BASE}/admin/invoices/${invoice.id}/html`, '_blank');
-    if (!win) alert('Allow pop-ups for this site to open the invoice PDF.');
+// The invoice HTML endpoint now requires the caller's auth token, so a plain
+// window.open(url) (no way to attach an Authorization header) 401s — fetch it
+// through the authenticated api client instead and hand the tab a blob URL.
+// The window opens synchronously (before the await) so browsers don't treat
+// it as an unrequested popup.
+async function downloadInvoicePDF(invoice) {
+    const win = window.open('', '_blank');
+    if (!win) { alert('Allow pop-ups for this site to open the invoice PDF.'); return; }
+    try {
+        const res = await api.get(`/admin/invoices/${invoice.id}/html`, { responseType: 'text' });
+        const blobUrl = URL.createObjectURL(new Blob([res.data], { type: 'text/html' }));
+        win.location.href = blobUrl;
+    } catch (err) {
+        win.close();
+        alert('Failed to load the invoice.');
+    }
 }
 
 function StatusBadge({ status }) {

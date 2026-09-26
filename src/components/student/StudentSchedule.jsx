@@ -47,7 +47,11 @@ function ClassOptionsModal({ session, attendance, onCancel, onReschedule, onClos
     const color = subjectColor(parseSubjectList(session.batch?.subject)[0]);
     const isCancelled = session.status === 'cancelled';
     const isPast = new Date(session.date + 'T23:59:59') < new Date();
-    const canReschedule = packageStatus?.can_book && (packageStatus?.makeup_remaining ?? 1) > 0;
+    // A same-day class that's already been marked present isn't "past" by
+    // the date-only check above (the day hasn't ended yet), but it already
+    // happened — rescheduling something already attended makes no sense.
+    const alreadyAttended = attendance?.status === 'present';
+    const canReschedule = !alreadyAttended && packageStatus?.can_book && (packageStatus?.makeup_remaining ?? 1) > 0;
 
     const cancelWindowHours = packageStatus?.cancellation_window_hours ?? 24;
     const sessionStart = new Date(`${session.date}T${session.start_time}:00`);
@@ -108,9 +112,13 @@ function ClassOptionsModal({ session, attendance, onCancel, onReschedule, onClos
                                 <div className="w-full flex items-center gap-3 px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl opacity-60 cursor-not-allowed">
                                     <RotateCcw size={18} className="text-slate-400" />
                                     <div>
-                                        <div className="text-sm font-black text-slate-500">Reschedule Unavailable</div>
+                                        <div className="text-sm font-black text-slate-500">
+                                            {alreadyAttended ? 'Already Attended' : 'Reschedule Unavailable'}
+                                        </div>
                                         <div className="text-xs font-medium text-slate-400">
-                                            {!packageStatus?.can_book ? 'Package expired or exhausted' : 'No makeup sessions left'}
+                                            {alreadyAttended
+                                                ? 'This class has already happened'
+                                                : !packageStatus?.can_book ? 'Package expired or exhausted' : 'No makeup sessions left'}
                                         </div>
                                     </div>
                                 </div>

@@ -4,7 +4,7 @@ import { format, parse } from 'date-fns';
 import { useNavigate } from 'react-router';
 import {
     X, Clock, Calendar, Users, Loader2, CheckCircle2, XCircle,
-    Pencil, Ban, Plus, Search, AlertCircle, Trash2, UserPlus, UserMinus,
+    Pencil, Ban, Plus, Search, AlertCircle, Trash2, UserPlus, UserMinus, BellRing,
 } from 'lucide-react';
 
 const AVATAR_COLORS = ['#6366f1', '#10b981', '#f97316', '#ec4899', '#8b5cf6', '#3b82f6', '#ef4444', '#14b8a6'];
@@ -44,8 +44,22 @@ export default function OccurrenceDetailDialog({ session, onClose, onUpdate }) {
     const [confirmCancel, setConfirmCancel] = useState(false);
     const [warnings, setWarnings] = useState({});           // studentId -> [{level,message}]
     const [confirmOverbook, setConfirmOverbook] = useState(null); // {studentId, scope, message}
+    const [sendingReminder, setSendingReminder] = useState(false);
 
     const flash = (msg) => { setNotice(msg); setTimeout(() => setNotice(''), 3500); };
+
+    const sendReminder = async () => {
+        setSendingReminder(true);
+        setError('');
+        try {
+            const res = await api.post(`/admin/occurrences/${occ.id}/send-reminder`);
+            flash(`Reminder sent to ${res.data.sent} of ${res.data.recipients} student${res.data.recipients !== 1 ? 's' : ''}.`);
+        } catch (e) {
+            setError(e.response?.data?.detail || 'Failed to send reminder.');
+        } finally {
+            setSendingReminder(false);
+        }
+    };
 
     const load = useCallback(async () => {
         try {
@@ -203,6 +217,13 @@ export default function OccurrenceDetailDialog({ session, onClose, onUpdate }) {
                                 )
                             )}
                             <button onClick={() => setScopeAction({ kind: 'delete' })} className="flex items-center gap-1.5 bg-red-500/20 hover:bg-red-500/35 text-red-100 rounded-xl px-3 py-2 text-xs font-bold transition-all"><Trash2 size={13} strokeWidth={2.25} /> Delete</button>
+                            {occ.status !== 'cancelled' && (
+                                <button onClick={sendReminder} disabled={sendingReminder}
+                                    title="Email everyone on this class's roster a reminder"
+                                    className="flex items-center gap-1.5 bg-white/10 hover:bg-white/20 rounded-xl px-3 py-2 text-xs font-bold transition-all disabled:opacity-50">
+                                    {sendingReminder ? <Loader2 size={13} className="animate-spin" /> : <BellRing size={13} strokeWidth={2.25} />} Send Reminder
+                                </button>
+                            )}
                         </div>
                         <div className="flex mt-3">
                             <div className="bg-white/10 rounded-xl px-3 py-2 text-xs font-bold flex items-center gap-1.5"><Users size={13} strokeWidth={2.25} /> {present}/{roster.length} present <span className="text-white/30">·</span> {roster.length}/{capacity} capacity</div>

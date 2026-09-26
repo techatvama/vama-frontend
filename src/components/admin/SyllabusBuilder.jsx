@@ -21,8 +21,12 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import Toast from './shared/Toast';
+import { useAdmin } from '../../context/AdminContext';
 
 export default function SyllabusBuilder() {
+    const { isSuperAdmin, centerId: myCenterId } = useAdmin();
+    const [centers, setCenters] = useState([]);
+    const [selectedCenter, setSelectedCenter] = useState(myCenterId || '');
     const [subjects, setSubjects] = useState([]);
     const [grades, setGrades] = useState([]);
     const [selectedSubject, setSelectedSubject] = useState('');
@@ -52,15 +56,21 @@ export default function SyllabusBuilder() {
 
     useEffect(() => {
         fetchMetadata();
+        if (isSuperAdmin) {
+            api.get('/centers').then(res => {
+                setCenters(res.data || []);
+                if (!selectedCenter && res.data?.length) setSelectedCenter(res.data[0].id);
+            }).catch(() => setCenters([]));
+        }
     }, []);
 
     useEffect(() => {
-        if (selectedSubject && selectedGrade) {
+        if (selectedSubject && selectedGrade && (!isSuperAdmin || selectedCenter)) {
             fetchSyllabus();
         } else {
             setCurrentSyllabus(null);
         }
-    }, [selectedSubject, selectedGrade]);
+    }, [selectedSubject, selectedGrade, selectedCenter]);
 
     const fetchMetadata = async () => {
         setLoading(true);
@@ -85,7 +95,10 @@ export default function SyllabusBuilder() {
         setFetchingSyllabus(true);
         try {
             const res = await api.get('/admin/syllabi', {
-                params: { subject_id: selectedSubject, grade_id: selectedGrade }
+                params: {
+                    subject_id: selectedSubject, grade_id: selectedGrade,
+                    ...(isSuperAdmin && selectedCenter ? { center_id: selectedCenter } : {}),
+                }
             });
             if (res.data.length > 0) {
                 const detailRes = await api.get(`/admin/syllabi/${res.data[0].id}`);
@@ -122,6 +135,7 @@ export default function SyllabusBuilder() {
             const res = await api.post('/admin/syllabi', {
                 subject_id: parseInt(selectedSubject),
                 grade_id: parseInt(selectedGrade),
+                ...(isSuperAdmin && selectedCenter ? { center_id: parseInt(selectedCenter) } : {}),
             });
             setCurrentSyllabus(res.data);
             setToast({ message: 'Syllabus created. Add your first module below.', type: 'success' });
@@ -246,7 +260,19 @@ export default function SyllabusBuilder() {
             </div>
 
             {/* Selectors */}
-            <div className="grid md:grid-cols-2 gap-6 bg-white p-8 rounded-[40px] shadow-xl border border-slate-100">
+            <div className={`grid gap-6 bg-white p-8 rounded-[40px] shadow-xl border border-slate-100 ${isSuperAdmin ? 'md:grid-cols-3' : 'md:grid-cols-2'}`}>
+                {isSuperAdmin && (
+                    <div className="space-y-2">
+                        <label className="text-xs font-black text-slate-400 uppercase tracking-widest px-1">Center</label>
+                        <select
+                            value={selectedCenter}
+                            onChange={(e) => setSelectedCenter(e.target.value)}
+                            className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-4 text-slate-900 font-black appearance-none"
+                        >
+                            {centers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </select>
+                    </div>
+                )}
                 <div className="space-y-2">
                     <label className="text-xs font-black text-slate-400 uppercase tracking-widest px-1">Subject</label>
                     <select

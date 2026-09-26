@@ -364,13 +364,20 @@ const MiniScheduleCalendar = ({ studentId, onRescheduled }) => {
                                         {cls.is_makeup && <div className="text-[10px] text-orange-500 font-bold uppercase">Makeup</div>}
                                     </div>
                                     {cls.status !== 'cancelled' && (
-                                        <button
-                                            onClick={(e) => { e.stopPropagation(); setReschedulingSession(cls); }}
-                                            title="Reschedule this class"
-                                            className="flex-shrink-0 flex items-center gap-1 px-2 py-1.5 rounded-md bg-white border border-slate-200 text-[#463a7a] font-semibold hover:bg-[#463a7a]/5 hover:border-[#463a7a]/30 transition-colors"
-                                        >
-                                            <Repeat size={12} /> Reschedule
-                                        </button>
+                                        cls.my_attendance === 'present' ? (
+                                            <span title="Already attended — can't reschedule a class that already happened"
+                                                className="flex-shrink-0 flex items-center gap-1 px-2 py-1.5 rounded-md bg-emerald-50 text-emerald-600 font-semibold">
+                                                <CheckCircle2 size={12} /> Attended
+                                            </span>
+                                        ) : (
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); setReschedulingSession(cls); }}
+                                                title="Reschedule this class"
+                                                className="flex-shrink-0 flex items-center gap-1 px-2 py-1.5 rounded-md bg-white border border-slate-200 text-[#463a7a] font-semibold hover:bg-[#463a7a]/5 hover:border-[#463a7a]/30 transition-colors"
+                                            >
+                                                <Repeat size={12} /> Reschedule
+                                            </button>
+                                        )
                                     )}
                                 </div>
                             ))}
@@ -683,6 +690,19 @@ export default function StudentProfilePage() {
     const totalEnrollments = student.enrollments?.length ?? 0;
     const classesThisMonth = student.classes_this_month ?? 0;
     const outstanding = student.financial?.outstanding ?? 0;
+    const enrolledSubjects = student.enrolled_subjects?.length
+        ? student.enrolled_subjects
+        : (student.desired_course || student.instrument)
+            ? [{ subject: student.desired_course || student.instrument, grade: student.current_grade || 'Debut', teacher: student.teacher?.name }]
+            : [];
+
+    // ── Package status — sessions left + days to expiry, so an admin can
+    // spot "about to run out" without opening the Payments tab ──
+    const pkg = student.active_package;
+    const daysToExpiry = pkg?.end_date ? Math.ceil((new Date(pkg.end_date) - new Date()) / 86400000) : null;
+    const pkgCritical = pkg && ((pkg.sessions_remaining ?? 99) <= 2 || (daysToExpiry !== null && daysToExpiry <= 7));
+    const pkgWarning = !pkgCritical && pkg && ((pkg.sessions_remaining ?? 99) <= 4 || (daysToExpiry !== null && daysToExpiry <= 21));
+    const pkgColor = !pkg ? 'text-slate-300' : pkgCritical ? 'text-red-300' : pkgWarning ? 'text-yellow-300' : 'text-emerald-300';
 
     // ── Admin-focused metrics ──
     const overallGrade = student.performance?.overall_grade ?? '—';
@@ -780,6 +800,22 @@ export default function StudentProfilePage() {
                                     )}
                                 </div>
 
+                                {/* Subjects — every instrument this student takes, always visible
+                                    here regardless of count, so an admin never has to dig for it */}
+                                {enrolledSubjects.length > 0 && (
+                                    <div className="flex items-center gap-1.5 flex-wrap mt-2.5">
+                                        {enrolledSubjects.map((s, i) => (
+                                            <span key={i}
+                                                title={s.teacher ? `Teacher: ${s.teacher}` : undefined}
+                                                className="flex items-center gap-1.5 px-2.5 py-1 bg-white/15 text-white text-xs font-bold rounded-lg border border-white/20">
+                                                <GraduationCap size={11} className="opacity-70" />
+                                                {parseSubject(s.subject) || s.subject}
+                                                <span className="opacity-60 font-semibold">· {s.grade}</span>
+                                            </span>
+                                        ))}
+                                    </div>
+                                )}
+
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-1.5 mt-3">
                                     {student.email && (
                                         <div className="flex items-center gap-2 text-white/75 text-sm">
@@ -810,7 +846,7 @@ export default function StudentProfilePage() {
                         </div>
 
                         {/* Stats row — Admin metrics */}
-                        <div className="grid grid-cols-4 gap-2 mt-6">
+                        <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mt-6">
                             {/* Attendance */}
                             <div className="bg-white/10 backdrop-blur rounded-xl p-3 text-center border border-white/10">
                                 <div className={`text-xl font-black ${attendancePct >= 80 ? 'text-emerald-300' : attendancePct >= 60 ? 'text-yellow-300' : 'text-red-300'}`}>
@@ -843,6 +879,24 @@ export default function StudentProfilePage() {
                                 <div className="text-xl font-black text-blue-300">{classesThisMonth}</div>
                                 <div className="text-xs text-white/60 mt-0.5">Done This Month</div>
                             </div>
+
+                            {/* Package — sessions left / days to expiry, flagged early so an
+                                admin catches a lapsing package before the student does */}
+                            <button
+                                onClick={() => setActiveTab('payments')}
+                                className="bg-white/10 backdrop-blur rounded-xl p-3 text-center border border-white/10 hover:bg-white/20 hover:border-white/30 transition-all cursor-pointer group"
+                                title={pkg ? `${pkg.name || 'Package'} · ${pkg.sessions_remaining ?? '—'} sessions left${daysToExpiry !== null ? ` · expires in ${daysToExpiry}d` : ''}` : 'No active package'}
+                            >
+                                <div className={`text-lg font-black group-hover:scale-110 transition-transform ${pkgColor}`}>
+                                    {pkg ? `${pkg.sessions_remaining ?? '—'} left` : '—'}
+                                </div>
+                                <div className="text-xs text-white/60 mt-0.5">Package</div>
+                                {pkg && daysToExpiry !== null && (
+                                    <div className={`text-[10px] mt-0.5 ${pkgCritical ? 'text-red-200' : pkgWarning ? 'text-yellow-200' : 'text-white/50'}`}>
+                                        {daysToExpiry < 0 ? 'Expired' : `${daysToExpiry}d left`}
+                                    </div>
+                                )}
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -865,7 +919,6 @@ export default function StudentProfilePage() {
                                             { label: 'Email', value: student.email, icon: Mail },
                                             { label: 'Phone', value: student.primary_phone_number, icon: Phone },
                                             { label: 'Center', value: student.nearest_vama_center, icon: MapPin },
-                                            { label: 'Desired Course', value: student.desired_course, icon: BookOpen },
                                             { label: 'Gender', value: student.gender, icon: Users },
                                             { label: 'Date of Birth', value: formatDate(student.date_of_birth), icon: Calendar },
                                             { label: 'Guardian Email', value: student.guardian_email, icon: Mail },
@@ -890,6 +943,26 @@ export default function StudentProfilePage() {
                                             </div>
                                         ))}
                                     </div>
+
+                                    {/* Freeform / longer answers — notes and any center-defined
+                                        custom questions the applicant answered — get their own
+                                        full-width rows since they don't fit the compact grid above */}
+                                    {(student.notes || student.custom_fields?.length > 0) && (
+                                        <div className="mt-3 space-y-2">
+                                            {student.notes && (
+                                                <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-100">
+                                                    <div className="text-xs text-slate-400 mb-1">Additional Notes</div>
+                                                    <div className="text-sm font-semibold text-slate-800 whitespace-pre-wrap">{student.notes}</div>
+                                                </div>
+                                            )}
+                                            {(student.custom_fields || []).map((cf, i) => (
+                                                <div key={i} className="p-3.5 bg-slate-50 rounded-xl border border-slate-100">
+                                                    <div className="text-xs text-slate-400 mb-1">{cf.label}</div>
+                                                    <div className="text-sm font-semibold text-slate-800 whitespace-pre-wrap">{cf.value}</div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* Attendance summary */}

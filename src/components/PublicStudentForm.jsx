@@ -72,13 +72,11 @@ export default function PublicStudentForm() {
 
         Promise.all([
             api.get('/centers').catch(() => ({ data: [] })),
-            api.get('/admin/subjects').catch(() => ({ data: [] })),
             api.get('/public/form-config', { params: centerParam ? { center: centerParam } : {} }).catch(() => ({ data: null })),
-        ]).then(([centersRes, subjectsRes, configRes]) => {
+        ]).then(([centersRes, configRes]) => {
             const loadedCenters = centersRes.data || [];
             const config = configRes.data;
             setCenters(loadedCenters);
-            setSubjects(subjectsRes.data || []);
             setFormConfig(Array.isArray(config) ? config : null);
 
             // Initialize form values
@@ -99,6 +97,20 @@ export default function PublicStudentForm() {
             }
         });
     }, []);
+
+    // Each center's course list is its own — the picker only knows what to
+    // show once a center is known, either pre-locked via the URL or chosen
+    // from the free-choice dropdown below.
+    useEffect(() => {
+        const activeCenter = lockedCenter || centers.find(c => c.name === form.nearest_vama_center);
+        if (!activeCenter) {
+            setSubjects([]);
+            return;
+        }
+        api.get('/public/subjects', { params: { center_id: activeCenter.id } })
+            .then(res => setSubjects(res.data || []))
+            .catch(() => setSubjects([]));
+    }, [lockedCenter, form.nearest_vama_center, centers]);
 
     const setField = (key, val) => setForm(f => ({ ...f, [key]: val }));
 

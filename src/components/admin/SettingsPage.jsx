@@ -9,6 +9,7 @@ import {
     Plus, X, MapPin, Clock, ChevronRight, RefreshCw,
     Globe, Phone, FileText, Hash, Percent, Users, TrendingUp, Activity,
     Lock, AtSign, ShieldCheck, Zap, ExternalLink, Copy, CheckCircle2, Server,
+    Bell, ChevronDown, RotateCcw, CalendarClock, UserCheck, Receipt, KeyRound,
 } from 'lucide-react';
 
 const inputCls = "w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-[#463a7a]/10 focus:border-[#463a7a]/40 transition-all placeholder:text-slate-300";
@@ -159,6 +160,196 @@ function CenterSmtp({ centerId }) {
         </div>
     );
 }
+
+// ─── Email notifications: master switch, category toggles, templates ─────────
+
+function Toggle({ checked, onChange, disabled }) {
+    return (
+        <button type="button" onClick={() => !disabled && onChange(!checked)} disabled={disabled}
+            className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 ${disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'} ${checked ? 'bg-[#463a7a]' : 'bg-slate-200'}`}>
+            <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform ${checked ? 'translate-x-5' : ''}`} />
+        </button>
+    );
+}
+
+const NOTIF_CATEGORY_META = {
+    class_reminders: { label: 'Class Reminders', icon: CalendarClock, hint: 'Manual reminder emails an admin sends for a specific class, from the Scheduler.', templates: ['class_reminder'] },
+    attendance:       { label: 'Attendance (Present / Absent)', icon: UserCheck, hint: 'Sent automatically whenever a teacher or admin marks a student present or absent.', templates: ['attendance_present', 'attendance_absent'] },
+    invoices:         { label: 'Invoices & Payments', icon: Receipt, hint: 'Invoice issued, payment recorded (receipt), and payment reminder emails.', templates: [] },
+    activation:       { label: 'New Student Login / Activation', icon: KeyRound, hint: 'Sent when a new student account is created, with their activation link.', templates: ['activation', 'password_reset'] },
+};
+
+const NOTIF_TEMPLATE_META = {
+    activation:        { label: 'Account Activation', fields: ['subject', 'heading', 'intro', 'button_label'] },
+    password_reset:    { label: 'Password Reset',      fields: ['subject', 'heading', 'intro', 'button_label'] },
+    class_reminder:    { label: 'Class Reminder',       fields: ['subject', 'heading', 'intro'], vars: '{student_name} {course} {teacher} {date} {time} {academy}' },
+    attendance_present: { label: 'Attendance — Present', fields: ['subject', 'heading', 'intro'], vars: '{student_name} {course} {date} {feedback_line} {academy}' },
+    attendance_absent:  { label: 'Attendance — Absent',  fields: ['subject', 'heading', 'intro'], vars: '{student_name} {course} {date} {academy}' },
+};
+
+function TemplateEditor({ kind }) {
+    const meta = NOTIF_TEMPLATE_META[kind];
+    const [open, setOpen] = useState(false);
+    const [form, setForm] = useState(null);
+    const [saving, setSaving] = useState(false);
+    const [saved, setSaved] = useState(false);
+
+    useEffect(() => {
+        if (open && !form) {
+            api.get('/admin/notification-templates').then(r => setForm(r.data[kind]));
+        }
+    }, [open]);
+
+    const save = async () => {
+        setSaving(true); setSaved(false);
+        try {
+            await api.put(`/admin/notification-templates/${kind}`, form);
+            setSaved(true); setTimeout(() => setSaved(false), 2000);
+        } finally { setSaving(false); }
+    };
+
+    const resetToDefault = async () => {
+        const r = await api.post(`/admin/notification-templates/${kind}/reset`);
+        setForm(r.data);
+    };
+
+    return (
+        <div className="border border-slate-200 rounded-2xl overflow-hidden">
+            <button onClick={() => setOpen(o => !o)} className="w-full flex items-center justify-between px-4 py-3 bg-slate-50 hover:bg-slate-100 transition-colors">
+                <span className="text-sm font-bold text-slate-700">{meta.label}</span>
+                <ChevronDown size={15} className={`text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+            </button>
+            {open && (
+                <div className="p-4 space-y-3 bg-white">
+                    {!form ? (
+                        <div className="flex justify-center py-4"><Loader2 size={16} className="animate-spin text-[#463a7a]" /></div>
+                    ) : (
+                        <>
+                            {meta.vars && (
+                                <p className="text-[11px] text-slate-400">Available placeholders: <span className="font-mono text-slate-500">{meta.vars}</span></p>
+                            )}
+                            {meta.fields.includes('subject') && (
+                                <Field label="Subject">
+                                    <input className={inputCls} value={form.subject} onChange={e => setForm(f => ({ ...f, subject: e.target.value }))} />
+                                </Field>
+                            )}
+                            {meta.fields.includes('heading') && (
+                                <Field label="Heading">
+                                    <input className={inputCls} value={form.heading} onChange={e => setForm(f => ({ ...f, heading: e.target.value }))} />
+                                </Field>
+                            )}
+                            {meta.fields.includes('intro') && (
+                                <Field label="Message">
+                                    <textarea rows={3} className={inputCls} value={form.intro} onChange={e => setForm(f => ({ ...f, intro: e.target.value }))} />
+                                </Field>
+                            )}
+                            {meta.fields.includes('button_label') && (
+                                <Field label="Button Text">
+                                    <input className={inputCls} value={form.button_label} onChange={e => setForm(f => ({ ...f, button_label: e.target.value }))} />
+                                </Field>
+                            )}
+                            <div className="flex items-center justify-between pt-2">
+                                <button onClick={resetToDefault} className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-slate-600">
+                                    <RotateCcw size={12} /> Reset to default
+                                </button>
+                                <div className="flex items-center gap-3">
+                                    {saved && <span className="flex items-center gap-1 text-xs text-emerald-600 font-semibold"><Check size={12} /> Saved</span>}
+                                    <button onClick={save} disabled={saving}
+                                        className="flex items-center gap-1.5 px-4 py-2 bg-[#463a7a] hover:bg-[#342a5b] text-white rounded-xl text-xs font-bold disabled:opacity-50">
+                                        {saving ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />} Save
+                                    </button>
+                                </div>
+                            </div>
+                        </>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+}
+
+function EmailNotifications() {
+    const [settings, setSettings] = useState(null);
+    const [saving, setSaving] = useState(false);
+
+    useEffect(() => {
+        api.get('/admin/notification-settings').then(r => setSettings(r.data)).catch(() => setSettings({}));
+    }, []);
+
+    const toggle = async (field, value) => {
+        const next = { ...settings, [field]: value };
+        setSettings(next); // optimistic — in-place, no reload/flash
+        setSaving(true);
+        try {
+            await api.put('/admin/notification-settings', { [field]: value });
+        } catch {
+            setSettings(settings); // revert on failure
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    if (!settings) return <div className="flex justify-center py-10"><Loader2 className="animate-spin text-[#463a7a]" /></div>;
+
+    return (
+        <div className="space-y-6">
+            <div><h2 className="text-lg font-bold text-slate-900">Email Notifications</h2>
+            <p className="text-sm text-slate-400 mt-0.5">Control which emails go out, and edit what they say.</p></div>
+
+            {/* Master switch */}
+            <div className={`rounded-2xl p-5 border-2 transition-colors ${settings.master ? 'border-[#463a7a]/30 bg-[#463a7a]/5' : 'border-slate-200 bg-slate-50'}`}>
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <Bell size={18} className={settings.master ? 'text-[#463a7a]' : 'text-slate-400'} />
+                        <div>
+                            <p className="text-sm font-bold text-slate-900">All Email Notifications</p>
+                            <p className="text-xs text-slate-400 mt-0.5">
+                                {settings.master
+                                    ? 'On — each category below decides what actually gets sent.'
+                                    : 'Off — no email goes out for any action, regardless of the categories below.'}
+                            </p>
+                        </div>
+                    </div>
+                    <Toggle checked={settings.master} onChange={v => toggle('master', v)} />
+                </div>
+            </div>
+
+            {/* Category toggles — each with its own template editor(s) nested inside */}
+            <div className="space-y-3">
+                {NOTIF_CATEGORIES.map(cat => {
+                    const meta = NOTIF_CATEGORY_META[cat];
+                    const Icon = meta.icon;
+                    return (
+                        <div key={cat} className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+                            <div className="flex items-center justify-between px-4 py-3.5">
+                                <div className="flex items-center gap-3 min-w-0">
+                                    <Icon size={16} className="text-slate-400 flex-shrink-0" />
+                                    <div className="min-w-0">
+                                        <p className="text-sm font-semibold text-slate-800">{meta.label}</p>
+                                        <p className="text-[11px] text-slate-400 mt-0.5">{meta.hint}</p>
+                                    </div>
+                                </div>
+                                <Toggle checked={settings[cat]} onChange={v => toggle(cat, v)} disabled={!settings.master} />
+                            </div>
+                            {meta.templates.length > 0 && (
+                                <div className="px-4 pb-4 space-y-2 border-t border-slate-100 pt-3">
+                                    {meta.templates.map(kind => <TemplateEditor key={kind} kind={kind} />)}
+                                </div>
+                            )}
+                            {cat === 'invoices' && (
+                                <div className="mx-4 mb-4 px-3 py-2.5 bg-slate-50 rounded-xl text-[11px] text-slate-400">
+                                    The message inside these emails comes from the invoice notes/footer in <strong>Payments & Tax</strong>, not a separate template here.
+                                </div>
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
+}
+
+const NOTIF_CATEGORIES = ['class_reminders', 'attendance', 'invoices', 'activation'];
 
 // ─── Per-center Razorpay ──────────────────────────────────────────────────────
 
@@ -435,6 +626,7 @@ export default function SettingsPage() {
         { id: 'center',      label: 'Center Settings',   icon: MapPin },
         { id: 'centers',     label: 'Centers & Access',  icon: Users },
         { id: 'email',       label: 'Global SMTP',       icon: Mail },
+        { id: 'notifications', label: 'Email Notifications', icon: Bell },
         { id: 'payments',    label: 'Payments & Tax',    icon: CreditCard },
         { id: 'scheduling',  label: 'Scheduling',        icon: Clock },
         { id: 'appearance',  label: 'Appearance',        icon: Palette },
@@ -821,6 +1013,8 @@ export default function SettingsPage() {
                             </>
                         )}
 
+                        {active === 'notifications' && <EmailNotifications />}
+
                         {active === 'payments' && (
                             <>
                                 <div><h2 className="text-lg font-bold text-slate-900">Payments & Tax</h2>
@@ -848,33 +1042,37 @@ export default function SettingsPage() {
                             <>
                                 <div><h2 className="text-lg font-bold text-slate-900">Scheduling</h2>
                                 <p className="text-sm text-slate-400 mt-0.5">Global calendar defaults. Each center can override these in Center Settings.</p></div>
-                                <div className="grid grid-cols-2 gap-5">
-                                    <Field label="Calendar Start Hour">
-                                        <select value={settings.session_start_hour||'8'} onChange={e=>set('session_start_hour',e.target.value)} className={`${inputCls} appearance-none cursor-pointer`}>
-                                            {Array.from({length:13},(_,i)=>i+6).map(h=><option key={h} value={h}>{h<12?`${h}:00 AM`:h===12?'12:00 PM':`${h-12}:00 PM`}</option>)}
-                                        </select>
+                                <div className="space-y-5">
+                                    <Field label="Attendance Feedback Rule">
+                                        <div className="space-y-2">
+                                            {[
+                                                {val:'required_for_present',label:'Required when marking Present',sub:'Absent can be marked without feedback'},
+                                                {val:'optional',label:'Always optional'},
+                                            ].map(opt=>(
+                                                <label key={opt.val} className={`flex items-start gap-3 p-3.5 rounded-2xl border-2 cursor-pointer transition-all ${settings.attendance_feedback===opt.val?'border-[#463a7a] bg-violet-50':'border-slate-200 bg-slate-50 hover:border-slate-300'}`}>
+                                                    <input type="radio" name="att_feedback" value={opt.val} checked={settings.attendance_feedback===opt.val} onChange={()=>set('attendance_feedback',opt.val)} className="mt-0.5 accent-[#463a7a]" />
+                                                    <div><p className="text-sm font-bold text-slate-800">{opt.label}</p>{opt.sub && <p className="text-xs text-slate-500 mt-0.5">{opt.sub}</p>}</div>
+                                                </label>
+                                            ))}
+                                        </div>
                                     </Field>
-                                    <Field label="Calendar End Hour">
-                                        <select value={settings.session_end_hour||'21'} onChange={e=>set('session_end_hour',e.target.value)} className={`${inputCls} appearance-none cursor-pointer`}>
-                                            {Array.from({length:10},(_,i)=>i+17).map(h=><option key={h} value={h}>{h<12?`${h}:00 AM`:h===12?'12:00 PM':`${h-12}:00 PM`}</option>)}
-                                        </select>
-                                    </Field>
-                                    <div className="col-span-2">
-                                        <Field label="Attendance Feedback Rule">
-                                            <div className="space-y-2">
+
+                                    <Field label="Class Generation Horizon" hint="How far ahead recurring classes are pre-created on the calendar. A longer horizon means the calendar is bookable further out, but the database grows faster as you add more recurring classes — raise this only as far as you actually need.">
+                                        <div className="flex items-center gap-3">
+                                            <select value={settings.occurrence_horizon_days||'365'} onChange={e=>set('occurrence_horizon_days',e.target.value)} className={`${inputCls} appearance-none cursor-pointer max-w-xs`}>
                                                 {[
-                                                    {val:'required_for_present',label:'Required when marking Present',sub:'Absent can be marked without feedback'},
-                                                    {val:'required_always',label:'Required for both Present & Absent'},
-                                                    {val:'optional',label:'Always optional'},
-                                                ].map(opt=>(
-                                                    <label key={opt.val} className={`flex items-start gap-3 p-3.5 rounded-2xl border-2 cursor-pointer transition-all ${settings.attendance_feedback===opt.val?'border-[#463a7a] bg-violet-50':'border-slate-200 bg-slate-50 hover:border-slate-300'}`}>
-                                                        <input type="radio" name="att_feedback" value={opt.val} checked={settings.attendance_feedback===opt.val} onChange={()=>set('attendance_feedback',opt.val)} className="mt-0.5 accent-[#463a7a]" />
-                                                        <div><p className="text-sm font-bold text-slate-800">{opt.label}</p><p className="text-xs text-slate-500 mt-0.5">{opt.sub}</p></div>
-                                                    </label>
-                                                ))}
-                                            </div>
-                                        </Field>
-                                    </div>
+                                                    {v:'90',label:'3 months'},
+                                                    {v:'180',label:'6 months'},
+                                                    {v:'365',label:'12 months (recommended)'},
+                                                    {v:'545',label:'18 months'},
+                                                    {v:'730',label:'24 months'},
+                                                ].map(o=><option key={o.v} value={o.v}>{o.label}</option>)}
+                                            </select>
+                                            <span className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full">
+                                                <TrendingUp size={11} /> Scales with your academy
+                                            </span>
+                                        </div>
+                                    </Field>
                                 </div>
                                 <SaveBar saving={saving} saved={saved} onSave={save} />
                             </>

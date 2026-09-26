@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router';
-import { api, API_BASE } from '../../lib/api';
+import { api } from '../../lib/api';
 import {
     ArrowLeft, Loader2, Download, Send, Mail, AlertCircle, Trash2,
     CheckCircle2, Clock, RefreshCw, Banknote, X, Pencil, Save
@@ -347,7 +347,20 @@ export default function InvoiceViewer() {
                 {/* Actions */}
                 {!isEditing && (
                     <div className="bg-white rounded-2xl p-8 border border-slate-200 shadow-sm space-y-3">
-                        <button onClick={() => window.open(`${API_BASE}/admin/invoices/${invoiceId}/html`, '_blank')}
+                        <button onClick={async () => {
+                            // window.open(url) can't attach the auth header the endpoint
+                            // now requires — fetch it authenticated, then hand the tab
+                            // a blob URL. Opened synchronously so it isn't popup-blocked.
+                            const win = window.open('', '_blank');
+                            if (!win) { alert('Allow pop-ups for this site to open the invoice PDF.'); return; }
+                            try {
+                                const res = await api.get(`/admin/invoices/${invoiceId}/html`, { responseType: 'text' });
+                                win.location.href = URL.createObjectURL(new Blob([res.data], { type: 'text/html' }));
+                            } catch (err) {
+                                win.close();
+                                alert('Failed to load the invoice.');
+                            }
+                        }}
                             className="w-full flex items-center justify-center gap-2 py-3 bg-slate-100 text-slate-700 rounded-2xl font-bold hover:bg-slate-200 transition-colors">
                             <Download size={16} /> Download PDF
                         </button>
