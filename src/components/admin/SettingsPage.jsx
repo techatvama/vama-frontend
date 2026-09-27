@@ -187,7 +187,8 @@ const NOTIF_TEMPLATE_META = {
     attendance_absent:  { label: 'Attendance — Absent',  fields: ['subject', 'heading', 'intro'], vars: '{student_name} {course} {date} {academy}' },
 };
 
-function TemplateEditor({ kind }) {
+function TemplateEditor({ kind, centerId }) {
+    const params = centerId ? { center_id: centerId } : {};
     const meta = NOTIF_TEMPLATE_META[kind];
     const [open, setOpen] = useState(false);
     const [form, setForm] = useState(null);
@@ -196,20 +197,20 @@ function TemplateEditor({ kind }) {
 
     useEffect(() => {
         if (open && !form) {
-            api.get('/admin/notification-templates').then(r => setForm(r.data[kind]));
+            api.get('/admin/notification-templates', { params }).then(r => setForm(r.data[kind]));
         }
-    }, [open]);
+    }, [open, centerId]);
 
     const save = async () => {
         setSaving(true); setSaved(false);
         try {
-            await api.put(`/admin/notification-templates/${kind}`, form);
+            await api.put(`/admin/notification-templates/${kind}`, form, { params });
             setSaved(true); setTimeout(() => setSaved(false), 2000);
         } finally { setSaving(false); }
     };
 
     const resetToDefault = async () => {
-        const r = await api.post(`/admin/notification-templates/${kind}/reset`);
+        const r = await api.post(`/admin/notification-templates/${kind}/reset`, null, { params });
         setForm(r.data);
     };
 
@@ -268,20 +269,22 @@ function TemplateEditor({ kind }) {
     );
 }
 
-function EmailNotifications() {
+function EmailNotifications({ centerId }) {
     const [settings, setSettings] = useState(null);
     const [saving, setSaving] = useState(false);
+    const params = centerId ? { center_id: centerId } : {};
 
     useEffect(() => {
-        api.get('/admin/notification-settings').then(r => setSettings(r.data)).catch(() => setSettings({}));
-    }, []);
+        setSettings(null);
+        api.get('/admin/notification-settings', { params }).then(r => setSettings(r.data)).catch(() => setSettings({}));
+    }, [centerId]);
 
     const toggle = async (field, value) => {
         const next = { ...settings, [field]: value };
         setSettings(next); // optimistic — in-place, no reload/flash
         setSaving(true);
         try {
-            await api.put('/admin/notification-settings', { [field]: value });
+            await api.put('/admin/notification-settings', { [field]: value }, { params });
         } catch {
             setSettings(settings); // revert on failure
         } finally {
@@ -333,7 +336,7 @@ function EmailNotifications() {
                             </div>
                             {meta.templates.length > 0 && (
                                 <div className="px-4 pb-4 space-y-2 border-t border-slate-100 pt-3">
-                                    {meta.templates.map(kind => <TemplateEditor key={kind} kind={kind} />)}
+                                    {meta.templates.map(kind => <TemplateEditor key={kind} kind={kind} centerId={centerId} />)}
                                 </div>
                             )}
                             {cat === 'invoices' && (
@@ -501,47 +504,36 @@ function CenterScheduling({ centerId, settings, onSettingsChange, onSave, saving
     const prefix = `center_${centerId}_scheduling.`;
     const get = k => settings[`${prefix}${k}`];
     const upd = k => v => onSettingsChange(`${prefix}${k}`, v);
+    const feedback = get('attendance_feedback') || settings.attendance_feedback || 'required_for_present';
+    const horizon = get('occurrence_horizon_days') || settings.occurrence_horizon_days || '365';
 
     return (
         <div className="space-y-5">
-            <div className="grid grid-cols-2 gap-5">
-                <Field label="Calendar Start Hour">
-                    <select value={get('start_hour') || '8'} onChange={e => upd('start_hour')(e.target.value)} className={`${inputCls} appearance-none cursor-pointer`}>
-                        {Array.from({length:13},(_,i)=>i+6).map(h=>(
-                            <option key={h} value={h}>{h<12?`${h}:00 AM`:h===12?'12:00 PM':`${h-12}:00 PM`}</option>
-                        ))}
-                    </select>
-                </Field>
-                <Field label="Calendar End Hour">
-                    <select value={get('end_hour') || '21'} onChange={e => upd('end_hour')(e.target.value)} className={`${inputCls} appearance-none cursor-pointer`}>
-                        {Array.from({length:10},(_,i)=>i+17).map(h=>(
-                            <option key={h} value={h}>{h<12?`${h}:00 AM`:h===12?'12:00 PM':`${h-12}:00 PM`}</option>
-                        ))}
-                    </select>
-                </Field>
-                <div className="col-span-2">
-                    <Field label="Attendance Feedback Rule">
-                        <div className="space-y-2">
-                            {[
-                                { val:'required_for_present', label:'Required when marking Present', sub:'Absent can be marked without feedback' },
-                                { val:'required_always', label:'Required for both Present & Absent' },
-                                { val:'optional', label:'Always optional' },
-                            ].map(opt => (
-                                <label key={opt.val} className={`flex items-start gap-3 p-3.5 rounded-2xl border-2 cursor-pointer transition-all ${get('attendance_feedback')===opt.val?'border-[#463a7a] bg-violet-50':'border-slate-200 bg-slate-50 hover:border-slate-300'}`}>
-                                    <input type="radio" name={`att_feedback_${centerId}`} value={opt.val}
-                                        checked={get('attendance_feedback')===opt.val}
-                                        onChange={() => upd('attendance_feedback')(opt.val)}
-                                        className="mt-0.5 accent-[#463a7a]" />
-                                    <div>
-                                        <p className="text-sm font-bold text-slate-800">{opt.label}</p>
-                                        {opt.sub && <p className="text-xs text-slate-500 mt-0.5">{opt.sub}</p>}
-                                    </div>
-                                </label>
-                            ))}
-                        </div>
-                    </Field>
+            <Field label="Attendance Feedback Rule">
+                <div className="space-y-2">
+                    {[
+                        { val:'required_for_present', label:'Required when marking Present', sub:'Absent can be marked without feedback' },
+                        { val:'optional', label:'Always optional' },
+                    ].map(opt => (
+                        <label key={opt.val} className={`flex items-start gap-3 p-3.5 rounded-2xl border-2 cursor-pointer transition-all ${feedback===opt.val?'border-[#463a7a] bg-violet-50':'border-slate-200 bg-slate-50 hover:border-slate-300'}`}>
+                            <input type="radio" name={`att_feedback_${centerId}`} value={opt.val}
+                                checked={feedback===opt.val}
+                                onChange={() => upd('attendance_feedback')(opt.val)}
+                                className="mt-0.5 accent-[#463a7a]" />
+                            <div>
+                                <p className="text-sm font-bold text-slate-800">{opt.label}</p>
+                                {opt.sub && <p className="text-xs text-slate-500 mt-0.5">{opt.sub}</p>}
+                            </div>
+                        </label>
+                    ))}
                 </div>
-            </div>
+            </Field>
+            <Field label="Class Generation Horizon" hint="How far ahead this center's recurring classes are pre-created on the calendar.">
+                <select value={horizon} onChange={e => upd('occurrence_horizon_days')(e.target.value)} className={`${inputCls} appearance-none cursor-pointer max-w-xs`}>
+                    {[{v:'90',label:'3 months'},{v:'180',label:'6 months'},{v:'365',label:'12 months (recommended)'},{v:'545',label:'18 months'},{v:'730',label:'24 months'}]
+                        .map(o => <option key={o.v} value={o.v}>{o.label}</option>)}
+                </select>
+            </Field>
             <SaveBar saving={saving} saved={saved} onSave={onSave} />
         </div>
     );
@@ -642,6 +634,7 @@ export default function SettingsPage() {
         { id: 'ca-payments',   label: 'Payments',        icon: CreditCard },
         { id: 'ca-enrollment', label: 'Enrollment Form', icon: Globe },
         { id: 'ca-scheduling', label: 'Scheduling',      icon: Clock },
+        { id: 'ca-notifications', label: 'Email Notifications', icon: Bell },
         { id: 'credentials',   label: 'Credentials',     icon: Shield },
         { id: 'audit-logs',    label: 'Activity Log',    icon: Activity },
     ];
@@ -675,6 +668,7 @@ export default function SettingsPage() {
 
     // center admin's own center object (loaded lazily when needed)
     const [myCenter, setMyCenter] = useState(null);
+    const [notifScope, setNotifScope] = useState('');
 
     useEffect(() => {
         api.get('/admin/settings')
@@ -684,7 +678,7 @@ export default function SettingsPage() {
     }, []);
 
     useEffect(() => {
-        if (isSuperAdmin && (active === 'centers' || active === 'center')) {
+        if (isSuperAdmin && (active === 'centers' || active === 'center' || active === 'notifications')) {
             api.get('/centers').then(r => setCenters(r.data || [])).catch(() => {});
             api.get('/staff').then(r => setStaffList(r.data || [])).catch(() => {});
         }
@@ -847,7 +841,7 @@ export default function SettingsPage() {
                         {active === 'ca-scheduling' && (
                             <>
                                 <div><h2 className="text-lg font-bold text-slate-900">Scheduling</h2>
-                                <p className="text-sm text-slate-400 mt-0.5">Calendar display range and attendance rules for your center.</p></div>
+                                <p className="text-sm text-slate-400 mt-0.5">Attendance and calendar rules for your center only.</p></div>
                                 <CenterScheduling centerId={myCenterId} settings={settings}
                                     onSettingsChange={(k,v) => set(k,v)} onSave={save} saving={saving} saved={saved} />
                             </>
@@ -1013,7 +1007,20 @@ export default function SettingsPage() {
                             </>
                         )}
 
-                        {active === 'notifications' && <EmailNotifications />}
+                        {active === 'ca-notifications' && <EmailNotifications centerId={myCenterId} />}
+                        {active === 'notifications' && (
+                            <>
+                                <div className="flex items-center gap-3 flex-wrap">
+                                    <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Editing</span>
+                                    <select value={notifScope} onChange={e => setNotifScope(e.target.value)} className={`${inputCls} appearance-none cursor-pointer max-w-xs`}>
+                                        <option value="">Global default (all centers)</option>
+                                        {centers.map(c => <option key={c.id} value={c.id}>{c.name} — this center only</option>)}
+                                    </select>
+                                </div>
+                                <p className="text-xs text-slate-400 -mt-2">Each center can override these in its own Email Notifications settings; anything a center hasn't set inherits this global default.</p>
+                                <EmailNotifications centerId={notifScope || null} />
+                            </>
+                        )}
 
                         {active === 'payments' && (
                             <>

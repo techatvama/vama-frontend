@@ -54,6 +54,8 @@ export default function TeacherSessionDetails() {
     const [removeTarget, setRemoveTarget] = useState(null); // { id, first_name, last_name, enrollment_type }
     const [removing, setRemoving] = useState(false);
     const feedbackInitialized = useRef(false);
+    const [feedbackRule, setFeedbackRule] = useState('required_for_present');
+    useEffect(() => { api.get('/scheduling/settings').then(r => setFeedbackRule(r.data.attendance_feedback)).catch(() => {}); }, []);
 
     useEffect(() => {
         fetchAll();
@@ -113,7 +115,7 @@ export default function TeacherSessionDetails() {
 
     const handleAttendanceChange = async (studentId, status) => {
         const notes = (feedbackState[studentId] || '').trim();
-        if (status === 'present' && !notes) {
+        if (status === 'present' && !notes && feedbackRule !== 'optional') {
             setFeedbackError(String(studentId));
             return;
         }
