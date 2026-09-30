@@ -60,7 +60,6 @@ export default function TeacherStudents() {
     const [filterExamDate, setFilterExamDate] = useState('All');
     const [sortConfig, setSortConfig] = useState({ key: 'first_name', direction: 'asc' });
     const [showAddModal, setShowAddModal] = useState(false);
-    const [view, setView] = useState('cards'); // 'cards' | 'table'
     const [tableSortConfig, setTableSortConfig] = useState({ key: 'first_name', dir: 'asc' });
     const [progressFor, setProgressFor] = useState(null);
     const navigate = useNavigate();
@@ -142,18 +141,9 @@ export default function TeacherStudents() {
                 <div className="absolute top-0 right-0 p-12 opacity-10">
                     <Zap className="w-64 h-64 text-white fill-current translate-x-32 -translate-y-32" />
                 </div>
-                <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-                    <div>
-                        <h1 className="text-4xl lg:text-5xl font-black text-white tracking-tighter">My Students</h1>
-                        <p className="text-indigo-100/60 font-medium mt-2 text-lg">Managing {filteredStudents.length} active artists</p>
-                    </div>
-                    <button
-                        onClick={() => navigate('/schedule')}
-                        className="flex items-center gap-2 bg-white text-[#463a7a] px-6 py-4 rounded-2xl font-black shadow-xl hover:scale-105 active:scale-95 transition-all w-fit"
-                    >
-                        <Plus className="w-5 h-5" />
-                        ASSIGN TO BATCH
-                    </button>
+                <div className="relative z-10">
+                    <h1 className="text-4xl lg:text-5xl font-black text-white tracking-tighter">My Students</h1>
+                    <p className="text-indigo-100/60 font-medium mt-2 text-lg">Managing {filteredStudents.length} active artists</p>
                 </div>
             </div>
 
@@ -229,83 +219,71 @@ export default function TeacherStudents() {
                 </div>
             </div>
 
-            {/* View toggle */}
-            <div className="flex items-center justify-between">
-                <p className="text-sm font-black text-slate-500">{filteredStudents.length} student{filteredStudents.length !== 1 ? 's' : ''}</p>
-                <div className="flex gap-1 bg-white border border-slate-200 p-1 rounded-xl shadow-sm">
-                    <button onClick={() => setView('cards')}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black transition-all ${view === 'cards' ? 'bg-[#463a7a] text-white' : 'text-slate-500 hover:bg-slate-50'}`}>
-                        <LayoutGrid size={13} /> Cards
-                    </button>
-                    <button onClick={() => setView('table')}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black transition-all ${view === 'table' ? 'bg-[#463a7a] text-white' : 'text-slate-500 hover:bg-slate-50'}`}>
-                        <Table2 size={13} /> Table
-                    </button>
-                </div>
-            </div>
+            <p className="text-sm font-black text-slate-500">{filteredStudents.length} student{filteredStudents.length !== 1 ? 's' : ''}</p>
 
-            {/* Cards View */}
-            {view === 'cards' && (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                    {loading ? (
-                        [1, 2, 3, 4, 5, 6].map(i => (
-                            <div key={i} className="bg-white rounded-[32px] p-6 h-48 animate-pulse border border-slate-100" />
-                        ))
-                    ) : filteredStudents.length > 0 ? (
-                        filteredStudents.map((student) => (
-                            <div
-                                key={student.id}
-                                onClick={() => navigate(`/teacher-portal/students/${student.id}`)}
-                                className="group bg-white rounded-[40px] p-6 shadow-lg shadow-slate-200 border border-slate-100 hover:border-[#463a7a] hover:shadow-2xl hover:shadow-indigo-100 transition-all cursor-pointer relative overflow-hidden flex flex-col items-center text-center"
-                            >
-                                {student.is_exam_student && (
-                                    <div className="absolute top-4 right-4 bg-amber-50 text-amber-600 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-amber-100 flex items-center gap-1">
-                                        <Award className="w-3 h-3" /> Exam
-                                    </div>
-                                )}
-                                <div className="w-20 h-20 rounded-[28px] flex items-center justify-center text-2xl font-black text-white mb-4 group-hover:scale-110 transition-transform"
+            {/* Mobile list — a stacked card-per-row layout reads far better than a
+                wide table below ~640px, so the table further down is desktop-only. */}
+            <div className="sm:hidden space-y-3">
+                {loading ? (
+                    [1, 2, 3].map(i => <div key={i} className="bg-white rounded-[28px] p-5 h-28 animate-pulse border border-slate-100" />)
+                ) : filteredStudents.length > 0 ? (
+                    filteredStudents.map(student => (
+                        <button
+                            key={student.id}
+                            onClick={() => navigate(`/teacher-portal/students/${student.id}`)}
+                            className="w-full text-left bg-white rounded-[28px] p-5 shadow-sm border border-slate-100 active:scale-[0.99] transition-transform"
+                        >
+                            <div className="flex items-center gap-3">
+                                <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-base font-black text-white flex-shrink-0"
                                     style={{ backgroundColor: aColor(student.id) }}>
                                     {initials(student.first_name, student.last_name)}
                                 </div>
-                                <h3 className="text-xl font-black text-slate-900 leading-tight">{student.first_name} {student.last_name}</h3>
-                                <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-1">{student.desired_course || 'Music Student'}</p>
-                                <div className="grid grid-cols-2 gap-3 w-full mt-6">
-                                    <div className="p-3 bg-slate-50 rounded-2xl flex flex-col items-center">
-                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Grade</span>
-                                        <span className="text-sm font-black text-[#463a7a]">{student.current_grade || 'Debut'}</span>
-                                    </div>
-                                    <div className="p-3 bg-slate-50 rounded-2xl flex flex-col items-center">
-                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Syllabus</span>
-                                        <span className="text-sm font-black text-[#463a7a]">{student.syllabus_type || 'N/A'}</span>
-                                    </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="font-black text-slate-900 truncate">{student.first_name} {student.last_name}</p>
+                                    <p className="text-xs font-bold text-slate-400 truncate">{student.desired_course || 'Music Student'}</p>
                                 </div>
-                                <div className="mt-6 pt-4 border-t border-slate-50 w-full flex items-center justify-between group-hover:px-2 transition-all">
-                                    <div className="flex -space-x-2">
-                                        <div className="w-8 h-8 rounded-full bg-indigo-50 border-2 border-white flex items-center justify-center">
-                                            <Calendar className="w-3.5 h-3.5 text-indigo-400" />
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center gap-1 text-xs font-black text-[#463a7a]">
-                                        VIEW PROFILE <ChevronRight className="w-4 h-4" />
-                                    </div>
-                                </div>
+                                <ChevronRight className="w-4 h-4 text-slate-300 flex-shrink-0" />
                             </div>
-                        ))
-                    ) : (
-                        <div className="col-span-full bg-white rounded-[40px] p-20 text-center border-2 border-dashed border-slate-100">
-                            <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                                <User className="w-10 h-10 text-slate-200" />
+                            <div className="flex flex-wrap items-center gap-1.5 mt-3">
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-indigo-50 text-[#463a7a] text-[11px] font-black rounded-lg">
+                                    <GraduationCap size={10} /> {student.current_grade || 'Debut'}
+                                </span>
+                                {student.syllabus_type && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-violet-50 text-violet-700 text-[11px] font-black rounded-lg">
+                                        <BookOpen size={10} /> {student.syllabus_type}
+                                    </span>
+                                )}
+                                {student.is_exam_student && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-50 text-amber-700 text-[11px] font-black rounded-lg">
+                                        <Award size={10} /> Exam
+                                    </span>
+                                )}
                             </div>
-                            <h3 className="text-2xl font-black text-slate-300">No students found</h3>
-                            <p className="text-slate-400 font-medium">Try adjusting your filters or search terms</p>
-                        </div>
-                    )}
-                </div>
-            )}
+                            {student.progress_total > 0 && (
+                                <div className="mt-3"><ProgressBar pct={student.progress_pct} /></div>
+                            )}
+                            <div className="flex gap-2 mt-3">
+                                <span onClick={(e) => { e.stopPropagation(); navigate(`/teacher-portal/students/${student.id}`); }}
+                                    className="flex-1 text-center text-[11px] font-black text-slate-600 bg-slate-50 px-2.5 py-2 rounded-lg">
+                                    Profile
+                                </span>
+                                <span onClick={(e) => { e.stopPropagation(); setProgressFor(student); }}
+                                    className="flex-1 text-center text-[11px] font-black text-[#463a7a] bg-indigo-50 px-2.5 py-2 rounded-lg">
+                                    Progress
+                                </span>
+                            </div>
+                        </button>
+                    ))
+                ) : (
+                    <div className="bg-white rounded-[28px] p-10 text-center border-2 border-dashed border-slate-100">
+                        <User className="w-10 h-10 text-slate-200 mx-auto mb-2" />
+                        <p className="text-slate-400 font-bold text-sm">No students found</p>
+                    </div>
+                )}
+            </div>
 
-            {/* Table View */}
-            {view === 'table' && (
-                <div className="bg-white rounded-[32px] border border-slate-100 shadow-lg overflow-hidden">
+            {/* Table — desktop/tablet only; phones get the stacked list above */}
+            <div className="hidden sm:block bg-white rounded-[32px] border border-slate-100 shadow-lg overflow-hidden">
                     {loading ? (
                         <div className="flex items-center justify-center py-24"><Loader2 className="animate-spin text-[#463a7a]" size={32} /></div>
                     ) : tableSorted.length === 0 ? (
@@ -405,7 +383,6 @@ export default function TeacherStudents() {
                         </div>
                     )}
                 </div>
-            )}
 
             {/* Progress Modal */}
             {progressFor && (

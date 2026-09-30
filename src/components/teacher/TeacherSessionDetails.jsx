@@ -48,7 +48,6 @@ export default function TeacherSessionDetails() {
     const [showProgressModal, setShowProgressModal] = useState(null);
     const [showEnrollModal, setShowEnrollModal] = useState(false);
     const [enrollSearch, setEnrollSearch] = useState('');
-    const [enrollType, setEnrollType] = useState('single_session'); // 'single_session' | 'recurring'
     const [enrolling, setEnrolling] = useState(null);
     const [lastRefresh, setLastRefresh] = useState(new Date());
     const [removeTarget, setRemoveTarget] = useState(null); // { id, first_name, last_name, enrollment_type }
@@ -137,14 +136,14 @@ export default function TeacherSessionDetails() {
     const closeEnrollModal = () => {
         setShowEnrollModal(false);
         setEnrollSearch('');
-        setEnrollType('single_session');
     };
 
     const handleEnroll = async (studentId) => {
         setEnrolling(studentId);
         try {
+            // Teachers only ever add a student to this one class — no recurring option.
             await api.post(`/sessions/${sessionId}/enroll`, null, {
-                params: { student_id: studentId, enrollment_type: enrollType }
+                params: { student_id: studentId, enrollment_type: 'single_session' }
             });
             await fetchEnrolledStudents();
             closeEnrollModal();
@@ -306,21 +305,6 @@ export default function TeacherSessionDetails() {
                                                         {student.first_name} {student.last_name}
                                                     </button>
                                                     <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
-                                                        <span className={`text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full ${
-                                                            student.enrollment_type === 'single_session'
-                                                                ? 'bg-orange-100 text-orange-600'
-                                                                : 'bg-slate-100 text-slate-500'
-                                                        }`}>
-                                                            {student.enrollment_type === 'single_session' ? 'This class only' : 'Recurring'}
-                                                        </span>
-                                                        <span className={`text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full ${
-                                                            student.has_invoice !== false && (student.outstanding ?? 0) <= 0
-                                                                ? 'bg-emerald-100 text-emerald-600'
-                                                                : 'bg-red-100 text-red-600'
-                                                        }`}
-                                                            title={student.has_invoice === false ? 'No invoice on file for this class' : undefined}>
-                                                            {student.has_invoice !== false && (student.outstanding ?? 0) <= 0 ? '✓ Paid' : '💳 Unpaid'}
-                                                        </span>
                                                         {isCancelled && (
                                                             <span className="px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-600 text-[8px] font-black uppercase tracking-widest">
                                                                 Self-Cancelled
@@ -420,7 +404,7 @@ export default function TeacherSessionDetails() {
                                         <User size={40} className="mx-auto text-slate-100 mb-4" />
                                         <p className="text-slate-400 font-bold text-sm">No students added yet.</p>
                                         <button
-                                            onClick={() => { setEnrollType('single_session'); setShowEnrollModal(true); }}
+                                            onClick={() => setShowEnrollModal(true)}
                                             className="mt-4 inline-flex items-center gap-1.5 text-[#463a7a] font-black text-xs underline underline-offset-4 hover:text-purple-700"
                                         >
                                             <Plus size={13} /> Add first student
@@ -528,30 +512,22 @@ export default function TeacherSessionDetails() {
                         </div>
                         <div className="p-6 space-y-3">
                             <p className="text-slate-600 text-sm font-medium mb-4">
-                                How would you like to remove this student?
+                                Remove {removeTarget.first_name} from this class?
                             </p>
                             <button
                                 onClick={() => handleRemove('this_class')}
                                 disabled={removing}
-                                className="w-full p-4 rounded-2xl border-2 border-orange-200 bg-orange-50 hover:border-orange-400 hover:bg-orange-100 transition-all text-left group"
+                                className="w-full py-3.5 bg-red-500 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-red-600 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                             >
-                                <p className="text-sm font-black text-orange-700 group-hover:text-orange-800">This class only</p>
-                                <p className="text-[10px] text-orange-500 font-bold mt-0.5">Remove from this session only</p>
-                            </button>
-                            <button
-                                onClick={() => handleRemove('all_future')}
-                                disabled={removing}
-                                className="w-full p-4 rounded-2xl border-2 border-red-200 bg-red-50 hover:border-red-400 hover:bg-red-100 transition-all text-left group"
-                            >
-                                <p className="text-sm font-black text-red-700 group-hover:text-red-800">All future classes</p>
-                                <p className="text-[10px] text-red-500 font-bold mt-0.5">Remove from all recurring sessions</p>
+                                {removing ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                                {removing ? 'Removing…' : 'Remove'}
                             </button>
                             <button
                                 onClick={() => setRemoveTarget(null)}
                                 disabled={removing}
-                                className="w-full py-3.5 bg-slate-100 text-slate-500 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-200 transition-all mt-1"
+                                className="w-full py-3.5 bg-slate-100 text-slate-500 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-200 transition-all"
                             >
-                                {removing ? <Loader2 size={14} className="animate-spin mx-auto" /> : 'Cancel'}
+                                Cancel
                             </button>
                         </div>
                     </div>
@@ -577,35 +553,9 @@ export default function TeacherSessionDetails() {
                                 </button>
                             </div>
 
-                            {/* Enrollment type toggle */}
-                            <div className="bg-white/10 rounded-2xl p-1 flex gap-1">
-                                <button
-                                    onClick={() => setEnrollType('single_session')}
-                                    className={`flex-1 py-2.5 px-3 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all ${
-                                        enrollType === 'single_session'
-                                            ? 'bg-white text-[#463a7a] shadow-md'
-                                            : 'text-white/60 hover:text-white'
-                                    }`}
-                                >
-                                    This class only
-                                </button>
-                                <button
-                                    onClick={() => setEnrollType('recurring')}
-                                    className={`flex-1 py-2.5 px-3 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all ${
-                                        enrollType === 'recurring'
-                                            ? 'bg-white text-[#463a7a] shadow-md'
-                                            : 'text-white/60 hover:text-white'
-                                    }`}
-                                >
-                                    All recurring
-                                </button>
-                            </div>
-
-                            {/* Context hint */}
-                            <p className="mt-3 text-[10px] text-indigo-200/50 font-semibold">
-                                {enrollType === 'single_session'
-                                    ? '👆 Student added to this session only — recorded in session_ids'
-                                    : '🔄 Student enrolled in all scheduled sessions of this batch'}
+                            {/* Context hint — teachers only ever add a student to this one class */}
+                            <p className="text-[10px] text-indigo-200/50 font-semibold">
+                                👆 Adds this student to this class only
                             </p>
                         </div>
 
@@ -646,13 +596,9 @@ export default function TeacherSessionDetails() {
                                         {enrolling === s.id
                                             ? <Loader2 size={16} className="animate-spin text-[#463a7a]" />
                                             : (
-                                                <span className={`flex items-center gap-1 text-[10px] font-black transition-colors ${
-                                                    enrollType === 'single_session'
-                                                        ? 'text-orange-500 group-hover:text-orange-600'
-                                                        : 'text-[#463a7a] group-hover:text-purple-700'
-                                                }`}>
+                                                <span className="flex items-center gap-1 text-[10px] font-black text-orange-500 group-hover:text-orange-600 transition-colors">
                                                     <Plus size={14} />
-                                                    {enrollType === 'single_session' ? 'This class' : 'All classes'}
+                                                    Add
                                                 </span>
                                             )
                                         }
