@@ -10,6 +10,7 @@ import {
     Globe, Phone, FileText, Hash, Percent, Users, TrendingUp, Activity,
     Lock, AtSign, ShieldCheck, Zap, ExternalLink, Copy, CheckCircle2, Server,
     Bell, ChevronDown, RotateCcw, CalendarClock, UserCheck, Receipt, KeyRound,
+    Trash2, AlertTriangle,
 } from 'lucide-react';
 
 const inputCls = "w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-[#463a7a]/10 focus:border-[#463a7a]/40 transition-all placeholder:text-slate-300";
@@ -608,6 +609,107 @@ function CenterCard({ center }) {
     );
 }
 
+// ─── Delete Center (hard delete — irreversible) ────────────────────────────────
+
+function DeleteCenterButton({ center, onDeleted }) {
+    const [open, setOpen] = useState(false);
+    const [preview, setPreview] = useState(null);
+    const [loadingPreview, setLoadingPreview] = useState(false);
+    const [confirmText, setConfirmText] = useState('');
+    const [deleting, setDeleting] = useState(false);
+    const [error, setError] = useState('');
+
+    const openConfirm = () => {
+        setOpen(true);
+        setConfirmText('');
+        setError('');
+        setLoadingPreview(true);
+        api.get(`/centers/${center.id}/delete-preview`)
+            .then(r => setPreview(r.data))
+            .catch(() => setError('Could not load what this center contains — try again.'))
+            .finally(() => setLoadingPreview(false));
+    };
+
+    const confirmDelete = async () => {
+        setDeleting(true);
+        setError('');
+        try {
+            await api.delete(`/centers/${center.id}`, { data: { confirm_name: confirmText } });
+            setOpen(false);
+            onDeleted?.(center.id);
+        } catch (err) {
+            setError(err.response?.data?.detail || 'Failed to delete this center.');
+        } finally {
+            setDeleting(false);
+        }
+    };
+
+    return (
+        <>
+            <button onClick={openConfirm} title="Permanently delete this center"
+                className="p-2 rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors flex-shrink-0">
+                <Trash2 size={15} />
+            </button>
+
+            {open && (
+                <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => !deleting && setOpen(false)}>
+                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden" onClick={e => e.stopPropagation()}>
+                        <div className="p-6 bg-gradient-to-br from-red-600 to-rose-700 text-white">
+                            <div className="flex items-center gap-2 mb-1">
+                                <AlertTriangle size={18} />
+                                <h3 className="text-lg font-bold">Delete {center.name}</h3>
+                            </div>
+                            <p className="text-red-100/80 text-xs">This permanently erases the center and everything in it. There is no undo and no recovery.</p>
+                        </div>
+
+                        <div className="p-6 space-y-4">
+                            {loadingPreview ? (
+                                <div className="flex justify-center py-6"><Loader2 className="animate-spin text-red-500" size={22} /></div>
+                            ) : preview ? (
+                                <div className="bg-red-50 border border-red-100 rounded-2xl p-4 space-y-1.5 text-sm">
+                                    <p className="font-bold text-red-700 mb-2">This will permanently delete:</p>
+                                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-red-700/90 text-xs">
+                                        <span>{preview.students} student{preview.students === 1 ? '' : 's'}</span>
+                                        <span>{preview.staff} staff account{preview.staff === 1 ? '' : 's'}</span>
+                                        <span>{preview.class_templates} class{preview.class_templates === 1 ? '' : 'es'}</span>
+                                        <span>{preview.syllabi} syllabus entr{preview.syllabi === 1 ? 'y' : 'ies'}</span>
+                                        <span>{preview.invoices} invoice{preview.invoices === 1 ? '' : 's'}</span>
+                                        <span>₹{(preview.total_paid || 0).toLocaleString('en-IN')} in recorded payments</span>
+                                    </div>
+                                    <p className="text-[11px] text-red-500 pt-2">Plus every class, attendance record, package, and setting tied to this center.</p>
+                                </div>
+                            ) : null}
+
+                            {error && <div className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{error}</div>}
+
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">
+                                    Type <span className="font-mono text-slate-700">{center.name}</span> to confirm
+                                </label>
+                                <input value={confirmText} onChange={e => setConfirmText(e.target.value)}
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-red-200 focus:border-red-300"
+                                    placeholder={center.name} autoFocus />
+                            </div>
+                        </div>
+
+                        <div className="flex gap-3 px-6 pb-6">
+                            <button onClick={() => setOpen(false)} disabled={deleting}
+                                className="flex-1 py-3 bg-slate-100 text-slate-600 rounded-2xl font-bold text-sm hover:bg-slate-200 transition-all disabled:opacity-50">
+                                Cancel
+                            </button>
+                            <button onClick={confirmDelete} disabled={deleting || confirmText !== center.name || loadingPreview}
+                                className="flex-1 py-3 bg-red-600 text-white rounded-2xl font-bold text-sm hover:bg-red-700 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                                {deleting ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
+                                {deleting ? 'Deleting…' : 'Permanently Delete'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </>
+    );
+}
+
 // ─── Main Settings Page ───────────────────────────────────────────────────────
 
 export default function SettingsPage() {
@@ -912,6 +1014,7 @@ export default function SettingsPage() {
                                                 {c.address && <p className="text-xs text-slate-400 truncate">{c.address}</p>}
                                             </div>
                                             <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">Active</span>
+                                            <DeleteCenterButton center={c} onDeleted={(id) => setCenters(prev => prev.filter(x => x.id !== id))} />
                                         </div>
                                     ))}
                                     <button onClick={() => setShowOnboardWizard(true)}
