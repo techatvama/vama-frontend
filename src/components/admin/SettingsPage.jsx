@@ -710,12 +710,134 @@ function DeleteCenterButton({ center, onDeleted }) {
     );
 }
 
+// ─── My Account (self-service: profile + password) ────────────────────────────
+
+function MyAccount() {
+    const { admin, login } = useAdmin();
+    const [form, setForm] = useState({ name: admin?.name || '', email: admin?.email || '', phone: admin?.phone || '' });
+    const [savingProfile, setSavingProfile] = useState(false);
+    const [profileSaved, setProfileSaved] = useState(false);
+    const [profileError, setProfileError] = useState('');
+
+    // The login response doesn't carry phone — pull the full record once so
+    // the field isn't blank when a phone number is already on file.
+    useEffect(() => {
+        if (!admin?.id) return;
+        api.get('/staff').then(res => {
+            const me = (res.data || []).find(s => s.id === admin.id);
+            if (me) setForm(f => ({ ...f, phone: me.phone || f.phone }));
+        }).catch(() => {});
+    }, [admin?.id]);
+
+    const [pw, setPw] = useState({ current_password: '', new_password: '', confirm: '' });
+    const [showPw, setShowPw] = useState(false);
+    const [changingPw, setChangingPw] = useState(false);
+    const [pwSaved, setPwSaved] = useState(false);
+    const [pwError, setPwError] = useState('');
+
+    const saveProfile = async () => {
+        setSavingProfile(true); setProfileError(''); setProfileSaved(false);
+        try {
+            const res = await api.put(`/staff/${admin.id}`, { name: form.name, email: form.email, phone: form.phone });
+            login({ ...admin, name: res.data.name, email: res.data.email, phone: res.data.phone });
+            setProfileSaved(true);
+            setTimeout(() => setProfileSaved(false), 2500);
+        } catch (err) {
+            setProfileError(err.response?.data?.detail || 'Failed to save changes.');
+        } finally {
+            setSavingProfile(false);
+        }
+    };
+
+    const changePassword = async () => {
+        setPwError('');
+        if (pw.new_password !== pw.confirm) { setPwError('New password and confirmation do not match.'); return; }
+        setChangingPw(true);
+        try {
+            await api.post('/auth/change-password', { current_password: pw.current_password, new_password: pw.new_password });
+            setPw({ current_password: '', new_password: '', confirm: '' });
+            setPwSaved(true);
+            setTimeout(() => setPwSaved(false), 2500);
+        } catch (err) {
+            setPwError(err.response?.data?.detail || 'Failed to change password.');
+        } finally {
+            setChangingPw(false);
+        }
+    };
+
+    return (
+        <div className="space-y-8">
+            <div>
+                <h2 className="text-lg font-bold text-slate-900">My Account</h2>
+                <p className="text-sm text-slate-400 mt-0.5">Your own login — name, email, phone, and password.</p>
+            </div>
+
+            <div className="space-y-5">
+                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Profile</h3>
+                <div className="grid grid-cols-2 gap-5">
+                    <Field label="Name">
+                        <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className={inputCls} />
+                    </Field>
+                    <Field label="Phone">
+                        <input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} className={inputCls} />
+                    </Field>
+                    <div className="col-span-2"><Field label="Email (also your login)">
+                        <div className="relative"><AtSign size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} className={`${inputCls} pl-9`} /></div>
+                    </Field></div>
+                </div>
+                {profileError && <div className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{profileError}</div>}
+                <div className="flex items-center justify-end gap-3">
+                    {profileSaved && <span className="flex items-center gap-1.5 text-xs text-emerald-600 font-semibold"><Check size={13} /> Saved</span>}
+                    <button onClick={saveProfile} disabled={savingProfile}
+                        className="flex items-center gap-2 px-5 py-2.5 bg-[#463a7a] text-white rounded-2xl text-sm font-bold hover:bg-[#342a5b] disabled:opacity-50 transition-all">
+                        {savingProfile ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} Save Profile
+                    </button>
+                </div>
+
+                <div className="border-t border-slate-100 pt-6 space-y-5">
+                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Change Password</h3>
+                    <div className="grid grid-cols-2 gap-5">
+                        <div className="col-span-2"><Field label="Current Password">
+                            <input type={showPw ? 'text' : 'password'} value={pw.current_password}
+                                onChange={e => setPw(p => ({ ...p, current_password: e.target.value }))} className={inputCls} />
+                        </Field></div>
+                        <Field label="New Password">
+                            <div className="relative">
+                                <input type={showPw ? 'text' : 'password'} value={pw.new_password}
+                                    onChange={e => setPw(p => ({ ...p, new_password: e.target.value }))} className={`${inputCls} pr-11`} />
+                                <button type="button" onClick={() => setShowPw(v => !v)} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                                    {showPw ? <EyeOff size={15} /> : <Eye size={15} />}
+                                </button>
+                            </div>
+                        </Field>
+                        <Field label="Confirm New Password">
+                            <input type={showPw ? 'text' : 'password'} value={pw.confirm}
+                                onChange={e => setPw(p => ({ ...p, confirm: e.target.value }))} className={inputCls} />
+                        </Field>
+                    </div>
+                    <p className="text-[11px] text-slate-400">At least 8 characters, with an uppercase letter, a lowercase letter, a number, and a symbol.</p>
+                    {pwError && <div className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{pwError}</div>}
+                    <div className="flex items-center justify-end gap-3">
+                        {pwSaved && <span className="flex items-center gap-1.5 text-xs text-emerald-600 font-semibold"><Check size={13} /> Password changed</span>}
+                        <button onClick={changePassword} disabled={changingPw || !pw.current_password || !pw.new_password}
+                            className="flex items-center gap-2 px-5 py-2.5 bg-slate-800 text-white rounded-2xl text-sm font-bold hover:bg-slate-900 disabled:opacity-50 transition-all">
+                            {changingPw ? <Loader2 size={14} className="animate-spin" /> : <Lock size={14} />} Change Password
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 // ─── Main Settings Page ───────────────────────────────────────────────────────
 
 export default function SettingsPage() {
     const { isSuperAdmin, isCenterAdmin, centerId: myCenterId } = useAdmin();
 
     const SA_SECTIONS = [
+        { id: 'my-account',  label: 'My Account',        icon: UserCheck },
         { id: 'academy',     label: 'Academy Profile',   icon: Building2 },
         { id: 'center',      label: 'Center Settings',   icon: MapPin },
         { id: 'centers',     label: 'Centers & Access',  icon: Users },
@@ -731,6 +853,7 @@ export default function SettingsPage() {
     ];
 
     const CA_SECTIONS = [
+        { id: 'my-account',    label: 'My Account',      icon: UserCheck },
         { id: 'ca-profile',    label: 'Center Profile',  icon: Building2 },
         { id: 'ca-smtp',       label: 'Email / SMTP',    icon: Mail },
         { id: 'ca-payments',   label: 'Payments',        icon: CreditCard },
@@ -1226,6 +1349,8 @@ export default function SettingsPage() {
                         )}
 
                         {/* ── SHARED SECTIONS ── */}
+
+                        {active === 'my-account' && <MyAccount />}
 
                         {active === 'credentials' && (
                             <>
