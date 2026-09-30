@@ -12,7 +12,7 @@ import {
     TrendingUp, Clock, AlertCircle,
     ArrowLeft, Loader2, GraduationCap, DollarSign,
     Star, ChevronRight, ChevronLeft, Activity, Users, Pencil, Pause, UserX, RotateCcw,
-    CalendarDays, ExternalLink, FileText, Repeat, X, CheckCircle2, Filter,
+    CalendarDays, ExternalLink, FileText, Repeat, X, CheckCircle2, Filter, ChevronDown,
 } from 'lucide-react';
 import Toast from './shared/Toast';
 import RecordPaymentDialog from './RecordPaymentDialog';
@@ -614,6 +614,220 @@ function AdminRescheduleModal({ studentId, session, onClose, onRescheduled }) {
     );
 }
 
+function SubjectPills({ subjects, current, onSwitch }) {
+    if (subjects.length <= 1) return null;
+    return (
+        <div className="flex gap-2 overflow-x-auto pb-1">
+            {subjects.map(s => (
+                <button key={s.subject} onClick={() => onSwitch(s.subject)}
+                    className={`flex-shrink-0 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wide transition-all ${
+                        s.subject === current ? 'bg-[#463a7a] text-white shadow-md' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                    }`}>
+                    {s.subject}
+                </button>
+            ))}
+        </div>
+    );
+}
+
+const PROGRESS_STATUS_CFG = {
+    'done':        { text: 'text-emerald-700', bg: 'bg-emerald-50', label: 'Done' },
+    'in-progress': { text: 'text-amber-700',   bg: 'bg-amber-50',   label: 'In Progress' },
+    'not-yet':     { text: 'text-slate-500',   bg: 'bg-slate-50',   label: 'Not Yet' },
+};
+
+// Pulls the same syllabus-progress / grade-history data the student portal
+// shows, plus real teacher feedback (attendance notes) — scoped per subject
+// so a student taking more than one instrument gets a tab per subject, and
+// scoped by studentId+subject so it re-fetches whenever a teacher updates
+// progress/grade elsewhere (this is the single shared source of truth, not
+// a separate admin-only copy).
+function PerformancePanel({ studentId, enrolledSubjects }) {
+    const [subject, setSubject] = useState(enrolledSubjects[0]?.subject || null);
+    const [progress, setProgress] = useState(null);
+    const [gradeHistory, setGradeHistory] = useState([]);
+    const [feedback, setFeedback] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [expanded, setExpanded] = useState({});
+
+    useEffect(() => {
+        if (!subject && enrolledSubjects.length) setSubject(enrolledSubjects[0].subject);
+    }, [enrolledSubjects]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    useEffect(() => {
+        if (!studentId) return;
+        let cancelled = false;
+        setLoading(true);
+        const params = subject ? { subject } : {};
+        Promise.all([
+            api.get(`/students/${studentId}/progress`, { params }),
+            api.get(`/students/${studentId}/grade-history`, { params }),
+            api.get(`/admin/students/${studentId}/feedback-history`, { params: { ...params, limit: 20 } }),
+        ]).then(([p, g, f]) => {
+            if (cancelled) return;
+            setProgress(p.data);
+            setGradeHistory(g.data);
+            setFeedback(f.data);
+            setExpanded(p.data?.syllabus?.modules?.[0] ? { [p.data.syllabus.modules[0].id]: true } : {});
+        }).catch(err => console.error(err))
+          .finally(() => { if (!cancelled) setLoading(false); });
+        return () => { cancelled = true; };
+    }, [studentId, subject]);
+
+    const toggle = (id) => setExpanded(prev => ({ ...prev, [id]: !prev[id] }));
+
+    const modules = progress?.syllabus?.modules || [];
+    const totalItems = modules.reduce((a, m) => a + m.contents.length, 0);
+    const doneItems = modules.reduce((a, m) => a + m.contents.filter(c => c.progress?.status === 'done').length, 0);
+    const inProgressItems = modules.reduce((a, m) => a + m.contents.filter(c => c.progress?.status === 'in-progress').length, 0);
+    const overallPct = totalItems ? Math.round((doneItems / totalItems) * 100) : 0;
+
+    return (
+        <div className="space-y-6">
+            <SubjectPills subjects={enrolledSubjects} current={subject} onSwitch={setSubject} />
+
+            {loading ? (
+                <div className="flex items-center justify-center py-16">
+                    <Loader2 className="animate-spin text-[#463a7a]" size={28} />
+                </div>
+            ) : !progress?.syllabus ? (
+                <div className="text-center py-10 text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                    <BookOpen size={32} className="mx-auto mb-2 opacity-30" />
+                    <p className="text-sm">No curriculum assigned{subject ? ` for ${subject}` : ''} yet</p>
+                </div>
+            ) : (
+                <div>
+                    <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+                        <div>
+                            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{progress.syllabus.name}</p>
+                            <p className="text-lg font-black text-slate-900">{progress.student?.grade} Grade — {overallPct}% Complete</p>
+                        </div>
+                        <div className="flex gap-3 text-xs font-bold">
+                            <span className="text-emerald-600">{doneItems} done</span>
+                            {inProgressItems > 0 && <span className="text-amber-500">{inProgressItems} in progress</span>}
+                            <span className="text-slate-400">/ {totalItems} total</span>
+                        </div>
+                    </div>
+                    <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden mb-6">
+                        <div className="h-full bg-gradient-to-r from-[#463a7a] to-[#5e4fa2] rounded-full transition-all duration-700"
+                            style={{ width: `${overallPct}%` }} />
+                    </div>
+
+                    <div className="space-y-3">
+                        {modules.map(module => {
+                            const isOpen = expanded[module.id];
+                            const total = module.contents.length;
+                            const done = module.contents.filter(c => c.progress?.status === 'done').length;
+                            const pct = total ? Math.round((done / total) * 100) : 0;
+                            return (
+                                <div key={module.id} className="border border-slate-200 rounded-xl overflow-hidden">
+                                    <button onClick={() => toggle(module.id)}
+                                        className="w-full flex items-center justify-between p-4 text-left hover:bg-slate-50 transition-colors">
+                                        <div className="min-w-0">
+                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Module {module.order}</p>
+                                            <p className="text-sm font-bold text-slate-900 truncate">{module.name}</p>
+                                        </div>
+                                        <div className="flex items-center gap-3 flex-shrink-0">
+                                            <span className="text-sm font-black text-[#463a7a]">{pct}%</span>
+                                            <ChevronDown size={16} className={`text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                                        </div>
+                                    </button>
+                                    {isOpen && (
+                                        <div className="border-t border-slate-100 divide-y divide-slate-50">
+                                            {module.contents.map(content => {
+                                                const status = content.progress?.status || 'not-yet';
+                                                const cfg = PROGRESS_STATUS_CFG[status];
+                                                return (
+                                                    <div key={content.id} className="flex items-center justify-between px-4 py-2.5 gap-3">
+                                                        <div className="min-w-0">
+                                                            <p className="text-xs font-semibold text-slate-800 truncate">{content.name}</p>
+                                                            {content.progress?.notes && (
+                                                                <p className="text-[11px] text-slate-400 italic truncate">{content.progress.notes}</p>
+                                                            )}
+                                                        </div>
+                                                        <span className={`flex-shrink-0 text-[10px] font-bold uppercase px-2 py-0.5 rounded-md ${cfg.bg} ${cfg.text}`}>
+                                                            {cfg.label}
+                                                        </span>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
+
+            {/* Grade History */}
+            <div>
+                <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4">Grade History</h3>
+                {gradeHistory.length > 0 ? (
+                    <div className="border border-slate-200 rounded-xl p-4">
+                        {gradeHistory.map((h, i) => (
+                            <div key={h.id} className="flex gap-3">
+                                <div className="flex flex-col items-center">
+                                    <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-white font-black text-[10px] ${h.change_type === 'auto_promote' ? 'bg-emerald-500' : 'bg-[#463a7a]'}`}>
+                                        {h.change_type === 'auto_promote' ? '★' : '↑'}
+                                    </div>
+                                    {i < gradeHistory.length - 1 && <div className="w-px flex-1 bg-slate-100 my-1" />}
+                                </div>
+                                <div className="pb-4 flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 flex-wrap mt-0.5">
+                                        {h.from_grade && <span className="text-xs text-slate-400 font-bold">{h.from_grade} →</span>}
+                                        <span className="text-xs font-black text-slate-900">{h.to_grade}</span>
+                                        {h.subject && <span className="text-[9px] px-2 py-0.5 rounded-full font-black uppercase bg-slate-100 text-slate-500">{h.subject}</span>}
+                                        <span className={`text-[9px] px-2 py-0.5 rounded-full font-black uppercase ${h.change_type === 'auto_promote' ? 'bg-emerald-100 text-emerald-700' : 'bg-purple-100 text-purple-700'}`}>
+                                            {h.change_type === 'auto_promote' ? 'Promoted' : 'Updated'}
+                                        </span>
+                                    </div>
+                                    {h.notes && <p className="text-[11px] text-slate-500 mt-0.5 italic">{h.notes}</p>}
+                                    <p className="text-[10px] text-slate-300 font-bold mt-0.5 uppercase tracking-wider">
+                                        {formatDate(h.changed_at)}{h.changed_by && ` · ${h.changed_by}`}
+                                    </p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="text-center py-8 text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                        <p className="text-sm">No grade changes recorded yet</p>
+                    </div>
+                )}
+            </div>
+
+            {/* Recent Feedback — real teacher notes left when marking attendance */}
+            <div>
+                <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4">Recent Feedback</h3>
+                {feedback.length > 0 ? (
+                    <div className="space-y-3">
+                        {feedback.map(fb => (
+                            <div key={fb.id} className="border border-slate-200 rounded-xl p-5 hover:border-[#463a7a]/30 transition-colors">
+                                <div className="flex items-start justify-between mb-2 gap-2">
+                                    <div>
+                                        <div className="font-semibold text-slate-900 text-sm">{fb.subject || 'General'}</div>
+                                        <div className="text-xs text-slate-500 mt-0.5">{fb.teacher || 'Teacher'} · {formatDate(fb.date)}</div>
+                                    </div>
+                                    <span className={`flex-shrink-0 text-[10px] font-bold uppercase px-2 py-0.5 rounded-md ${
+                                        fb.status === 'present' ? 'bg-emerald-50 text-emerald-700' : fb.status === 'absent' ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-700'
+                                    }`}>{fb.status}</span>
+                                </div>
+                                <p className="text-slate-600 text-sm leading-relaxed">{fb.notes}</p>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="text-center py-10 text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                        <Star size={32} className="mx-auto mb-2 opacity-30" />
+                        <p className="text-sm">No feedback recorded yet</p>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
 export default function StudentProfilePage() {
     const { studentId } = useParams();
     const navigate = useNavigate();
@@ -1098,55 +1312,7 @@ export default function StudentProfilePage() {
                                     <StatCard label="Enrolled In" value={`${totalEnrollments} class${totalEnrollments !== 1 ? 'es' : ''}`} color="blue" />
                                 </div>
 
-                                {student.performance?.skills_progress?.length > 0 && (
-                                    <div>
-                                        <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4">Skills Progress</h3>
-                                        <div className="space-y-4">
-                                            {student.performance.skills_progress.map(skill => (
-                                                <div key={skill.skill}>
-                                                    <div className="flex justify-between items-center mb-2">
-                                                        <span className="text-sm font-semibold text-slate-700">{skill.skill}</span>
-                                                        <span className="text-sm font-black text-[#463a7a]">{skill.level}%</span>
-                                                    </div>
-                                                    <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
-                                                        <div className="bg-gradient-to-r from-[#463a7a] to-[#5e4fa2] h-full rounded-full"
-                                                            style={{ width: `${skill.level}%` }} />
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-
-                                {student.performance?.recent_feedback?.length > 0 ? (
-                                    <div>
-                                        <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4">Recent Feedback</h3>
-                                        <div className="space-y-3">
-                                            {student.performance.recent_feedback.map((fb, idx) => (
-                                                <div key={idx} className="border border-slate-200 rounded-xl p-5 hover:border-[#463a7a]/30 transition-colors">
-                                                    <div className="flex items-start justify-between mb-3">
-                                                        <div>
-                                                            <div className="font-semibold text-slate-900 text-sm">{fb.subject}</div>
-                                                            <div className="text-xs text-slate-500 mt-0.5">{fb.teacher} · {formatDate(fb.date)}</div>
-                                                        </div>
-                                                        <div className="flex gap-0.5">
-                                                            {[1,2,3,4,5].map(n => (
-                                                                <Star key={n} size={14}
-                                                                    className={n <= (fb.rating || 0) ? 'text-yellow-400 fill-yellow-400' : 'text-slate-200 fill-slate-200'} />
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                    <p className="text-slate-600 text-sm leading-relaxed">{fb.feedback}</p>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div className="text-center py-10 text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">
-                                        <Star size={32} className="mx-auto mb-2 opacity-30" />
-                                        <p className="text-sm">No feedback recorded yet</p>
-                                    </div>
-                                )}
+                                <PerformancePanel studentId={studentId} enrolledSubjects={enrolledSubjects} />
                             </div>
                         )}
                     </div>

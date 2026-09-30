@@ -103,7 +103,6 @@ export default function StudentProgress() {
         if (student) {
             setStudentId(student.id);
             fetchProgress(student.id);
-            fetchGradeHistory(student.id);
         } else {
             navigate('/student-login');
         }
@@ -121,6 +120,7 @@ export default function StudentProgress() {
             } else {
                 setExpandedModules({});
             }
+            fetchGradeHistory(studentId, res.data?.student?.instrument);
         } catch (err) {
             console.error(err);
         } finally {
@@ -135,9 +135,9 @@ export default function StudentProgress() {
         fetchProgress(studentId, subject);
     };
 
-    const fetchGradeHistory = async (studentId) => {
+    const fetchGradeHistory = async (studentId, subject) => {
         try {
-            const res = await api.get(`/students/${studentId}/grade-history`);
+            const res = await api.get(`/students/${studentId}/grade-history`, { params: subject ? { subject } : {} });
             setGradeHistory(res.data);
         } catch (err) {
             console.error(err);
