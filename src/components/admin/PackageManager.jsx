@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { api } from '../../lib/api';
 import { useAppData } from '../../context/AppDataContext';
+import { useAdmin } from '../../context/AdminContext';
 import {
     Package, Plus, Search, X, Loader2, Edit2, Copy, Archive,
     Eye, ToggleLeft, ToggleRight, LayoutGrid, List, Filter,
@@ -22,7 +23,7 @@ const EMPTY_FORM = {
     total_sessions: 8, session_duration_minutes: 60, makeup_sessions: 0,
     cancellation_window_hours: 24, prorate_enabled: false,
     price: '', tax_percentage: 18, is_published: false, description: '',
-    customValidity: '',
+    customValidity: '', center_id: '',
 };
 
 const perSessionFee = (p) => (p.total_sessions ? Math.round((Number(p.price) || 0) / p.total_sessions) : 0);
@@ -133,6 +134,8 @@ function PackageCard({ pkg, onEdit, onDuplicate, onArchive, onTogglePublish }) {
 export default function PackageManager() {
     const navigate = useNavigate();
     const { gradeNames: GRADES, subjectNames: COURSES } = useAppData();
+    const { isSuperAdmin } = useAdmin();
+    const [centers, setCenters] = useState([]);
     const [packages, setPackages] = useState([]);
     const [filtered, setFiltered] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -148,6 +151,9 @@ export default function PackageManager() {
     const [showArchived, setShowArchived] = useState(false);
 
     useEffect(() => { loadPackages(); }, []);
+    useEffect(() => {
+        if (isSuperAdmin) api.get('/centers').then(r => setCenters(r.data || [])).catch(() => {});
+    }, [isSuperAdmin]);
     useEffect(() => { applyFilters(); }, [packages, search, filterStatus, showArchived]);
 
     const loadPackages = async () => {
@@ -191,7 +197,7 @@ export default function PackageManager() {
             cancellation_window_hours: pkg.cancellation_window_hours ?? 24,
             price: pkg.price, tax_percentage: pkg.tax_percentage,
             is_published: pkg.is_published, description: pkg.description || '',
-            customValidity: '',
+            customValidity: '', center_id: pkg.center_id || '',
         });
         setCustomValidity(!VALIDITY_OPTIONS.slice(0, -1).some(o => o.days === pkg.validity_days));
         setShowForm(true);
@@ -201,12 +207,12 @@ export default function PackageManager() {
         try {
             const { name, applicable_grades, applicable_courses, validity_days, total_sessions,
                 session_duration_minutes, makeup_sessions, cancellation_window_hours,
-                prorate_enabled, price, tax_percentage, description } = pkg;
+                prorate_enabled, price, tax_percentage, description, center_id } = pkg;
             await api.post('/admin/packages', {
                 name: `${name} (Copy)`, applicable_grades, applicable_courses, validity_days,
                 total_sessions, session_duration_minutes, makeup_sessions,
                 makeup_validity_days: validity_days, cancellation_window_hours,
-                prorate_enabled, price, tax_percentage, description, is_published: false,
+                prorate_enabled, price, tax_percentage, description, is_published: false, center_id,
             });
             await loadPackages();
         } catch (err) {
@@ -440,6 +446,19 @@ export default function PackageManager() {
                                     placeholder="e.g. Monthly Pro, Quarterly Elite..."
                                     className="w-full bg-slate-50 border border-slate-100 rounded-3xl p-4 text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-[#463a7a]/10 transition-all" />
                             </div>
+
+                            {/* Center — super_admin only; packages belong to exactly one center */}
+                            {isSuperAdmin && (
+                                <div className="space-y-2">
+                                    <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Center *</label>
+                                    <select required value={formData.center_id}
+                                        onChange={e => setFormData(f => ({ ...f, center_id: e.target.value ? parseInt(e.target.value) : '' }))}
+                                        className="w-full bg-slate-50 border border-slate-100 rounded-3xl p-4 text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-[#463a7a]/10 transition-all">
+                                        <option value="">Select a center...</option>
+                                        {centers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                    </select>
+                                </div>
+                            )}
 
                             {/* Applicable Grades */}
                             <div className="space-y-3">
