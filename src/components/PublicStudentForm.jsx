@@ -172,28 +172,13 @@ export default function PublicStudentForm() {
                     <img src={formMeta.header_image_url} alt="" className="w-full max-h-56 object-cover" />
                 )}
 
-                {/* Header */}
-                <div className="bg-[#463a7a] text-white p-7 text-center">
-                    <div className="text-2xl font-black tracking-[3px] mb-1">VAMA</div>
-                    <p className="text-indigo-200/80 text-xs font-bold">Enroll With Us</p>
-                    {lockedCenter ? (
-                        <div className="mt-3 inline-flex items-center gap-1.5 px-4 py-1.5 bg-white/10 rounded-full text-[11px] font-black tracking-widest uppercase text-indigo-200">
-                            <MapPin size={11} /> {lockedCenter.name}
-                        </div>
-                    ) : (
-                        <p className="text-[10px] font-black uppercase tracking-widest text-indigo-200/60 mt-3">
-                            Tell us about you and we'll get you started
-                        </p>
-                    )}
-                </div>
-
                 {formMeta?.description && (
                     <div className="px-7 pt-6 text-sm text-slate-600 font-medium leading-relaxed whitespace-pre-wrap">
                         {formMeta.description}
                     </div>
                 )}
 
-                <form onSubmit={submit} className="p-7 space-y-5">
+                <form onSubmit={submit} className={`p-7 space-y-5 ${!formMeta?.header_image_url && !formMeta?.description ? 'pt-10' : ''}`}>
                     {error && (
                         <div className="bg-red-50 border border-red-200 text-red-600 p-3 rounded-2xl text-sm font-bold flex items-center gap-2">
                             <AlertCircle size={15} /> {error}
