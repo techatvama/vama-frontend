@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { api } from '../../lib/api';
 import {
     Loader2, ExternalLink, Copy, Save, CheckCircle2, Lock,
-    GripVertical, Eye, EyeOff, Plus, Trash2, X,
+    GripVertical, Eye, EyeOff, Plus, Trash2, X, Image as ImageIcon, Settings, RefreshCw,
 } from 'lucide-react';
 
 const TYPE_LABELS = {
@@ -33,6 +33,7 @@ export default function FormBuilder({ centerName }) {
     const [newType, setNewType] = useState('text');
     const [newRequired, setNewRequired] = useState(false);
     const [newOptions, setNewOptions] = useState('');
+    const [showMeta, setShowMeta] = useState(false);
 
     const enrollLink = centerName ? `${window.location.origin}/apply?center=${encodeURIComponent(centerName)}` : `${window.location.origin}/apply`;
 
@@ -104,6 +105,10 @@ export default function FormBuilder({ centerName }) {
             <div className="bg-white rounded-2xl shadow-sm border border-slate-100 px-5 py-3 flex items-center justify-between gap-3 flex-wrap">
                 <p className="text-sm font-black text-slate-800">Admission Form</p>
                 <div className="flex items-center gap-2 flex-shrink-0">
+                    <button onClick={() => setShowMeta(true)}
+                        className="flex items-center gap-1.5 px-3 py-2 bg-slate-50 border border-slate-200 text-slate-600 rounded-xl text-xs font-black hover:border-[#463a7a] hover:text-[#463a7a] transition-all">
+                        <Settings size={12} /> Description &amp; Image
+                    </button>
                     <button onClick={copyLink}
                         className="flex items-center gap-1.5 px-3 py-2 bg-slate-50 border border-slate-200 text-slate-600 rounded-xl text-xs font-black hover:border-[#463a7a] hover:text-[#463a7a] transition-all">
                         {copied ? <><CheckCircle2 size={12} className="text-emerald-500" /> Copied!</> : <><Copy size={12} /> Copy Link</>}
@@ -223,6 +228,125 @@ export default function FormBuilder({ centerName }) {
                     )}
                 </div>
             )}
+
+            {showMeta && <FormMetaModal onClose={() => setShowMeta(false)} />}
+        </div>
+    );
+}
+
+function FormMetaModal({ onClose }) {
+    const [description, setDescription] = useState('');
+    const [imageUrl, setImageUrl] = useState('');
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+    const [uploading, setUploading] = useState(false);
+    const [error, setError] = useState('');
+    const fileRef = useRef(null);
+
+    useEffect(() => {
+        api.get('/admin/form-meta')
+            .then(res => {
+                setDescription(res.data?.description || '');
+                setImageUrl(res.data?.header_image_url || '');
+            })
+            .catch(e => console.error(e))
+            .finally(() => setLoading(false));
+    }, []);
+
+    const handleFile = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setError('');
+        setUploading(true);
+        try {
+            const fd = new FormData();
+            fd.append('file', file);
+            const res = await api.post('/admin/upload-form-header-image', fd, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+            });
+            setImageUrl(res.data.header_image_url);
+        } catch (err) {
+            setError(err?.response?.data?.detail || 'Failed to upload image');
+        } finally {
+            setUploading(false);
+            if (fileRef.current) fileRef.current.value = '';
+        }
+    };
+
+    const save = async () => {
+        setSaving(true);
+        setError('');
+        try {
+            await api.put('/admin/form-meta', { description, header_image_url: imageUrl || null });
+            onClose();
+        } catch (err) {
+            setError(err?.response?.data?.detail || 'Failed to save');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+            <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl max-h-[85vh] overflow-y-auto">
+                <div className="p-6 space-y-5">
+                    <div className="flex items-center justify-between">
+                        <h3 className="text-base font-black text-slate-900">Form Description &amp; Image</h3>
+                        <button onClick={onClose} className="text-slate-300 hover:text-slate-500"><X size={20} /></button>
+                    </div>
+
+                    {loading ? (
+                        <div className="flex items-center justify-center py-12"><Loader2 className="animate-spin text-[#463a7a]" size={24} /></div>
+                    ) : (
+                        <>
+                            <div className="space-y-2">
+                                <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Form description</label>
+                                <textarea value={description} onChange={e => setDescription(e.target.value)}
+                                    rows={5} placeholder="Shown above the form fields — e.g. intro text, contact details..."
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm text-slate-700 resize-none focus:outline-none focus:ring-2 focus:ring-[#463a7a]/15" />
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Image</label>
+                                {imageUrl ? (
+                                    <div className="space-y-2">
+                                        <img src={imageUrl} alt="Form header" className="w-full max-h-40 object-cover rounded-xl border border-slate-200" />
+                                        <div className="flex gap-2">
+                                            <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading}
+                                                className="flex items-center gap-1.5 px-3 py-2 bg-slate-50 border border-slate-200 text-slate-600 rounded-xl text-xs font-black hover:border-[#463a7a] hover:text-[#463a7a] transition-all disabled:opacity-50">
+                                                {uploading ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />} Replace
+                                            </button>
+                                            <button type="button" onClick={() => setImageUrl('')}
+                                                className="flex items-center gap-1.5 px-3 py-2 bg-red-50 border border-red-100 text-red-500 rounded-xl text-xs font-black hover:bg-red-100 transition-all">
+                                                <Trash2 size={12} /> Delete
+                                            </button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading}
+                                        className="w-full flex flex-col items-center justify-center gap-2 py-8 bg-slate-50 border-2 border-dashed border-slate-200 rounded-xl text-slate-400 hover:border-[#463a7a] hover:text-[#463a7a] transition-all disabled:opacity-50">
+                                        {uploading ? <Loader2 size={20} className="animate-spin" /> : <ImageIcon size={20} />}
+                                        <span className="text-xs font-black">{uploading ? 'Uploading…' : 'Upload header image'}</span>
+                                    </button>
+                                )}
+                                <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp" onChange={handleFile} className="hidden" />
+                            </div>
+
+                            {error && <p className="text-xs font-bold text-red-500">{error}</p>}
+
+                            <div className="flex justify-end gap-2 pt-2">
+                                <button onClick={onClose} className="px-4 py-2.5 bg-white border border-slate-200 text-slate-500 rounded-xl text-sm font-black hover:bg-slate-50 transition-all">
+                                    Cancel
+                                </button>
+                                <button onClick={save} disabled={saving}
+                                    className="px-5 py-2.5 bg-[#463a7a] text-white rounded-xl text-sm font-black hover:bg-[#3a2f66] transition-all disabled:opacity-50">
+                                    {saving ? 'Saving…' : 'Save'}
+                                </button>
+                            </div>
+                        </>
+                    )}
+                </div>
+            </div>
         </div>
     );
 }

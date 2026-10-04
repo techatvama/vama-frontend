@@ -58,6 +58,7 @@ function DynField({ field, value, onChange, centers, subjects }) {
 
 export default function PublicStudentForm() {
     const [formConfig, setFormConfig] = useState(null);
+    const [formMeta, setFormMeta] = useState(null);
     const [form, setForm] = useState({});
     const [centers, setCenters] = useState([]);
     const [subjects, setSubjects] = useState([]);
@@ -73,11 +74,13 @@ export default function PublicStudentForm() {
         Promise.all([
             api.get('/centers').catch(() => ({ data: [] })),
             api.get('/public/form-config', { params: centerParam ? { center: centerParam } : {} }).catch(() => ({ data: null })),
-        ]).then(([centersRes, configRes]) => {
+            api.get('/public/form-meta', { params: centerParam ? { center: centerParam } : {} }).catch(() => ({ data: null })),
+        ]).then(([centersRes, configRes, metaRes]) => {
             const loadedCenters = centersRes.data || [];
             const config = configRes.data;
             setCenters(loadedCenters);
             setFormConfig(Array.isArray(config) ? config : null);
+            setFormMeta(metaRes.data || null);
 
             // Initialize form values
             const initial = {};
@@ -164,6 +167,11 @@ export default function PublicStudentForm() {
         <div className="min-h-screen bg-[#f4f3f8] flex items-center justify-center p-4 py-10">
             <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-2xl overflow-hidden">
 
+                {/* Header banner image, if the center uploaded one */}
+                {formMeta?.header_image_url && (
+                    <img src={formMeta.header_image_url} alt="" className="w-full max-h-56 object-cover" />
+                )}
+
                 {/* Header */}
                 <div className="bg-[#463a7a] text-white p-7 text-center">
                     <div className="text-2xl font-black tracking-[3px] mb-1">VAMA</div>
@@ -178,6 +186,12 @@ export default function PublicStudentForm() {
                         </p>
                     )}
                 </div>
+
+                {formMeta?.description && (
+                    <div className="px-7 pt-6 text-sm text-slate-600 font-medium leading-relaxed whitespace-pre-wrap">
+                        {formMeta.description}
+                    </div>
+                )}
 
                 <form onSubmit={submit} className="p-7 space-y-5">
                     {error && (
