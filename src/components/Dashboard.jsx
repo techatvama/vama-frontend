@@ -349,17 +349,35 @@ export default function Dashboard() {
         if (tid) payload.teacher_id = tid;
         else unmatched.push(`Teacher: ${teacherName} (no match)`);
       }
-      if (unmatched.length) {
-        payload.notes = [payload.notes, `Unmatched columns — ${unmatched.join("; ")}`].filter(Boolean).join(" | ");
-      }
 
-      payload._error = !payload.email ? "Missing email" : !payload.first_name ? "Missing first name" : null;
+      // Every row is created even with no contact info on file — email is
+      // the only field the backend hard-requires (it's the login handle),
+      // so a missing one gets a placeholder (derived from phone, or the
+      // row number) rather than blocking the whole row. First name falls
+      // back similarly so a totally blank name doesn't block it either.
+      let placeholder = false;
+      if (!payload.email) {
+        placeholder = true;
+        payload.email = payload.primary_phone_number
+          ? `${payload.primary_phone_number.replace(/\s+/g, "")}@noemail.vamaacademy.in`
+          : `row${idx + 2}@noemail.vamaacademy.in`;
+      }
+      if (!payload.first_name) {
+        placeholder = true;
+        payload.first_name = `Student (Row ${idx + 2})`;
+      }
+      const noteParts = [payload.notes];
+      if (unmatched.length) noteParts.push(`Unmatched columns — ${unmatched.join("; ")}`);
+      if (placeholder) noteParts.push("No real email/name on file at import — needs follow-up.");
+      payload.notes = noteParts.filter(Boolean).join(" | ");
+
+      payload._placeholder = placeholder;
       return payload;
     });
 
     setBulkResults(null);
     setBulkRows(parsed);
-    setBulkCreateSel(new Set(parsed.filter(r => !r._error).map(r => r._row)));
+    setBulkCreateSel(new Set(parsed.map(r => r._row)));
   };
 
   const toggleBulkRowSel = (rowId) => {
@@ -371,7 +389,7 @@ export default function Dashboard() {
   };
 
   const toggleBulkSelAll = () => {
-    const selectable = bulkRows.filter(r => !r._error).map(r => r._row);
+    const selectable = bulkRows.map(r => r._row);
     setBulkCreateSel(prev =>
       selectable.every(id => prev.has(id)) ? new Set() : new Set(selectable)
     );
@@ -447,7 +465,7 @@ export default function Dashboard() {
 
     const submitRow = async (row) => {
       try {
-        const { _row, _error, ...payload } = row;
+        const { _row, _placeholder, ...payload } = row;
         await api.post("/students", payload);
         return { row, ok: true };
       } catch (err) {
@@ -502,8 +520,8 @@ export default function Dashboard() {
                   <p className="text-sm text-slate-500 mb-4">
                     Column headers were matched automatically to this center's form fields —
                     any column that couldn't be matched was kept under Notes instead of being dropped.
-                    Each row will create a new student account and send an activation email;
-                    rows with errors will be skipped.
+                    Every row is created, even with missing email/phone/name — those get a
+                    placeholder login email and are flagged below for follow-up.
                   </p>
                 )}
                 <table className="min-w-full text-sm">
@@ -513,7 +531,7 @@ export default function Dashboard() {
                         <th className="py-2 pr-3 w-8">
                           <input
                             type="checkbox"
-                            checked={bulkRows.filter(r => !r._error).length > 0 && bulkRows.filter(r => !r._error).every(r => bulkCreateSel.has(r._row))}
+                            checked={bulkRows.length > 0 && bulkRows.every(r => bulkCreateSel.has(r._row))}
                             onChange={toggleBulkSelAll}
                           />
                         </th>
@@ -533,7 +551,6 @@ export default function Dashboard() {
                           <td className="py-2 pr-3">
                             <input
                               type="checkbox"
-                              disabled={!!row._error}
                               checked={bulkCreateSel.has(row._row)}
                               onChange={() => toggleBulkRowSel(row._row)}
                             />
@@ -546,8 +563,8 @@ export default function Dashboard() {
                         <td className="py-2 pr-3">{row.nearest_vama_center || "—"}</td>
                         <td className="py-2 pr-3">
                           {ok === null ? (
-                            row._error
-                              ? <span className="text-red-600 flex items-center gap-1"><XCircle size={14} />{row._error}</span>
+                            row._placeholder
+                              ? <span className="text-amber-600 flex items-center gap-1"><AlertTriangle size={14} />Placeholder email/name</span>
                               : <span className="text-slate-400">Ready</span>
                           ) : ok ? (
                             <span className="text-emerald-600 flex items-center gap-1"><CheckCircle2 size={14} />Created</span>
