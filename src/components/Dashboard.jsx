@@ -8,10 +8,76 @@ import { Search, ChevronLeft, ChevronRight, Edit, Loader2, Users, UserCheck, Use
 import { useNavigate } from "react-router";
 import * as XLSX from "xlsx";
 
-const BULK_UPLOAD_TEMPLATE_COLUMNS = [
-  "First Name", "Last Name", "Email", "Phone", "Gender",
-  "Course", "Center", "Teacher", "Address", "Date of Birth",
+// ── Flexible bulk-upload column matching ──────────────────────────────────
+// Instead of requiring a fixed template, every uploaded column header is
+// matched (by normalized text, exact first then fuzzy) against the fields
+// this center's own admission form actually has configured — both the
+// standard Student fields and any custom fields the center added via the
+// Form Builder — so any spreadsheet shape can be dropped in as-is.
+const norm = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+
+const BASE_FIELD_SYNONYMS = [
+  ["first_name", ["first name", "firstname", "fname", "given name"]],
+  ["last_name", ["last name", "lastname", "lname", "surname", "family name"]],
+  ["email", ["email", "email address", "e mail", "mail", "login email"]],
+  ["primary_phone_number", ["phone", "phone number", "mobile", "mobile number", "contact number", "contact", "whatsapp", "whatsapp number", "telephone"]],
+  ["date_of_birth", ["date of birth", "dob", "birthday", "birth date"]],
+  ["gender", ["gender", "sex"]],
+  ["desired_course", ["course", "desired course", "instrument", "subject"]],
+  ["nearest_vama_center", ["center", "centre", "nearest vama center", "branch", "location"]],
+  ["address", ["address", "home address", "residential address"]],
+  ["guardian_email", ["guardian email", "parent email"]],
+  ["preferred_mode_of_contact", ["preferred contact", "preferred mode of contact", "contact mode"]],
+  ["parent_name", ["parent name", "guardian name", "parent", "father name", "mother name"]],
+  ["city", ["city", "town"]],
+  ["state", ["state", "region", "province"]],
+  ["state_code", ["state code"]],
+  ["class_frequency", ["frequency", "class frequency", "classes per week"]],
+  ["emergency_contact", ["emergency contact", "emergency phone"]],
+  ["blood_group", ["blood group", "blood type"]],
+  ["allergies", ["allergies", "allergy"]],
+  ["referrer", ["referrer", "referred by", "how did you hear about us", "source"]],
+  ["notes", ["notes", "remarks", "comments", "additional notes"]],
+  ["__full_name", ["name", "full name", "student name", "child name"]],
+  ["__teacher_name", ["teacher", "teacher name", "instructor"]],
 ];
+
+function buildFieldCandidates(formConfig) {
+  const map = new Map();
+  for (const [key, syns] of BASE_FIELD_SYNONYMS) {
+    map.set(key, new Set([norm(key.replace(/_/g, " ")), ...syns.map(norm)]));
+  }
+  // Layer in this center's own live form config — a custom field's label
+  // (or a renamed standard field's label) becomes an extra match pattern,
+  // and a genuinely custom field (key starting with custom_) gets its own
+  // bucket keyed by that id, so values land exactly where the Form Builder put them.
+  (formConfig || []).forEach(f => {
+    const key = f.key;
+    if (!map.has(key)) map.set(key, new Set());
+    map.get(key).add(norm(f.label));
+    map.get(key).add(norm(key));
+  });
+  return map;
+}
+
+function matchColumn(header, fieldMap) {
+  const h = norm(header);
+  if (!h) return null;
+  for (const [key, patterns] of fieldMap) {
+    if (patterns.has(h)) return key;
+  }
+  let best = null, bestScore = 0;
+  for (const [key, patterns] of fieldMap) {
+    for (const p of patterns) {
+      if (!p) continue;
+      if (h.includes(p) || p.includes(h)) {
+        const score = Math.min(h.length, p.length) / Math.max(h.length, p.length);
+        if (score > bestScore) { bestScore = score; best = key; }
+      }
+    }
+  }
+  return bestScore >= 0.5 ? best : null;
+}
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -228,13 +294,6 @@ export default function Dashboard() {
     XLSX.writeFile(wb, `students-${stamp}.xlsx`);
   };
 
-  const handleDownloadTemplate = () => {
-    const ws = XLSX.utils.aoa_to_sheet([BULK_UPLOAD_TEMPLATE_COLUMNS]);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Students");
-    XLSX.writeFile(wb, "students-bulk-upload-template.xlsx");
-  };
-
   const handleBulkFileChange = async (e) => {
     const file = e.target.files?.[0];
     e.target.value = ""; // allow re-selecting the same file later
@@ -244,34 +303,58 @@ export default function Dashboard() {
     const wb = XLSX.read(buf, { type: "array" });
     const sheet = wb.Sheets[wb.SheetNames[0]];
     const rows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+    if (rows.length === 0) return;
+
+    // Build the field map once per upload from this center's own live form
+    // config, so the match reflects whatever fields/labels this center
+    // actually uses (including any custom fields it added).
+    let formConfig = [];
+    try {
+      const res = await api.get("/admin/form-config");
+      formConfig = Array.isArray(res.data) ? res.data : [];
+    } catch (err) { console.error(err); }
+    const fieldMap = buildFieldCandidates(formConfig);
+
+    const headers = Object.keys(rows[0]);
+    const columnMatch = new Map(headers.map(h => [h, matchColumn(h, fieldMap)]));
 
     const teacherByName = new Map(
       staffList.map(t => [String(t.name || "").trim().toLowerCase(), t.id])
     );
 
     const parsed = rows.map((r, idx) => {
-      const get = (...keys) => {
-        for (const k of keys) {
-          if (r[k] !== undefined && String(r[k]).trim() !== "") return String(r[k]).trim();
-        }
-        return "";
-      };
-      const email = get("Email", "email");
-      const teacherName = get("Teacher", "teacher");
-      return {
-        _row: idx + 2, // +2: header row + 1-indexing, matches spreadsheet line number
-        first_name: get("First Name", "first_name"),
-        last_name: get("Last Name", "last_name"),
-        email,
-        primary_phone_number: get("Phone", "Primary Phone Number", "primary_phone_number"),
-        gender: get("Gender", "gender"),
-        desired_course: get("Course", "Desired Course", "desired_course"),
-        nearest_vama_center: get("Center", "nearest_vama_center"),
-        address: get("Address", "address"),
-        date_of_birth: get("Date of Birth", "date_of_birth"),
-        teacher_id: teacherName ? teacherByName.get(teacherName.toLowerCase()) : undefined,
-        _error: !email ? "Missing email" : !get("First Name", "first_name") ? "Missing first name" : null,
-      };
+      const payload = { _row: idx + 2 }; // +2: header row + 1-indexing, matches spreadsheet line number
+      const unmatched = [];
+      let fullName = "";
+      let teacherName = "";
+
+      headers.forEach(h => {
+        const raw = r[h];
+        const value = raw === undefined || raw === null ? "" : String(raw).trim();
+        if (!value) return;
+        const key = columnMatch.get(h);
+        if (!key) { unmatched.push(`${h}: ${value}`); return; }
+        if (key === "__full_name") { fullName = value; return; }
+        if (key === "__teacher_name") { teacherName = value; return; }
+        payload[key] = value;
+      });
+
+      if (!payload.first_name && fullName) {
+        const parts = fullName.split(/\s+/);
+        payload.first_name = parts[0];
+        if (parts.length > 1) payload.last_name = parts.slice(1).join(" ");
+      }
+      if (teacherName) {
+        const tid = teacherByName.get(teacherName.toLowerCase());
+        if (tid) payload.teacher_id = tid;
+        else unmatched.push(`Teacher: ${teacherName} (no match)`);
+      }
+      if (unmatched.length) {
+        payload.notes = [payload.notes, `Unmatched columns — ${unmatched.join("; ")}`].filter(Boolean).join(" | ");
+      }
+
+      payload._error = !payload.email ? "Missing email" : !payload.first_name ? "Missing first name" : null;
+      return payload;
     });
 
     setBulkResults(null);
@@ -417,8 +500,10 @@ export default function Dashboard() {
               <div className="overflow-y-auto px-6 py-4 flex-1">
                 {!bulkResults && (
                   <p className="text-sm text-slate-500 mb-4">
-                    Each row will create a new student account and send an activation email.
-                    Rows with errors will be skipped.
+                    Column headers were matched automatically to this center's form fields —
+                    any column that couldn't be matched was kept under Notes instead of being dropped.
+                    Each row will create a new student account and send an activation email;
+                    rows with errors will be skipped.
                   </p>
                 )}
                 <table className="min-w-full text-sm">
@@ -747,12 +832,6 @@ export default function Dashboard() {
                 className="flex items-center justify-center gap-2 px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-sm font-semibold transition-colors"
               >
                 <Upload size={15} /> Bulk Upload
-              </button>
-              <button
-                onClick={handleDownloadTemplate}
-                className="text-xs text-slate-400 hover:text-[#463a7a] underline underline-offset-2 transition-colors"
-              >
-                Template
               </button>
               <button
                 onClick={handleDownloadExcel}
