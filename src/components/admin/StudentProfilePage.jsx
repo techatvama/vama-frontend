@@ -920,9 +920,16 @@ export default function StudentProfilePage() {
 
     // ── Admin-focused metrics ──
     const overallGrade = student.performance?.overall_grade ?? '—';
-    const paymentStatus = outstanding > 0
-      ? outstanding > outstanding * 0.2 ? 'Overdue' : 'Partial'
-      : 'Paid';
+    // Driven by the most recent invoice's own status, not a derived guess
+    // from the outstanding balance — a ₹0 invoice has $0 outstanding too,
+    // but that doesn't mean it's been paid.
+    const latestInvoice = student.financial?.payment_history?.[0];
+    const paymentStatus = !latestInvoice ? 'No Invoice'
+      : latestInvoice.status === 'paid' ? 'Paid'
+      : latestInvoice.status === 'partial' ? 'Partial'
+      : latestInvoice.status === 'cancelled' ? 'Cancelled'
+      : latestInvoice.status === 'overdue' ? 'Overdue'
+      : 'Pending';
 
     const tabs = [
         { id: 'overview', label: 'Overview', icon: Activity },
@@ -1075,7 +1082,12 @@ export default function StudentProfilePage() {
                               className="bg-white/10 backdrop-blur rounded-xl p-3 text-center border border-white/10 hover:bg-white/20 hover:border-white/30 transition-all cursor-pointer group"
                               title="Click to view payments and invoices"
                             >
-                                <div className={`text-lg font-black group-hover:scale-110 transition-transform ${paymentStatus === 'Paid' ? 'text-emerald-300' : paymentStatus === 'Partial' ? 'text-yellow-300' : 'text-red-300'}`}>
+                                <div className={`text-lg font-black group-hover:scale-110 transition-transform ${
+                                    paymentStatus === 'Paid' ? 'text-emerald-300'
+                                    : paymentStatus === 'Partial' || paymentStatus === 'Pending' ? 'text-yellow-300'
+                                    : paymentStatus === 'Overdue' ? 'text-red-300'
+                                    : 'text-white/50'
+                                }`}>
                                     {paymentStatus}
                                 </div>
                                 {outstanding > 0 && <div className="text-xs text-orange-200 mt-0.5">₹{outstanding.toLocaleString()}</div>}
