@@ -122,8 +122,8 @@ export default function InvoiceCreator() {
     const submit = async () => {
         setError('');
         if (!studentId) { setError('Select a student.'); return; }
-        const valid = items.filter(it => it.label && Number(it.unit_price) > 0);
-        if (valid.length === 0) { setError('Add at least one item with a price.'); return; }
+        const valid = items.filter(it => it.label && Number(it.unit_price) >= 0);
+        if (valid.length === 0) { setError('Add at least one item.'); return; }
         setSaving(true);
         try {
             const res = await api.post('/admin/invoices', {
